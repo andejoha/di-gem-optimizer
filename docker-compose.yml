@@ -1,0 +1,7 @@
+services:
+  gem-optimizer:
+    build: .
+    image: gem-optimizer
+    container_name: di-gem-optimizer
+    ports:
+      - "8080:8080"
