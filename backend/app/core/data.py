@@ -277,6 +277,7 @@ GEMS: dict[int, GemDef] = {
     2030: _g(2030, "War Herald",        2, [1024, 2015, 2023]),
     2031: _g(2031, "Tundra Blight",     2, [1026, 2017, 2016]),
     2032: _g(2032, "The Crucible",      2, [1023, 2026, 2023]),
+    2033: _g(2033, "Baneboil",          2, [1028, 2029, 2028]),
 
     # ----- 1-star gems (1001–1029) -----
     # bonus_gem_ids: 2 entries per gem (rank 3, 7 unlocks)
