@@ -19,9 +19,19 @@ from app.core.data import GEMS
 from app.core.models import UpgradeOptimizationResult
 from app.core.pipeline import _run_pipeline
 from app.core.progress import NullReporter, ProgressReporter, QueueReporter
-from app.core.upgrades import apply_upgrades_greedy, filter_upgrades_to_socketed
+from app.core.upgrades import (
+    build_upgrade_chains,
+    compute_socket_counts,
+    filter_upgrades_to_socketed,
+    materialize_upgrades,
+)
 
 router = APIRouter(prefix="/api")
+
+
+def _gem_name(gem_id: int) -> str:
+    """Return the display name for a gem ID, falling back to the ID as a string."""
+    return GEMS[gem_id].name if gem_id in GEMS else str(gem_id)
 
 
 @router.get("/health", tags=["meta"])
@@ -167,69 +177,29 @@ def _run_optimization(
         response = domain_to_response(baseline, upgrade_result=None, inventory=inventory)
         return _finalize_r1_conversion(response, available_power_orig, r1_gems)
 
-    # Iterative upgrade passes: after each re-solve the new socket
-    # assignments may include gems that weren't socketed in the baseline,
-    # making them eligible for upgrade in the next pass.  This handles cases
-    # such as a second 5-star socket being "freed" when the first-pass upgrade
-    # of a high-rank gem causes the greedy to move it to a different slot.
-    _MAX_UPGRADE_PASSES = 4
+    # Build upgrade chains (one per socketable gem type) and run the
+    # max-out → optimize → downgrade walk.
+    socket_counts = compute_socket_counts(main_gems)
+    chains, leftover = build_upgrade_chains(inventory, socket_counts)
 
-    all_applied_raw = []        # Raw deltas from every committed pass (unfiltered)
-    current_inventory = inventory
-    current_result = baseline
-    accumulated_upgrade_cost = 0  # Cumulative total_upgrade_cost across passes
-    best_effective_residual = baseline.total_residual_cost  # Monotonically decreasing
+    for chain in chains:
+        if chain.steps:
+            rank_path = " → ".join(
+                [chain.base_sub_inventory[0].rank] + [step.to_rank for step in chain.steps]
+            )
+            logger.debug(
+                "upgrade chain: %s (gem_id=%d, %d-star)  %s  (%d steps, base_copies=%d)",
+                _gem_name(chain.gem_id), chain.gem_id, chain.star_rating, rank_path,
+                len(chain.steps), len(chain.base_sub_inventory),
+            )
+        else:
+            logger.debug(
+                "upgrade chain: %s (gem_id=%d, %d-star)  no steps (copies=%d)",
+                _gem_name(chain.gem_id), chain.gem_id, chain.star_rating,
+                len(chain.base_sub_inventory),
+            )
 
-    for pass_idx in range(_MAX_UPGRADE_PASSES):
-        logger.info("upgrade pass %d: evaluating (baseline residual=%d)", pass_idx + 1, current_result.total_residual_cost)
-        pass_inventory, pass_applied, pass_cost = apply_upgrades_greedy(
-            inventory=current_inventory,
-            available_power=available_power - accumulated_upgrade_cost,
-            baseline_result=current_result,
-            main_gems=main_gems,
-            progress=progress if pass_idx == 0 else NullReporter(),
-        )
-
-        if not pass_applied:
-            logger.info("upgrade pass %d: no upgrades found", pass_idx + 1)
-            break
-
-        logger.info(
-            "upgrade pass %d: %d upgrade(s) applied, cost=%d — re-solving",
-            pass_idx + 1, len(pass_applied), pass_cost,
-        )
-        if pass_idx == 0:
-            progress.report("upgrades_rerun", "running", detail="Re-optimizing with upgrades...", force=True)
-        re_solved = _run_pipeline(
-            available_power, main_gems, skipped_slots, pass_inventory,
-            progress=progress if pass_idx == 0 else NullReporter(),
-            stage_prefix="rerun_" if pass_idx == 0 else f"rerun_pass{pass_idx}_",
-        )
-
-        # Only commit this pass if it strictly improves on the best result seen so
-        # far (not just vs the original baseline), guaranteeing monotonic improvement
-        # across passes.  A pass that is better than baseline but worse than the
-        # previous committed pass would be a regression and must not be applied.
-        candidate_raw = all_applied_raw + pass_applied
-        candidate_filtered, _, _ = filter_upgrades_to_socketed(candidate_raw, re_solved.gem_assignments)
-        candidate_filtered_cost = sum(d.additional_gem_power for d in candidate_filtered)
-        pass_effective_residual = re_solved.total_residual_cost + candidate_filtered_cost
-        if pass_effective_residual >= best_effective_residual:
-            logger.info("upgrade pass %d: no improvement (effective_residual=%d), stopping", pass_idx + 1, pass_effective_residual)
-            break
-
-        logger.info(
-            "upgrade pass %d: effective_residual %d→%d (re-solve residual=%d, upgrade cost=%d)",
-            pass_idx + 1, best_effective_residual, pass_effective_residual,
-            re_solved.total_residual_cost, pass_cost,
-        )
-        best_effective_residual = pass_effective_residual
-        all_applied_raw = candidate_raw
-        accumulated_upgrade_cost += pass_cost
-        current_inventory = pass_inventory
-        current_result = re_solved
-
-    if not all_applied_raw:
+    if not any(c.steps for c in chains):
         upgrade_result = UpgradeOptimizationResult(
             baseline=baseline,
             upgraded=baseline,
@@ -241,49 +211,215 @@ def _run_optimization(
         response = domain_to_response(baseline, upgrade_result=upgrade_result, inventory=inventory)
         return _finalize_r1_conversion(response, available_power_orig, r1_gems)
 
-    filtered_upgrades, dropped_ops, gems_to_restore = filter_upgrades_to_socketed(
-        all_applied_raw, current_result.gem_assignments
-    )
-    filtered_cost = sum(d.additional_gem_power for d in filtered_upgrades)
-    effective_residual = current_result.total_residual_cost + filtered_cost
+    progress.report("upgrades", "running", detail="Evaluating upgrade potential...", force=True)
+
+    for chain in chains:
+        if chain.steps:
+            logger.info(
+                "upgrade candidate: %s (gem_id=%d, %d-star)  %s → %s  (gem_power=%d)",
+                _gem_name(chain.gem_id), chain.gem_id, chain.star_rating,
+                chain.base_sub_inventory[0].rank,
+                chain.steps[-1].to_rank,
+                sum(step.gem_power_cost for step in chain.steps),
+            )
+
+    # Split chains by star rating.  The walk fully exhausts 2-star options before
+    # touching any 5-star chain: 5-star gems have a higher gem-power-per-upgrade-cost
+    # ratio (~0.64 vs ~0.26 for 2-star) so they should be preserved as long as possible.
+    chains_2 = [c for c in chains if c.star_rating == 2]
+    chains_5 = [c for c in chains if c.star_rating == 5]
+    all_chains = chains_2 + chains_5  # order matters: 2-star depths first
+    depths_5 = [len(c.steps) for c in chains_5]
+
+    best_candidate: dict | None = None
+    first_pipeline_run = True
+
+    def _socketed_set(gem_assignments):
+        return {
+            (assignment.gem.gem_id, assignment.gem.star_rating, assignment.gem.rank)
+            for assignments in gem_assignments.values()
+            for assignment in assignments
+            if assignment.gem is not None
+        }
+
+    def _find_peel(chain_list, depth_list, socketed):
+        """Return the index of the highest-contribution socketed chain at depth > 0."""
+        best_index, best_contribution = -1, -1
+        for index, (chain, depth) in enumerate(zip(chain_list, depth_list)):
+            if depth == 0:
+                continue
+            if (chain.gem_id, chain.star_rating, chain.steps[depth - 1].to_rank) not in socketed:
+                continue
+            contribution = chain.steps[depth - 1].contribution_after
+            if contribution > best_contribution or (
+                contribution == best_contribution and chain.gem_id < chain_list[best_index].gem_id
+            ):
+                best_contribution, best_index = contribution, index
+        return best_index
+
+    def _log_peel(chain, depth, effective_residual):
+        step = chain.steps[depth - 1]
+        contribution_after_removal = (
+            chain.steps[depth - 2].contribution_after if depth > 1
+            else chain.base_sub_inventory[0].contribution
+        )
+        logger.info(
+            "upgrade walk: downgrade %s (gem_id=%d, %d-star)  %s → %s  (contrib %d → %d, shortfall=%d)",
+            _gem_name(chain.gem_id), chain.gem_id, chain.star_rating,
+            step.to_rank, step.from_rank,
+            step.contribution_after, contribution_after_removal,
+            effective_residual - available_power,
+        )
+
+    # Only sockets in 5-star main gems reduce residual. Gems placed in 2-star
+    # main gem sockets don't offset awakening cost and must not be counted as
+    # "used" when deciding which upgrades to keep or which chains to peel.
+    five_star_slots = frozenset(mg.slot_name for mg in main_gems if mg.star_rating == 5)
+
+    def _residual_assignments(gem_assignments):
+        """Filter to only the slots where socketed gems actually reduce residual."""
+        return {slot: asgns for slot, asgns in gem_assignments.items() if slot in five_star_slots}
+
+    surplus_found = False
+    while not surplus_found:
+        # Restore 2-star chains to their maximum depth for this 5-star configuration.
+        depths_2 = [len(c.steps) for c in chains_2]
+
+        while True:
+            working, applied, _ = materialize_upgrades(all_chains, depths_2 + depths_5, leftover)
+            if not first_pipeline_run:
+                progress.report("upgrades_rerun", "running", detail="Re-optimizing with upgrades...", force=True)
+            result = _run_pipeline(
+                available_power, main_gems, skipped_slots, working,
+                progress=progress if first_pipeline_run else NullReporter(),
+            )
+            first_pipeline_run = False
+            relevant = _residual_assignments(result.gem_assignments)
+            filtered, dropped, restore = filter_upgrades_to_socketed(applied, relevant)
+            upgrade_cost = sum(delta.additional_gem_power for delta in filtered)
+            effective_residual = result.total_residual_cost + upgrade_cost
+
+            # Collapse all non-socketed 2-star chains to depth 0 immediately.
+            # A non-socketed chain at depth > 0 has its upgrade cost refunded by
+            # filter_upgrades_to_socketed, but the rank-1 fodder copies it consumed
+            # are gone from the inventory, inflating the residual. Restoring them
+            # always improves the effective residual, so we re-evaluate before
+            # recording the best candidate or checking for surplus.
+            socketed = _socketed_set(relevant)
+            non_socketed_indices = [
+                index for index, (chain, depth) in enumerate(zip(chains_2, depths_2))
+                if depth > 0
+                and (chain.gem_id, chain.star_rating, chain.steps[depth - 1].to_rank) not in socketed
+            ]
+            if non_socketed_indices:
+                for index in non_socketed_indices:
+                    depths_2[index] = 0
+                continue  # re-evaluate with fodder restored
+
+            # All non-socketed chains are at depth 0 — this is a clean state.
+            if best_candidate is None or effective_residual < best_candidate["effective_residual"]:
+                logger.info(
+                    "upgrade walk: new best  effective_residual=%d  residual=%d  upgrade_cost=%d  shortfall=%d",
+                    effective_residual, result.total_residual_cost, upgrade_cost,
+                    effective_residual - available_power_orig,
+                )
+                for slot_name, assignments in sorted(relevant.items()):
+                    socketed_gems = [
+                        f"{_gem_name(a.gem.gem_id)}@{a.gem.rank}({a.contribution})"
+                        for a in assignments if a.gem is not None
+                    ]
+                    if socketed_gems:
+                        logger.info("  %s: %s", slot_name, ", ".join(socketed_gems))
+                best_candidate = {
+                    "result": result, "filtered": filtered, "dropped": dropped,
+                    "restore": restore, "effective_residual": effective_residual,
+                    "upgrade_cost": upgrade_cost, "working": working,
+                }
+
+            if effective_residual <= available_power_orig:
+                surplus_found = True
+                break
+
+            peel_index_2 = _find_peel(chains_2, depths_2, socketed)
+            if peel_index_2 < 0:
+                break  # All 2-star at depth 0 — fall through to peel one 5-star
+
+            _log_peel(chains_2[peel_index_2], depths_2[peel_index_2], effective_residual)
+            depths_2[peel_index_2] -= 1
+
+        if surplus_found:
+            break
+
+        # All 2-star are exhausted for this 5-star configuration.
+        # Use the socketed set from the last evaluation to pick which 5-star to peel.
+        peel_index_5 = _find_peel(chains_5, depths_5, socketed)
+        if peel_index_5 < 0:
+            break  # no 5-star chains left to peel
+
+        _log_peel(chains_5[peel_index_5], depths_5[peel_index_5], effective_residual)
+        depths_5[peel_index_5] -= 1
+        # depths_2 will be reset to maximum at the top of the outer loop
+
+    # Unpack the chosen candidate.
+    chosen_result = best_candidate["result"]
+    filtered_upgrades = best_candidate["filtered"]
+    dropped_ops = best_candidate["dropped"]
+    gems_to_restore = best_candidate["restore"]
+    effective_residual = best_candidate["effective_residual"]
+    upgrade_cost = best_candidate["upgrade_cost"]
+    chosen_working = best_candidate["working"]
+
     improvement = baseline.total_residual_cost - effective_residual
 
     upgrade_result = UpgradeOptimizationResult(
         baseline=baseline,
-        upgraded=current_result,
+        upgraded=chosen_result,
         upgrades_applied=filtered_upgrades,
-        total_upgrade_cost=filtered_cost,
+        total_upgrade_cost=upgrade_cost,
         effective_residual=effective_residual,
         improvement=improvement,
     )
 
-    # Build display inventory: start from the final pass's upgraded inventory,
+    # Build display inventory: start from the chosen materialized inventory,
     # revert ranks for dropped upgrade targets, append consumed copies to restore.
-    assigned_ids = {
-        a.copy_id
-        for assignments in current_result.gem_assignments.values()
-        for a in assignments
-        if a.copy_id >= 0
+    assigned_copy_ids = {
+        assignment.copy_id
+        for assignments in chosen_result.gem_assignments.values()
+        for assignment in assignments
+        if assignment.copy_id >= 0
     }
-    display_inventory = copy.deepcopy(current_inventory)
+    display_inventory = copy.deepcopy(chosen_working)
     # Process dropped operations in reverse so multi-step chains unwind correctly
     # (e.g. rank 1→2→4.2 reverts 4.2→2 first, then 2→1).
     for _preps, main_delta in reversed(dropped_ops):
         if main_delta.pre_upgrade_gem is None:
             continue
-        for i, gem in enumerate(display_inventory):
+        for index, gem in enumerate(display_inventory):
             if (
-                i not in assigned_ids
+                index not in assigned_copy_ids
                 and gem.gem_id == main_delta.gem_id
                 and gem.star_rating == main_delta.star_rating
                 and gem.rank == main_delta.target_rank
             ):
-                display_inventory[i] = main_delta.pre_upgrade_gem
+                display_inventory[index] = main_delta.pre_upgrade_gem
                 break
     display_inventory.extend(gems_to_restore)
 
-    response = domain_to_response(current_result, upgrade_result=upgrade_result, inventory=display_inventory)
+    response = domain_to_response(chosen_result, upgrade_result=upgrade_result, inventory=display_inventory)
     return _finalize_r1_conversion(response, available_power_orig, r1_gems)
+
+
+def _log_assignment(response: OptimizeResponse) -> None:
+    for slot_name, slot_data in response.gem_results.model_dump().items():
+        if slot_data is None:
+            continue
+        contribs = [s["contribution"] for s in slot_data["sockets"] if s["contribution"]]
+        logger.info(
+            "assignment  %s: %s  residual=%d",
+            slot_name,
+            contribs if contribs else "(none)",
+            slot_data["residual_cost"],
+        )
 
 
 @router.post("/optimize", response_model=OptimizeResponse, tags=["gem-power-optimizer"])
@@ -316,6 +452,7 @@ def optimize(
         for s in response.gem_results.model_dump().values()
         if s is not None
     )
+    _log_assignment(response)
     logger.info(
         "POST /optimize  done %.2fs — residual=%d surplus=%d bonuses=%d",
         time.perf_counter() - t0,
@@ -359,6 +496,7 @@ async def optimize_stream(
         try:
             result = _run_optimization(request, enable_upgrades, convert_1star, progress=reporter)
             bonuses = sum(s["bonuses_activated"] for s in result.gem_results.model_dump().values() if s is not None)
+            _log_assignment(result)
             logger.info(
                 "POST /optimize/stream  done %.2fs — residual=%d surplus=%d bonuses=%d",
                 time.perf_counter() - _t_start,

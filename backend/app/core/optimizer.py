@@ -58,12 +58,14 @@ def solve_assignment(
 ) -> dict[str, list[tuple[int, InventoryGem]]]:
     """Assign inventory gem copies to main-gem sockets via a greedy closest-fit heuristic.
 
-    Each iteration picks the 5-star main gem with the highest remaining residual
-    cost, then assigns it the compatible inventory gem whose provided power is
-    closest to that residual (smallest ``|contribution - residual|``). On an exact
-    tie, the larger gem wins so the residual is fully covered. Residuals are
-    recomputed after every assignment; the loop exits when no main gem with
-    positive residual has a compatible gem and a free socket left.
+    Assignment runs in two sequential passes — 5-star inventory gems first, then
+    2-star — so that high-value 5-star gems are placed against the largest
+    residuals before 2-star gems fill the remaining sockets.  Within each pass
+    the same closest-fit heuristic applies: pick the 5-star main gem with the
+    highest remaining residual and assign it the pool gem whose contribution is
+    closest to that residual (smallest ``|contribution - residual|``). On an
+    exact tie, the larger gem wins so the residual is fully covered. Residuals
+    are recomputed after every assignment.
 
     Constraints respected:
       - Each inventory copy may be used in at most one socket globally.
@@ -107,67 +109,62 @@ def solve_assignment(
         main_gem.slot_name: [] for main_gem in five_star_gems
     }
 
-    # Copies with zero contribution never reduce residual cost, so exclude them.
-    # The remaining copies form a mutable pool; each may be used at most once.
-    available_copies = [
+    # All candidate copies, excluding zero-contribution gems.  Each copy may be
+    # used in at most one socket globally; used_copy_ids tracks assignments across
+    # both star-type passes.
+    all_copies = [
         (copy_id, gem)
         for copy_id, gem in expand_inventory(inventory)
         if gem.contribution > 0
     ]
+    used_copy_ids: set[int] = set()
 
-    while True:
-        # Find the main gem with the highest current residual that still has a
-        # free compatible socket and at least one matching gem left in the pool.
-        target_index = -1
-        target_key: tuple | None = None
-        for gem_index in range(len(five_star_gems)):
-            if residuals[gem_index] <= 0:
-                continue
-            available_star_types = {
-                star_type
-                for star_type, count in free_socket_count[gem_index].items()
-                if count > 0
-            }
-            if not available_star_types:
-                continue
-            if not any(gem.star_rating in available_star_types for _, gem in available_copies):
-                continue
-            # Highest residual wins; gem_index breaks ties for determinism across runs.
-            key = (residuals[gem_index], -gem_index)
-            if target_key is None or key > target_key:
-                target_key, target_index = key, gem_index
-        if target_index < 0:
-            break
+    # Two sequential passes: 5-star inventory gems first, then 2-star.  Within
+    # each pass the inner loop is the same closest-fit heuristic as before —
+    # pick the main gem with the highest residual and assign it the pool gem
+    # whose contribution is closest to that residual.
+    for star_pass in (5, 2):
+        available_copies = [
+            (copy_id, gem) for copy_id, gem in all_copies
+            if gem.star_rating == star_pass and copy_id not in used_copy_ids
+        ]
 
-        available_star_types = {
-            star_type
-            for star_type, count in free_socket_count[target_index].items()
-            if count > 0
-        }
+        while available_copies:
+            # Find the main gem with the highest current residual that still has
+            # a free socket of this star type.
+            target_index = -1
+            target_key: tuple | None = None
+            for gem_index in range(len(five_star_gems)):
+                if residuals[gem_index] <= 0:
+                    continue
+                if free_socket_count[gem_index].get(star_pass, 0) <= 0:
+                    continue
+                key = (residuals[gem_index], -gem_index)
+                if target_key is None or key > target_key:
+                    target_key, target_index = key, gem_index
+            if target_index < 0:
+                break
 
-        # Pick the gem whose power is closest to the current residual.
-        # On equal distance the larger gem wins to avoid under-filling the socket.
-        # copy_id breaks remaining ties so output is byte-stable across runs.
-        best_copy_index = -1
-        best_selection_key: tuple | None = None
-        for copy_index, (copy_id, gem) in enumerate(available_copies):
-            if gem.star_rating not in available_star_types:
-                continue
-            selection_key = (
-                abs(gem.contribution - residuals[target_index]),
-                -gem.contribution,
-                copy_id,
-            )
-            if best_selection_key is None or selection_key < best_selection_key:
-                best_selection_key, best_copy_index = selection_key, copy_index
+            # Pick the gem whose power is closest to the current residual.
+            # On equal distance the larger gem wins to avoid under-filling the socket.
+            # copy_id breaks remaining ties so output is byte-stable across runs.
+            best_copy_index = -1
+            best_selection_key: tuple | None = None
+            for copy_index, (copy_id, gem) in enumerate(available_copies):
+                selection_key = (
+                    abs(gem.contribution - residuals[target_index]),
+                    -gem.contribution,
+                    copy_id,
+                )
+                if best_selection_key is None or selection_key < best_selection_key:
+                    best_selection_key, best_copy_index = selection_key, copy_index
 
-        copy_id, gem = available_copies.pop(best_copy_index)
-        result[five_star_gems[target_index].slot_name].append((copy_id, gem))
-        free_socket_count[target_index][gem.star_rating] -= 1
-        residuals[target_index] = max(0, residuals[target_index] - gem.contribution)
+            copy_id, gem = available_copies.pop(best_copy_index)
+            used_copy_ids.add(copy_id)
+            result[five_star_gems[target_index].slot_name].append((copy_id, gem))
+            free_socket_count[target_index][gem.star_rating] -= 1
+            residuals[target_index] = max(0, residuals[target_index] - gem.contribution)
 
-    total_assigned = sum(len(slot_copies) for slot_copies in result.values())
-    logger.info("greedy assignment: %d 5-star slots, %d gems assigned", len(five_star_gems), total_assigned)
     return result
 
 
