@@ -9,14 +9,10 @@ import { generateId } from '../../utils/setupCodec';
 import GemPowerInput from './GemPowerInput';
 import InventoryGemDialog from './InventoryGemDialog';
 import InventoryGrid from './InventoryGrid';
-import TelluricFragmentsInput from './TelluricFragmentsInput';
 
 interface InventorySectionProps {
   gemPower: number;
   onGemPowerChange: (value: number) => void;
-  showTelluricInput: boolean;
-  telluricFragments: number;
-  onTelluricFragmentsChange: (value: number) => void;
   stacks: InventoryGemStack[];
   onStacksChange: (stacks: InventoryGemStack[]) => void;
 }
@@ -24,9 +20,6 @@ interface InventorySectionProps {
 export default function InventorySection({
   gemPower,
   onGemPowerChange,
-  showTelluricInput,
-  telluricFragments,
-  onTelluricFragmentsChange,
   stacks,
   onStacksChange,
 }: InventorySectionProps) {
@@ -90,9 +83,6 @@ export default function InventorySection({
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
         <Stack direction="row" spacing={2} alignItems="center">
           <GemPowerInput value={gemPower} onChange={onGemPowerChange} />
-          {showTelluricInput && (
-            <TelluricFragmentsInput value={telluricFragments} onChange={onTelluricFragmentsChange} />
-          )}
         </Stack>
         <IconButton size="xxs" icon="plus" onClick={handleOpenAdd} />
       </Stack>

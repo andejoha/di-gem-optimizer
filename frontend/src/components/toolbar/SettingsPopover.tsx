@@ -10,15 +10,11 @@ import IconButton from '../buttons/IconButton';
 import TextButton from '../buttons/TextButton';
 import FeatureToggle from './FeatureToggle';
 
-const SHOP_AVAILABLE = import.meta.env.VITE_ENABLE_SHOP === 'true';
-
 interface Props {
   enableUpgrades: boolean;
   onEnableUpgradesChange: () => void;
   convert1Star: boolean;
   onConvert1StarChange: () => void;
-  enableShop: boolean;
-  onEnableShopChange: () => void;
   isEmpty: boolean;
   disabled: boolean;
   onResetClick: () => void;
@@ -39,8 +35,6 @@ export default function SettingsPopover({
   onEnableUpgradesChange,
   convert1Star,
   onConvert1StarChange,
-  enableShop,
-  onEnableShopChange,
   isEmpty,
   disabled,
   onResetClick,
@@ -103,15 +97,6 @@ export default function SettingsPopover({
               onChange={onConvert1StarChange}
               disabled={disabled}
             />
-            {SHOP_AVAILABLE && (
-              <FeatureToggle
-                label="Telluric Fragments exchange"
-                tooltipLabel="Telluric Fragments exchange"
-                checked={enableShop}
-                onChange={onEnableShopChange}
-                disabled={disabled}
-              />
-            )}
           </Stack>
           <Divider sx={{ my: 1.5 }} />
           <Stack direction="row" spacing={1} sx={{ mb: 1 }}>

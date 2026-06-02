@@ -45,9 +45,3 @@ Locked sockets are excluded from assignments and displayed as ``[locked]``.
 
 MAX_SOCKETS: dict[int, int] = {1: 2, 2: 3, 5: 5}
 """Maximum number of awakening sockets per equipped gem, keyed by star rating."""
-
-# SHOP_WORKERS is intentionally not parsed here — it is read at call-time in
-# routes.py:_shop_worker_count so that changes to the env var take effect
-# without a server restart.  Values: positive int = use that many workers,
-# negative int = sequential (1), unset = use all logical CPUs up to n_candidates.
-# Set SHOP_WORKERS=1 to reproduce pre-parallelisation sequential behaviour.

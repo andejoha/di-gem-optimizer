@@ -50,10 +50,6 @@ class OptimizeRequest(BaseModel):
             "Each entry represents one physical copy; duplicate entries represent separate copies."
         ),
     )
-    telluric_fragments: int = Field(
-        default=0, ge=0,
-        description="Telluric Fragments available for purchasing gems from the shop."
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -127,20 +123,6 @@ class UpgradesResponse(BaseModel):
     baseline_summary: SummaryResponse
 
 
-class ShopPurchaseItem(BaseModel):
-    gem_id: int
-    star_rating: int
-    tf_cost: int
-    surplus_improvement: int
-
-
-class ShopResponse(BaseModel):
-    purchases: list[ShopPurchaseItem]
-    total_tf_spent: int
-    remaining_tf: int
-    baseline_summary: SummaryResponse
-
-
 class GemResults(BaseModel):
     head: Optional[SlotResponse] = None
     chest: Optional[SlotResponse] = None
@@ -170,7 +152,6 @@ class OptimizeResponse(BaseModel):
     summary: SummaryResponse
     gem_results: GemResults
     upgrades: Optional[UpgradesResponse] = None
-    shop: Optional[ShopResponse] = None
     remaining_inventory: list[RemainingInventoryItem] = []
     converted_gems: list[ConvertedGemItem] = []
 

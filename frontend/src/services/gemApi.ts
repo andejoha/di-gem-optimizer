@@ -21,12 +21,11 @@ export async function optimize(
   request: OptimizeRequest,
   enableUpgrades: boolean = false,
   convert1Star: boolean = false,
-  enableShop: boolean = false,
 ): Promise<OptimizeResponse> {
   const { data } = await apiClient.post<OptimizeResponse>(
     '/api/optimize',
     request,
-    { params: { enable_upgrades: enableUpgrades, convert_1star: convert1Star, enable_shop: enableShop } },
+    { params: { enable_upgrades: enableUpgrades, convert_1star: convert1Star } },
   );
   return data;
 }
@@ -35,14 +34,12 @@ export async function optimizeWithProgress(
   request: OptimizeRequest,
   enableUpgrades: boolean,
   convert1Star: boolean,
-  enableShop: boolean,
   onProgress: (event: ProgressEvent) => void,
 ): Promise<OptimizeResponse> {
   const baseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '';
   const params = new URLSearchParams({
     enable_upgrades: String(enableUpgrades),
     convert_1star: String(convert1Star),
-    enable_shop: String(enableShop),
   });
 
   const response = await fetch(`${baseUrl}/api/optimize/stream?${params}`, {

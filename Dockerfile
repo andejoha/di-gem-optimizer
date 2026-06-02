@@ -11,7 +11,6 @@ RUN npm ci
 COPY frontend/ ./
 
 ENV VITE_API_BASE_URL=""
-ENV VITE_ENABLE_SHOP=""
 RUN npm run build
 
 # ============================================================

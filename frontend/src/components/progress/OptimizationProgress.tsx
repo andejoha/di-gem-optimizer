@@ -21,23 +21,9 @@ interface Props {
 }
 
 export default function OptimizationProgress({ progress }: Props) {
-  const isShop = progress != null && progress.stage === 'shop';
-
-  const candidatesDone = isShop ? (progress!.candidates_done ?? null) : null;
-  const candidatesTotal = isShop ? (progress!.candidates_total ?? null) : null;
-  const shopProgress =
-    candidatesDone != null && candidatesTotal != null && candidatesTotal > 0
-      ? (candidatesDone / candidatesTotal) * 100
-      : null;
-
-  // Label: for shop, use the live detail text; for other stages fall back to static labels.
   const stageLabel = progress
-    ? (isShop
-        ? (progress.detail ?? 'Analyzing gem purchases...')
-        : (STAGE_LABELS[progress.stage] ?? progress.detail ?? 'Optimizing...'))
+    ? (STAGE_LABELS[progress.stage] ?? progress.detail ?? 'Optimizing...')
     : 'Optimizing...';
-
-  const isDeterminate = shopProgress != null;
 
   return (
     <Box
@@ -65,10 +51,7 @@ export default function OptimizationProgress({ progress }: Props) {
         <Typography variant="body1" sx={{ fontWeight: 'bold', textAlign: 'center' }}>
           Optimizing...
         </Typography>
-        <LinearProgress
-          variant={isDeterminate ? 'determinate' : 'indeterminate'}
-          value={isDeterminate ? shopProgress! : undefined}
-        />
+        <LinearProgress />
         <Typography variant="body2" color="text.secondary">
           {stageLabel}
         </Typography>

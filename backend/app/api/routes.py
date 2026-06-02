@@ -4,10 +4,8 @@ import asyncio
 import copy
 import json
 import logging
-import os
 import queue
 import time
-from concurrent.futures import ThreadPoolExecutor
 
 logger = logging.getLogger(__name__)
 
@@ -15,13 +13,12 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
 from app.api.converters import domain_to_response, request_to_domain
-from app.api.schemas import BonusSocket, ConvertedGemItem, GemInfo, InventoryItem, OptimizeRequest, OptimizeResponse, RemainingInventoryItem, ShopPurchaseItem, ShopResponse
-from app.core.config import BASE_POWER, SOCKET_UNLOCK_RANK
+from app.api.schemas import BonusSocket, ConvertedGemItem, GemInfo, OptimizeRequest, OptimizeResponse, RemainingInventoryItem
+from app.core.config import SOCKET_UNLOCK_RANK
 from app.core.data import GEMS
 from app.core.models import UpgradeOptimizationResult
 from app.core.pipeline import _run_pipeline
 from app.core.progress import NullReporter, ProgressReporter, QueueReporter
-from app.core.shop import ShopPurchase, TF_COST, get_shop_candidates
 from app.core.upgrades import apply_upgrades_greedy, filter_upgrades_to_socketed
 
 router = APIRouter(prefix="/api")
@@ -140,226 +137,13 @@ def _finalize_r1_conversion(
     })
 
 
-def _shop_worker_count(n_candidates: int) -> int:
-    """Return the number of parallel workers for the shop candidate loop.
-
-    Reads the ``SHOP_WORKERS`` environment variable:
-    - Positive integer: use that many workers (capped at n_candidates).
-    - Negative integer or ``-1``: force sequential (1 worker).
-    - Unset or invalid: use all logical CPUs up to n_candidates.
-
-    Set ``SHOP_WORKERS=1`` to force sequential execution (useful for debugging
-    and determinism comparisons).
-    """
-    env = os.getenv("SHOP_WORKERS")
-    if env is not None:
-        try:
-            requested = int(env)
-        except ValueError:
-            requested = 0
-        if requested > 0:
-            return min(requested, n_candidates)
-        if requested < 0:
-            return 1
-    cpu = os.cpu_count() or 1
-    return max(1, min(cpu, n_candidates))
-
-
-def _shop_trial(
-    args: tuple,
-) -> tuple[int, int, OptimizeResponse, OptimizeRequest]:
-    """Worker function evaluated per thread for each shop candidate.
-
-    Must be module-level so it is unambiguously importable by thread workers.
-    """
-    trial_request, enable_upgrades, convert_1star, gem_id = args
-    resp = _run_optimization(
-        trial_request, enable_upgrades, convert_1star,
-        enable_shop=False,
-    )
-    return gem_id, resp.summary.surplus_or_shortfall, resp, trial_request
-
-
-def _run_shop_search(
-    request: OptimizeRequest,
-    enable_upgrades: bool,
-    convert_1star: bool,
-    progress: ProgressReporter,
-) -> OptimizeResponse:
-    """Greedy Telluric Fragments shop search.
-
-    Evaluates each unique gem type already in the player's inventory as a
-    potential purchase.  A purchase is recommended only when buying one R1
-    copy and re-optimising (with upgrades if enabled) improves the GP surplus
-    by more than the gem's own BASE_POWER value — meaning the purchase
-    provides leverage beyond simply filling one more socket.
-
-    The greedy loop repeats until the TF budget is exhausted or no profitable
-    candidate remains.  The final response reflects the post-purchase state
-    with a ``shop`` field containing the list of recommended purchases and a
-    pre-purchase baseline summary for comparison.
-    """
-    # Run the baseline (no purchases).
-    baseline_response = _run_optimization(
-        request, enable_upgrades, convert_1star, enable_shop=False,
-    )
-    baseline_surplus = baseline_response.summary.surplus_or_shortfall
-
-    current_request = request
-    current_response = baseline_response
-    current_surplus = baseline_surplus
-    remaining_tf = request.telluric_fragments
-    purchases: list[ShopPurchase] = []
-
-    while remaining_tf > 0:
-        # Re-derive candidates from the current working inventory so that
-        # previously purchased gems are included in subsequent iterations.
-        _, _, _, current_domain_inv = request_to_domain(current_request)
-        candidates = get_shop_candidates(current_domain_inv)
-
-        # Only count affordable candidates toward the total so the progress
-        # bar reflects work actually being done.
-        affordable = [g for g in candidates if TF_COST[g.star_rating] <= remaining_tf]
-        purchase_num = len(purchases) + 1
-
-        progress.report(
-            "shop", "running",
-            detail=f"Purchase {purchase_num}: 0 / {len(affordable)} candidates analyzed",
-            candidates_done=0,
-            candidates_total=len(affordable),
-            force=True,
-        )
-
-        best_gem = None
-        best_surplus = current_surplus
-        best_response = None
-        best_request = None
-        candidates_done = 0
-
-        # Build trial args for all affordable candidates.
-        trial_args: list[tuple] = []
-        trial_gem_defs: list = []
-        for gem_def in candidates:
-            if TF_COST[gem_def.star_rating] > remaining_tf:
-                continue
-            trial_inv = list(current_request.inventory) + [
-                InventoryItem(
-                    gem_id=gem_def.id,
-                    rank="1",
-                    active_stars=gem_def.star_rating,
-                )
-            ]
-            trial_request = current_request.model_copy(
-                update={"inventory": trial_inv}
-            )
-            trial_args.append((trial_request, enable_upgrades, convert_1star, gem_def.id))
-            trial_gem_defs.append(gem_def)
-
-        # Fan out across worker processes (or run sequentially when 1 worker).
-        # Results are collected into a dict keyed by gem_id; the subsequent
-        # reducer iterates candidates in their original gem_id-sorted order to
-        # preserve the sequential "first strict-greater wins" tie-break rule.
-        n_workers = _shop_worker_count(len(trial_args))
-        results: dict[int, tuple[int, OptimizeResponse, OptimizeRequest]] = {}
-
-        if n_workers <= 1 or len(trial_args) <= 1:
-            for args in trial_args:
-                gem_id, surplus, resp, req = _shop_trial(args)
-                results[gem_id] = (surplus, resp, req)
-                candidates_done += 1
-                progress.report(
-                    "shop", "running",
-                    detail=f"Purchase {purchase_num}: {candidates_done} / {len(affordable)} candidates analyzed",
-                    candidates_done=candidates_done,
-                    candidates_total=len(affordable),
-                )
-        else:
-            with ThreadPoolExecutor(max_workers=n_workers) as pool:
-                for gem_id, surplus, resp, req in pool.map(_shop_trial, trial_args, chunksize=1):
-                    results[gem_id] = (surplus, resp, req)
-                    candidates_done += 1
-                    progress.report(
-                        "shop", "running",
-                        detail=f"Purchase {purchase_num}: {candidates_done} / {len(affordable)} candidates analyzed",
-                        candidates_done=candidates_done,
-                        candidates_total=len(affordable),
-                    )
-
-        # Deterministic reduction: walk candidates in gem_id order (same as the
-        # original sequential loop) so ties go to the first candidate seen.
-        for gem_def in trial_gem_defs:
-            if gem_def.id not in results:
-                continue
-            trial_surplus, trial_response, trial_request = results[gem_def.id]
-            improvement = trial_surplus - current_surplus
-            if improvement > BASE_POWER[gem_def.star_rating] and trial_surplus > best_surplus:
-                best_gem = gem_def
-                best_surplus = trial_surplus
-                best_response = trial_response
-                best_request = trial_request
-
-        if best_gem is None:
-            logger.info("shop: no profitable purchase (round %d, %d candidates)", purchase_num, len(affordable))
-            break
-
-        tf_cost = TF_COST[best_gem.star_rating]
-        remaining_tf -= tf_cost
-        gem_name = GEMS[best_gem.id].name if best_gem.id in GEMS else str(best_gem.id)
-        logger.info(
-            "shop: buy %s (%d★) +%d surplus  TF %d→%d",
-            gem_name, best_gem.star_rating, best_surplus - current_surplus,
-            remaining_tf + tf_cost, remaining_tf,
-        )
-        purchases.append(ShopPurchase(
-            gem_id=best_gem.id,
-            star_rating=best_gem.star_rating,
-            tf_cost=tf_cost,
-            surplus_improvement=best_surplus - current_surplus,
-        ))
-        current_request = best_request
-        current_response = best_response
-        current_surplus = best_surplus
-
-    if not purchases:
-        # No profitable purchases found; return baseline with empty shop field.
-        shop_data = ShopResponse(
-            purchases=[],
-            total_tf_spent=0,
-            remaining_tf=remaining_tf,
-            baseline_summary=baseline_response.summary,
-        )
-        return baseline_response.model_copy(update={"shop": shop_data})
-
-    shop_data = ShopResponse(
-        purchases=[
-            ShopPurchaseItem(
-                gem_id=p.gem_id,
-                star_rating=p.star_rating,
-                tf_cost=p.tf_cost,
-                surplus_improvement=p.surplus_improvement,
-            )
-            for p in purchases
-        ],
-        total_tf_spent=sum(p.tf_cost for p in purchases),
-        remaining_tf=remaining_tf,
-        baseline_summary=baseline_response.summary,
-    )
-    return current_response.model_copy(update={"shop": shop_data})
-
-
 def _run_optimization(
     request: OptimizeRequest,
     enable_upgrades: bool,
     convert_1star: bool,
-    enable_shop: bool = False,
     progress: ProgressReporter = NullReporter(),
 ) -> OptimizeResponse:
     """Core optimization logic shared by both the plain POST and SSE endpoints."""
-    # Shop search wraps the normal optimization; delegate immediately so that
-    # the inner trial calls use enable_shop=False and cannot recurse.
-    if enable_shop and request.telluric_fragments > 0:
-        return _run_shop_search(request, enable_upgrades, convert_1star, progress)
-
     available_power, main_gems, skipped_slots, inventory = request_to_domain(request)
 
     if not main_gems:
@@ -507,7 +291,6 @@ def optimize(
     request: OptimizeRequest,
     enable_upgrades: bool = False,
     convert_1star: bool = False,
-    enable_shop: bool = False,
 ) -> OptimizeResponse:
     """Run the gem power optimizer pipeline.
 
@@ -520,18 +303,14 @@ def optimize(
     upgrades (those that consume spare copies to provide net gem-power leverage)
     and re-run the optimizer with the upgraded inventory.  The response
     ``upgrades`` field is populated whenever this query parameter is set.
-
-    Set ``enable_shop=true`` to search for profitable gem purchases using the
-    Telluric Fragments budget provided in ``request.telluric_fragments``.  Only
-    gems already in the player's inventory are considered as candidates.
     """
     logger.info(
-        "POST /optimize  gems=%d inv=%d gp=%d upgrades=%s shop=%s tf=%d",
+        "POST /optimize  gems=%d inv=%d gp=%d upgrades=%s",
         sum(1 for v in request.gem_setup.model_dump().values() if v is not None), len(request.inventory), request.gem_power,
-        enable_upgrades, enable_shop, request.telluric_fragments,
+        enable_upgrades,
     )
     t0 = time.perf_counter()
-    response = _run_optimization(request, enable_upgrades, convert_1star, enable_shop)
+    response = _run_optimization(request, enable_upgrades, convert_1star)
     bonuses = sum(
         s["bonuses_activated"]
         for s in response.gem_results.model_dump().values()
@@ -552,7 +331,6 @@ async def optimize_stream(
     request: OptimizeRequest,
     enable_upgrades: bool = False,
     convert_1star: bool = False,
-    enable_shop: bool = False,
 ) -> StreamingResponse:
     """Run the optimizer and stream progress events via Server-Sent Events.
 
@@ -564,10 +342,10 @@ async def optimize_stream(
     than the browser's ``EventSource`` API (which only supports GET requests).
     """
     logger.info(
-        "POST /optimize/stream  gems=%d inv=%d gp=%d upgrades=%s shop=%s tf=%d",
+        "POST /optimize/stream  gems=%d inv=%d gp=%d upgrades=%s",
         sum(1 for v in request.gem_setup.model_dump().values() if v is not None),
         len(request.inventory), request.gem_power,
-        enable_upgrades, enable_shop, request.telluric_fragments,
+        enable_upgrades,
     )
     q: queue.Queue = queue.Queue()
     reporter = QueueReporter(q)
@@ -579,7 +357,7 @@ async def optimize_stream(
 
     def _run_sync() -> None:
         try:
-            result = _run_optimization(request, enable_upgrades, convert_1star, enable_shop, progress=reporter)
+            result = _run_optimization(request, enable_upgrades, convert_1star, progress=reporter)
             bonuses = sum(s["bonuses_activated"] for s in result.gem_results.model_dump().values() if s is not None)
             logger.info(
                 "POST /optimize/stream  done %.2fs — residual=%d surplus=%d bonuses=%d",

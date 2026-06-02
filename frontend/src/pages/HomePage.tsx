@@ -39,8 +39,6 @@ interface PersistedState {
   stacks: InventoryGemStack[];
   enableUpgrades: boolean;
   convert1Star: boolean;
-  enableShop: boolean;
-  telluricFragments: number;
 }
 
 function loadState(): PersistedState | null {
@@ -85,8 +83,6 @@ export default function HomePage() {
   const [progress, setProgress] = useState<ProgressEvent | null>(null);
   const [enableUpgrades, setEnableUpgrades] = useState<boolean>(() => loadState()?.enableUpgrades ?? false);
   const [convert1Star, setConvert1Star] = useState<boolean>(() => loadState()?.convert1Star ?? false);
-  const [enableShop, setEnableShop] = useState<boolean>(() => loadState()?.enableShop ?? false);
-  const [telluricFragments, setTelluricFragments] = useState<number>(() => loadState()?.telluricFragments ?? 0);
   const [error, setError] = useState<string | null>(null);
   const [importExportMode, setImportExportMode] = useState<'import' | 'export' | null>(null);
 
@@ -96,8 +92,8 @@ export default function HomePage() {
   }, [importExportMode, gemSetup, gemPower, stacks]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ gemSetup, gemPower, stacks, enableUpgrades, convert1Star, enableShop, telluricFragments }));
-  }, [gemSetup, gemPower, stacks, enableUpgrades, convert1Star, enableShop, telluricFragments]);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ gemSetup, gemPower, stacks, enableUpgrades, convert1Star }));
+  }, [gemSetup, gemPower, stacks, enableUpgrades, convert1Star]);
 
   const isEmpty =
     Object.values(gemSetup).every((v) => !v) &&
@@ -119,7 +115,6 @@ export default function HomePage() {
     setGemSetup({});
     setGemPower(0);
     setStacks([]);
-    setTelluricFragments(0);
     setConfirmOpen(false);
   }
 
@@ -139,18 +134,17 @@ export default function HomePage() {
         gem_power: gemPower,
         gem_setup: gemSetup,
         inventory: stacksToInventoryItems(stacks),
-        ...(enableShop && telluricFragments > 0 ? { telluric_fragments: telluricFragments } : {}),
       };
       let optimizeResponse;
       try {
         optimizeResponse = await optimizeWithProgress(
-          request, enableUpgrades, convert1Star, enableShop,
+          request, enableUpgrades, convert1Star,
           (evt) => setProgress(evt),
         );
       } catch {
         // Fall back to plain POST if streaming fails.
         setProgress(null);
-        optimizeResponse = await optimize(request, enableUpgrades, convert1Star, enableShop);
+        optimizeResponse = await optimize(request, enableUpgrades, convert1Star);
       }
       navigate('/results', { state: { optimizeResponse } });
     } catch (err) {
@@ -174,8 +168,6 @@ export default function HomePage() {
           onEnableUpgradesChange={() => setEnableUpgrades(!enableUpgrades)}
           convert1Star={convert1Star}
           onConvert1StarChange={() => setConvert1Star(!convert1Star)}
-          enableShop={enableShop}
-          onEnableShopChange={() => setEnableShop(!enableShop)}
           isEmpty={isEmpty}
           disabled={optimizing}
           onResetClick={() => setConfirmOpen(true)}
@@ -192,9 +184,6 @@ export default function HomePage() {
         <InventorySection
           gemPower={gemPower}
           onGemPowerChange={setGemPower}
-          showTelluricInput={enableShop}
-          telluricFragments={telluricFragments}
-          onTelluricFragmentsChange={setTelluricFragments}
           stacks={stacks}
           onStacksChange={setStacks}
         />

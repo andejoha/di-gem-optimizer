@@ -43,7 +43,6 @@ export interface OptimizeRequest {
   gem_power: number;
   gem_setup: GemSetup;
   inventory: InventoryItem[];
-  telluric_fragments?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -130,25 +129,10 @@ export interface ConvertedGemItem {
   gem_power_gained: number;
 }
 
-export interface ShopPurchaseItem {
-  gem_id: number;
-  star_rating: number;
-  tf_cost: number;
-  surplus_improvement: number;
-}
-
-export interface ShopResponse {
-  purchases: ShopPurchaseItem[];
-  total_tf_spent: number;
-  remaining_tf: number;
-  baseline_summary: SummaryResponse;
-}
-
 export interface OptimizeResponse {
   summary: SummaryResponse;
   gem_results: GemResults;
   upgrades?: UpgradesResponse | null;
-  shop?: ShopResponse | null;
   remaining_inventory: RemainingInventoryItem[];
   converted_gems: ConvertedGemItem[];
 }

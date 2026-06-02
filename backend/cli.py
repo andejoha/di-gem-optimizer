@@ -131,7 +131,7 @@ def cmd_optimize(args):
         raw = args.json_input
     data = json.loads(raw)
     request = OptimizeRequest(**data)
-    print(_serialize(optimize(request, enable_upgrades=args.enable_upgrades, convert_1star=args.convert_1star, enable_shop=args.enable_shop)))
+    print(_serialize(optimize(request, enable_upgrades=args.enable_upgrades, convert_1star=args.convert_1star)))
 
 
 def cmd_decode(args):
@@ -155,7 +155,6 @@ def main():
     opt.add_argument("json_input", help="Path to a JSON file or an inline JSON string (OptimizeRequest body)")
     opt.add_argument("--enable_upgrades", action="store_true", default=False, help="Analyse profitable gem upgrades before optimizing")
     opt.add_argument("--convert_1star", action="store_true", default=False, help="Convert rank-1 1-star gems to gem power")
-    opt.add_argument("--enable_shop", action="store_true", default=False, help="Search for profitable gem purchases using Telluric Fragments (set telluric_fragments in JSON body)")
 
     dec = sub.add_parser("decode", help="Decode a frontend import/export string to OptimizeRequest JSON")
     dec.add_argument("import_string", help="Base64url-encoded import string from the frontend")

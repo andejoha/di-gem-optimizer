@@ -15,7 +15,6 @@ import type { CodecState } from '../utils/setupCodec';
 import { encodeSetup } from '../utils/setupCodec';
 import { SLOT_ORDER } from '../utils/gearAssets';
 import SummaryCard from '../components/results/SummaryCard';
-import ShopSection from '../components/results/ShopSection';
 import UpgradesSection from '../components/results/UpgradesSection';
 import GearSlotResult from '../components/results/GearSlotResult';
 import RemainingInventory from '../components/results/RemainingInventory';
@@ -102,7 +101,7 @@ export default function ResultsPage() {
     return <Navigate to="/" replace />;
   }
 
-  const { summary, gem_results, upgrades, shop, remaining_inventory, converted_gems } = location.state.optimizeResponse;
+  const { summary, gem_results, upgrades, remaining_inventory, converted_gems } = location.state.optimizeResponse;
 
   const exportCode = useMemo(
     () => exportOpen ? encodeSetup(buildResultCodecState(location.state.optimizeResponse)) : '',
@@ -139,10 +138,6 @@ export default function ResultsPage() {
 
         {converted_gems && converted_gems.length > 0 && (
           <ConvertedGemsSection convertedGems={converted_gems} />
-        )}
-
-        {shop && shop.purchases.length > 0 && (
-          <ShopSection shop={shop} />
         )}
 
         {upgrades && upgrades.upgrades_applied.length > 0 && (

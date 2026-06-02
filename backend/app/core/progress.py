@@ -20,8 +20,6 @@ class ProgressReporter(Protocol):
         *,
         iteration: int | None = None,
         detail: str | None = None,
-        candidates_done: int | None = None,
-        candidates_total: int | None = None,
         force: bool = False,
     ) -> None: ...
 
@@ -36,8 +34,6 @@ class NullReporter:
         *,
         iteration: int | None = None,
         detail: str | None = None,
-        candidates_done: int | None = None,
-        candidates_total: int | None = None,
         force: bool = False,
     ) -> None:
         pass
@@ -63,8 +59,6 @@ class QueueReporter:
         *,
         iteration: int | None = None,
         detail: str | None = None,
-        candidates_done: int | None = None,
-        candidates_total: int | None = None,
         force: bool = False,
     ) -> None:
         now = time.monotonic()
@@ -77,7 +71,5 @@ class QueueReporter:
                 "status": status,
                 "iteration": iteration,
                 "detail": detail,
-                "candidates_done": candidates_done,
-                "candidates_total": candidates_total,
             }
         )
