@@ -41,7 +41,6 @@ interface PersistedState {
   convert1Star: boolean;
   enableShop: boolean;
   telluricFragments: number;
-  disableIlpTimeLimit: boolean;
 }
 
 function loadState(): PersistedState | null {
@@ -88,7 +87,6 @@ export default function HomePage() {
   const [convert1Star, setConvert1Star] = useState<boolean>(() => loadState()?.convert1Star ?? false);
   const [enableShop, setEnableShop] = useState<boolean>(() => loadState()?.enableShop ?? false);
   const [telluricFragments, setTelluricFragments] = useState<number>(() => loadState()?.telluricFragments ?? 0);
-  const [disableIlpTimeLimit, setDisableIlpTimeLimit] = useState<boolean>(() => loadState()?.disableIlpTimeLimit ?? false);
   const [error, setError] = useState<string | null>(null);
   const [importExportMode, setImportExportMode] = useState<'import' | 'export' | null>(null);
 
@@ -98,8 +96,8 @@ export default function HomePage() {
   }, [importExportMode, gemSetup, gemPower, stacks]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ gemSetup, gemPower, stacks, enableUpgrades, convert1Star, enableShop, telluricFragments, disableIlpTimeLimit }));
-  }, [gemSetup, gemPower, stacks, enableUpgrades, convert1Star, enableShop, telluricFragments, disableIlpTimeLimit]);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ gemSetup, gemPower, stacks, enableUpgrades, convert1Star, enableShop, telluricFragments }));
+  }, [gemSetup, gemPower, stacks, enableUpgrades, convert1Star, enableShop, telluricFragments]);
 
   const isEmpty =
     Object.values(gemSetup).every((v) => !v) &&
@@ -146,13 +144,13 @@ export default function HomePage() {
       let optimizeResponse;
       try {
         optimizeResponse = await optimizeWithProgress(
-          request, enableUpgrades, convert1Star, enableShop, disableIlpTimeLimit,
+          request, enableUpgrades, convert1Star, enableShop,
           (evt) => setProgress(evt),
         );
       } catch {
         // Fall back to plain POST if streaming fails.
         setProgress(null);
-        optimizeResponse = await optimize(request, enableUpgrades, convert1Star, enableShop, disableIlpTimeLimit);
+        optimizeResponse = await optimize(request, enableUpgrades, convert1Star, enableShop);
       }
       navigate('/results', { state: { optimizeResponse } });
     } catch (err) {
@@ -178,8 +176,6 @@ export default function HomePage() {
           onConvert1StarChange={() => setConvert1Star(!convert1Star)}
           enableShop={enableShop}
           onEnableShopChange={() => setEnableShop(!enableShop)}
-          disableIlpTimeLimit={disableIlpTimeLimit}
-          onDisableIlpTimeLimitChange={() => setDisableIlpTimeLimit((v) => !v)}
           isEmpty={isEmpty}
           disabled={optimizing}
           onResetClick={() => setConfirmOpen(true)}
@@ -224,7 +220,7 @@ export default function HomePage() {
         </DialogActions>
       </Dialog>
 
-      {optimizing && <OptimizationProgress progress={progress} disableIlpTimeLimit={disableIlpTimeLimit} />}
+      {optimizing && <OptimizationProgress progress={progress} />}
 
       <ImportExportDialog
         open={importExportMode !== null}

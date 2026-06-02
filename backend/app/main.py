@@ -18,8 +18,8 @@ logging.basicConfig(
 app = FastAPI(
     title="Diablo Immortal Gem Optimizer",
     description=(
-        "Assigns inventory gems to awakening sockets of equipped gems using ILP "
-        "to minimise residual gem power cost. Optionally analyses profitable gem upgrades."
+        "Assigns inventory gems to awakening sockets of equipped gems using a greedy "
+        "closest-fit heuristic to minimise residual gem power cost. Optionally analyses profitable gem upgrades."
     ),
     version="1.0.0",
 )

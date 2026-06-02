@@ -22,12 +22,11 @@ export async function optimize(
   enableUpgrades: boolean = false,
   convert1Star: boolean = false,
   enableShop: boolean = false,
-  disableIlpTimeLimit: boolean = false,
 ): Promise<OptimizeResponse> {
   const { data } = await apiClient.post<OptimizeResponse>(
     '/api/optimize',
     request,
-    { params: { enable_upgrades: enableUpgrades, convert_1star: convert1Star, enable_shop: enableShop, disable_time_limit: disableIlpTimeLimit } },
+    { params: { enable_upgrades: enableUpgrades, convert_1star: convert1Star, enable_shop: enableShop } },
   );
   return data;
 }
@@ -37,7 +36,6 @@ export async function optimizeWithProgress(
   enableUpgrades: boolean,
   convert1Star: boolean,
   enableShop: boolean,
-  disableIlpTimeLimit: boolean,
   onProgress: (event: ProgressEvent) => void,
 ): Promise<OptimizeResponse> {
   const baseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '';
@@ -45,7 +43,6 @@ export async function optimizeWithProgress(
     enable_upgrades: String(enableUpgrades),
     convert_1star: String(convert1Star),
     enable_shop: String(enableShop),
-    disable_time_limit: String(disableIlpTimeLimit),
   });
 
   const response = await fetch(`${baseUrl}/api/optimize/stream?${params}`, {

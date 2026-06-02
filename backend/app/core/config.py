@@ -4,8 +4,6 @@ All game-rule constants are defined here. Import from this module rather
 than hard-coding magic numbers elsewhere in the package.
 """
 
-import os
-
 BASE_POWER: dict[int, int] = {1: 1, 2: 4, 5: 32}
 """Gem power contributed per copy of a socketed gem, keyed by star rating.
 
@@ -47,26 +45,6 @@ Locked sockets are excluded from assignments and displayed as ``[locked]``.
 
 MAX_SOCKETS: dict[int, int] = {1: 2, 2: 3, 5: 5}
 """Maximum number of awakening sockets per equipped gem, keyed by star rating."""
-
-ILP_TIME_LIMIT: int = int(os.getenv("ILP_TIME_LIMIT", "60"))
-"""Maximum seconds the CBC ILP solver is allowed to run per invocation.
-
-On fast hardware the solver typically finishes in under a second. On
-resource-constrained devices (e.g. Raspberry Pi) some instances — especially
-the rerun after upgrade evaluation — can take much longer. This cap prevents
-indefinite hangs; CBC returns the best feasible solution found so far when the
-limit is reached.
-
-Override via the ``ILP_TIME_LIMIT`` environment variable.
-"""
-
-ILP_ALLOW_UNLIMITED: bool = os.getenv("ILP_ALLOW_UNLIMITED", "false").lower() == "true"
-"""Allow clients to request an unlimited (no timeLimit) CBC solver run.
-
-Must never be set in deployed environments — acts as a server-side DoS guard.
-Only set this to ``true`` on local dev instances alongside ``VITE_ENABLE_UNLIMITED_SOLVER=true``
-in the frontend ``.env`` file.
-"""
 
 # SHOP_WORKERS is intentionally not parsed here — it is read at call-time in
 # routes.py:_shop_worker_count so that changes to the env var take effect

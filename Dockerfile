@@ -12,7 +12,6 @@ COPY frontend/ ./
 
 ENV VITE_API_BASE_URL=""
 ENV VITE_ENABLE_SHOP=""
-ENV VITE_ENABLE_UNLIMITED_SOLVER=""
 RUN npm run build
 
 # ============================================================

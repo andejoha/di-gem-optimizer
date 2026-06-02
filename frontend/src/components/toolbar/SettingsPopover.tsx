@@ -11,7 +11,6 @@ import TextButton from '../buttons/TextButton';
 import FeatureToggle from './FeatureToggle';
 
 const SHOP_AVAILABLE = import.meta.env.VITE_ENABLE_SHOP === 'true';
-const UNLIMITED_SOLVER_AVAILABLE = import.meta.env.VITE_ENABLE_UNLIMITED_SOLVER === 'true';
 
 interface Props {
   enableUpgrades: boolean;
@@ -20,8 +19,6 @@ interface Props {
   onConvert1StarChange: () => void;
   enableShop: boolean;
   onEnableShopChange: () => void;
-  disableIlpTimeLimit: boolean;
-  onDisableIlpTimeLimitChange: () => void;
   isEmpty: boolean;
   disabled: boolean;
   onResetClick: () => void;
@@ -44,8 +41,6 @@ export default function SettingsPopover({
   onConvert1StarChange,
   enableShop,
   onEnableShopChange,
-  disableIlpTimeLimit,
-  onDisableIlpTimeLimitChange,
   isEmpty,
   disabled,
   onResetClick,
@@ -114,15 +109,6 @@ export default function SettingsPopover({
                 tooltipLabel="Telluric Fragments exchange"
                 checked={enableShop}
                 onChange={onEnableShopChange}
-                disabled={disabled}
-              />
-            )}
-            {UNLIMITED_SOLVER_AVAILABLE && (
-              <FeatureToggle
-                label="Disable ILP time limit"
-                tooltipLabel="Disable ILP time limit (local only — may hang indefinitely; reload to abort)"
-                checked={disableIlpTimeLimit}
-                onChange={onDisableIlpTimeLimitChange}
                 disabled={disabled}
               />
             )}

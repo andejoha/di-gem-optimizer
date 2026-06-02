@@ -1,13 +1,16 @@
-"""ILP solver and bonus optimization for the gem resonance optimizer.
+"""Greedy power-assignment and bonus optimization for the gem resonance optimizer.
 
 The optimization pipeline has three phases:
 
-1. **ILP assignment** (``solve_assignment``): Uses PuLP/CBC to assign inventory
-   gem copies to main-gem sockets, minimizing total residual gem power cost.
+1. **Greedy assignment** (``solve_assignment``): Assigns inventory gem copies to
+   main-gem sockets using a closest-fit heuristic. Each step picks the 5-star
+   main gem with the highest remaining residual cost and assigns it the compatible
+   inventory gem whose provided power is closest to that residual. Residuals are
+   recomputed after every assignment.
 
-2. **Global bonus swaps** (``global_swap_for_bonuses``): Greedy hill-climbing
-   that exchanges gems between slots or replaces assigned gems with unassigned
-   inventory copies to improve bonus activations without worsening residual cost.
+2. **Fill empty sockets** (``fill_empty_sockets``): Fills any sockets left empty
+   by the greedy phase (residual already zero, or no matching gem available) with
+   bonus-targeting or resonance-maximising gems from the remaining inventory.
 
 3. **Intra-gem reordering** (``reorder_for_bonuses``): Brute-force permutation
    within each star-type group (sockets 0-2 for 2-star, sockets 3-4 for 5-star)
@@ -15,16 +18,12 @@ The optimization pipeline has three phases:
 """
 
 import logging
-import time
 from itertools import permutations
 
 logger = logging.getLogger(__name__)
 
-import pulp
-
-from app.core.config import MAX_SOCKETS, SOCKET_STAR_TYPE, SOCKET_UNLOCK_RANK
+from app.core.config import MAX_SOCKETS, SOCKET_STAR_TYPE
 from app.core.models import InventoryGem, MainGem, SocketAssignment
-from app.core.progress import NullReporter, ProgressReporter
 from app.core.rules import compute_socket_resonance_bonus
 
 
@@ -34,8 +33,7 @@ def expand_inventory(
     """Expand an inventory list into individual (copy_id, gem) pairs.
 
     Gems with ``quantity > 1`` are expanded into multiple entries with distinct
-    ``copy_id`` values. This enables the ILP to treat each physical copy as an
-    independent decision variable.
+    ``copy_id`` values so that each physical copy can be treated independently.
 
     Args:
         inventory: List of ``InventoryGem`` instances, potentially with
@@ -57,303 +55,125 @@ def expand_inventory(
 def solve_assignment(
     main_gems: list[MainGem],
     inventory: list[InventoryGem],
-    time_limit: int | None = None,
-) -> dict[tuple[str, int], list[tuple[int, InventoryGem]]]:
-    """Assign inventory gem copies to main-gem sockets via Integer Linear Programming.
+) -> dict[str, list[tuple[int, InventoryGem]]]:
+    """Assign inventory gem copies to main-gem sockets via a greedy closest-fit heuristic.
 
-    Formulates and solves a binary ILP that minimizes total residual gem power
-    cost — the sum over all main gems of ``max(0, required_power - socketed_power)``.
-    The ``max(0, ...)`` is linearized by introducing non-negative auxiliary
-    variables and adding ``residual[g] >= required[g] - socketed[g]`` constraints;
-    minimization forces each auxiliary to its lower bound.
+    Each iteration picks the 5-star main gem with the highest remaining residual
+    cost, then assigns it the compatible inventory gem whose provided power is
+    closest to that residual (smallest ``|contribution - residual|``). On an exact
+    tie, the larger gem wins so the residual is fully covered. Residuals are
+    recomputed after every assignment; the loop exits when no main gem with
+    positive residual has a compatible gem and a free socket left.
 
-    Constraints:
+    Constraints respected:
       - Each inventory copy may be used in at most one socket globally.
-      - Each socket may receive at most one gem.
-      - Only 2-star gems go into sockets 0-2; only 5-star gems go into sockets 3-4.
-      - Only sockets unlocked at the target rank are available.
+      - Only sockets unlocked at the target rank are available
+        (``main_gem.num_sockets`` governs the count; socket indices 0 to
+        ``num_sockets - 1``).
+      - Only 2-star gems go into sockets 0-2; only 5-star gems go into sockets
+        3-4 (``SOCKET_STAR_TYPE[5]``).
+      - Only 5-star main gems participate — socketed gem power does not offset
+        awakening cost for 1/2-star main gems.
 
-    If the solver returns a non-optimal status, a warning is emitted and the
-    best feasible solution found so far is returned.
+    Gems left over (residual already zero, or no compatible socket free) are not
+    assigned here; ``fill_empty_sockets`` handles them in the next phase.
 
     Args:
         main_gems: Active main gems to optimize sockets for.
         inventory: Available gem copies (each with ``quantity=1`` in typical use).
 
     Returns:
-        Dictionary mapping ``(slot_name, socket_index)`` to a single-element
-        list ``[(copy_id, gem)]`` for each socket that received an assignment.
-        Empty sockets and locked sockets are absent from the result.
-        Returns an empty dict if either ``main_gems`` or ``inventory`` is empty.
+        Dictionary mapping ``slot_name`` to a list of ``(copy_id, gem)`` pairs
+        for the gems assigned to that 5-star main gem's sockets. 1/2-star main
+        gems are absent from the result. Returns an empty dict if either
+        ``main_gems`` has no 5-star gems or ``inventory`` is empty.
     """
-    # Only 5-star main gems participate in the ILP — socketed gem power does not
-    # offset awakening cost for 1/2-star main gems, so they are excluded.
-    five_star_gems = [mg for mg in main_gems if mg.star_rating == 5]
-
+    five_star_gems = [main_gem for main_gem in main_gems if main_gem.star_rating == 5]
     if not five_star_gems or not inventory:
         return {}
 
-    copies = expand_inventory(inventory)
+    # Count free sockets per main gem per accepted star type, restricted to
+    # unlocked sockets. SOCKET_STAR_TYPE[5] = {0: 2, 1: 2, 2: 2, 3: 5, 4: 5}.
+    free_socket_count: list[dict[int, int]] = []
+    for main_gem in five_star_gems:
+        socket_capacity: dict[int, int] = {}
+        for socket_index in range(main_gem.num_sockets):
+            star_type = SOCKET_STAR_TYPE[5][socket_index]
+            socket_capacity[star_type] = socket_capacity.get(star_type, 0) + 1
+        free_socket_count.append(socket_capacity)
 
-    prob = pulp.LpProblem("GemSocketAssignment", pulp.LpMinimize)
+    residuals = [main_gem.required_power for main_gem in five_star_gems]
+    result: dict[str, list[tuple[int, InventoryGem]]] = {
+        main_gem.slot_name: [] for main_gem in five_star_gems
+    }
 
-    # Decision variables: x[g_idx, s, copy_id] in {0,1}
-    # Only created where compatible (star type + socket unlocked).
-    x: dict[tuple[int, int, int], pulp.LpVariable] = {}
+    # Copies with zero contribution never reduce residual cost, so exclude them.
+    # The remaining copies form a mutable pool; each may be used at most once.
+    available_copies = [
+        (copy_id, gem)
+        for copy_id, gem in expand_inventory(inventory)
+        if gem.contribution > 0
+    ]
 
-    for g_idx, mg in enumerate(five_star_gems):
-        for s in range(mg.num_sockets):
-            required_star = SOCKET_STAR_TYPE[5][s]
-            for copy_id, gem in copies:
-                if gem.star_rating == required_star:
-                    var = pulp.LpVariable(f"x_{g_idx}_{s}_{copy_id}", cat="Binary")
-                    x[(g_idx, s, copy_id)] = var
+    while True:
+        # Find the main gem with the highest current residual that still has a
+        # free compatible socket and at least one matching gem left in the pool.
+        target_index = -1
+        target_key: tuple | None = None
+        for gem_index in range(len(five_star_gems)):
+            if residuals[gem_index] <= 0:
+                continue
+            available_star_types = {
+                star_type
+                for star_type, count in free_socket_count[gem_index].items()
+                if count > 0
+            }
+            if not available_star_types:
+                continue
+            if not any(gem.star_rating in available_star_types for _, gem in available_copies):
+                continue
+            # Highest residual wins; gem_index breaks ties for determinism across runs.
+            key = (residuals[gem_index], -gem_index)
+            if target_key is None or key > target_key:
+                target_key, target_index = key, gem_index
+        if target_index < 0:
+            break
 
-    copy_lookup = {cid: gem for cid, gem in copies}
+        available_star_types = {
+            star_type
+            for star_type, count in free_socket_count[target_index].items()
+            if count > 0
+        }
 
-    # Pre-build index structures for O(n) constraint construction.
-    # vars_by_gem[g_idx]       → list of (cid, var) for the residual expression
-    # vars_by_gem_socket[g,s]  → list of var for the at-most-one-per-socket constraint
-    # vars_by_copy[cid]        → list of var for the at-most-one-per-copy constraint
-    vars_by_gem: dict[int, list[tuple[int, pulp.LpVariable]]] = {}
-    vars_by_gem_socket: dict[tuple[int, int], list[pulp.LpVariable]] = {}
-    vars_by_copy: dict[int, list[pulp.LpVariable]] = {}
-    for (gi, si, cid), var in x.items():
-        vars_by_gem.setdefault(gi, []).append((cid, var))
-        vars_by_gem_socket.setdefault((gi, si), []).append(var)
-        vars_by_copy.setdefault(cid, []).append(var)
+        # Pick the gem whose power is closest to the current residual.
+        # On equal distance the larger gem wins to avoid under-filling the socket.
+        # copy_id breaks remaining ties so output is byte-stable across runs.
+        best_copy_index = -1
+        best_selection_key: tuple | None = None
+        for copy_index, (copy_id, gem) in enumerate(available_copies):
+            if gem.star_rating not in available_star_types:
+                continue
+            selection_key = (
+                abs(gem.contribution - residuals[target_index]),
+                -gem.contribution,
+                copy_id,
+            )
+            if best_selection_key is None or selection_key < best_selection_key:
+                best_selection_key, best_copy_index = selection_key, copy_index
 
-    # Residual variables: residual[g] = max(0, required[g] - socketed[g])
-    # Constraint  residual[g] >= required[g] - socketed[g]  combined with
-    # residual[g] >= 0  forces residual[g] = max(0, required[g] - socketed[g])
-    # when the objective minimises the sum.
-    residual_vars = {}
-    for g_idx, mg in enumerate(five_star_gems):
-        r = pulp.LpVariable(f"residual_{g_idx}", lowBound=0)
-        residual_vars[g_idx] = r
-        socketed = pulp.lpSum(
-            copy_lookup[cid].contribution * var
-            for cid, var in vars_by_gem.get(g_idx, [])
-        )
-        prob += r >= mg.required_power - socketed
+        copy_id, gem = available_copies.pop(best_copy_index)
+        result[five_star_gems[target_index].slot_name].append((copy_id, gem))
+        free_socket_count[target_index][gem.star_rating] -= 1
+        residuals[target_index] = max(0, residuals[target_index] - gem.contribution)
 
-    # Objective: minimise total gem power needed from the player's pool.
-    # Tiebreaker: encode the full (g_idx, s, copy_id) triple as a unique integer
-    # coefficient so that among solutions with the same total residual, the ILP
-    # always picks the same per-slot assignment regardless of platform or solver
-    # build.  The old coefficient (copy_id only) was position-agnostic, meaning
-    # solutions that swapped the same gems between sockets had identical
-    # tiebreaker values and CBC could legitimately return either one.
-    #
-    # Epsilon bound: the tiebreaker sum must stay < 1 (the integer gap in residual
-    # costs) so it can never promote a suboptimal primary solution.
-    # Max sum ≈ epsilon × (num_slots × max_sockets × n_copies) × (num_slots × max_sockets)
-    #         = epsilon × num_slots² × max_sockets² × n_copies   < 1.
-    max_copy_id = max((cid for cid, _ in copies), default=0)
-    n_copies = max_copy_id + 1
-    num_slots = len(five_star_gems)
-    max_sockets = max((mg.num_sockets for mg in five_star_gems), default=4)
-    epsilon = 0.5 / max(num_slots ** 2 * max_sockets ** 2 * n_copies, 1)
-    tiebreaker = pulp.lpSum(
-        epsilon * (g_idx * max_sockets * n_copies + s * n_copies + copy_id) * var
-        for (g_idx, s, copy_id), var in x.items()
-    )
-    prob += pulp.lpSum(residual_vars.values()) + tiebreaker
-
-    # Constraint: each copy used at most once globally
-    for terms in vars_by_copy.values():
-        prob += pulp.lpSum(terms) <= 1
-
-    # Constraint: at most one gem per socket
-    for terms in vars_by_gem_socket.values():
-        prob += pulp.lpSum(terms) <= 1
-
-    solver = (
-        pulp.PULP_CBC_CMD(msg=0)
-        if time_limit is None
-        else pulp.PULP_CBC_CMD(msg=0, timeLimit=time_limit)
-    )
-    t0 = time.perf_counter()
-    prob.solve(solver)
-
-    if prob.status != 1:  # 1 = Optimal in PuLP
-        logger.warning("ILP non-optimal status: %s", pulp.LpStatus[prob.status])
-
-    # Extract solution: keep variables assigned (value > 0.5) as the result
-    result: dict[tuple[str, int], list[tuple[int, InventoryGem]]] = {}
-    for (g_idx, s, copy_id), var in x.items():
-        if pulp.value(var) is not None and pulp.value(var) > 0.5:
-            key = (five_star_gems[g_idx].slot_name, s)
-            result[key] = [(copy_id, copy_lookup[copy_id])]
-
-    logger.info("ILP: %d vars, %d assigned, %.2fs", len(x), len(result), time.perf_counter() - t0)
+    total_assigned = sum(len(slot_copies) for slot_copies in result.values())
+    logger.info("greedy assignment: %d 5-star slots, %d gems assigned", len(five_star_gems), total_assigned)
     return result
 
 
 # ---------------------------------------------------------------------------
-# Post-ILP greedy phases (unchanged)
+# Post-assignment phases
 # ---------------------------------------------------------------------------
-
-
-def count_achievable_bonuses(
-    mg: MainGem,
-    gem_copies: list[tuple[int, InventoryGem]],
-    bonus_table: dict[int, list[int]],
-) -> int:
-    """Count how many resonance bonuses can be activated with the given gem set.
-
-    Assumes that optimal intra-gem reordering will be applied afterward, so a
-    bonus is achievable as long as the required gem is present among the
-    assigned copies — regardless of which socket it currently occupies.
-    Each physical gem copy can satisfy at most one bonus requirement.
-
-    Args:
-        mg: The main gem whose bonus requirements are looked up.
-        gem_copies: List of ``(copy_id, gem)`` pairs currently assigned to
-            ``mg``'s sockets.
-        bonus_table: Full bonus lookup table mapping gem_id to required gem_ids.
-
-    Returns:
-        Number of bonuses achievable with optimal socket ordering, in the
-        range ``[0, mg.num_sockets]``.
-    """
-    bonus_reqs = bonus_table.get(mg.gem_id, [0] * MAX_SOCKETS[mg.star_rating])
-    available = [g.gem_id for _, g in gem_copies]
-    used = [False] * len(available)
-    count = 0
-    for s in range(mg.num_sockets):
-        req = bonus_reqs[s] if s < len(bonus_reqs) else 0
-        if not req:
-            continue
-        for k, gem_id in enumerate(available):
-            if not used[k] and gem_id == req:
-                count += 1
-                used[k] = True
-                break
-    return count
-
-
-def global_swap_for_bonuses(
-    main_gems: list[MainGem],
-    per_slot_gems: dict[str, list[tuple[int, InventoryGem]]],
-    bonus_table: dict[int, list[int]],
-    all_copies: list[tuple[int, InventoryGem]],
-    progress: ProgressReporter = NullReporter(),
-    stage_prefix: str = "",
-) -> dict[str, list[tuple[int, InventoryGem]]]:
-    """Greedily improve bonus activations without worsening total residual cost.
-
-    Performs hill-climbing over two categories of moves:
-
-    1. **Cross-gem swap**: Exchange one assigned gem between two different main
-       gems. Accepted only if star ratings match, total residual across both
-       slots does not increase, and total achievable bonus count increases.
-
-    2. **Inventory replacement**: Replace an assigned gem with an unassigned
-       inventory copy. Accepted only if star ratings match, the slot's residual
-       does not increase, and the slot's achievable bonus count increases.
-
-    Repeats both move types until no improving move is found.
-
-    Args:
-        main_gems: Active main gems (defines the set of slots to consider).
-        per_slot_gems: Current assignment mapping ``slot_name`` to a list of
-            ``(copy_id, gem)`` pairs. Modified in place (on a copy) and returned.
-        bonus_table: Full bonus lookup table from ``parse_socket_bonuses``.
-        all_copies: All inventory copies (including unassigned ones) as
-            ``(copy_id, gem)`` pairs from ``expand_inventory``.
-
-    Returns:
-        Updated ``per_slot_gems`` mapping after all beneficial swaps have been
-        applied.
-    """
-    def slot_residual(mg: MainGem, gems: list[tuple[int, InventoryGem]]) -> int:
-        return max(0, mg.required_power - sum(g.contribution for _, g in gems))
-
-    mg_by_slot = {mg.slot_name: mg for mg in main_gems}
-    current = {slot: list(gems) for slot, gems in per_slot_gems.items()}
-
-    improved = True
-    pass_count = 0
-    while improved:
-        improved = False
-        pass_count += 1
-        slots = list(current.keys())
-
-        # --- Move 1: cross-gem swaps ---
-        for i, slot_a in enumerate(slots):
-            for slot_b in slots[i + 1:]:
-                mg_a = mg_by_slot[slot_a]
-                mg_b = mg_by_slot[slot_b]
-                gems_a = current[slot_a]
-                gems_b = current[slot_b]
-
-                for ai, (cid_a, gem_a) in enumerate(gems_a):
-                    for bi, (cid_b, gem_b) in enumerate(gems_b):
-                        if gem_a.star_rating != gem_b.star_rating:
-                            continue
-
-                        new_a = list(gems_a)
-                        new_b = list(gems_b)
-                        new_a[ai] = (cid_b, gem_b)
-                        new_b[bi] = (cid_a, gem_a)
-
-                        old_res = slot_residual(mg_a, gems_a) + slot_residual(mg_b, gems_b)
-                        new_res = slot_residual(mg_a, new_a) + slot_residual(mg_b, new_b)
-                        if new_res > old_res:
-                            continue
-
-                        old_bonus = (
-                            count_achievable_bonuses(mg_a, gems_a, bonus_table)
-                            + count_achievable_bonuses(mg_b, gems_b, bonus_table)
-                        )
-                        new_bonus = (
-                            count_achievable_bonuses(mg_a, new_a, bonus_table)
-                            + count_achievable_bonuses(mg_b, new_b, bonus_table)
-                        )
-                        if new_bonus > old_bonus:
-                            current[slot_a] = new_a
-                            current[slot_b] = new_b
-                            gems_a = new_a
-                            gems_b = new_b
-                            improved = True
-
-        # --- Move 2: replace assigned gem with unassigned inventory copy ---
-        assigned_ids = {cid for gems in current.values() for cid, _ in gems}
-        unassigned = [(cid, gem) for cid, gem in all_copies if cid not in assigned_ids]
-
-        for slot_a in slots:
-            mg_a = mg_by_slot[slot_a]
-            gems_a = current[slot_a]
-
-            for ai, (cid_a, gem_a) in enumerate(gems_a):
-                for cid_u, gem_u in unassigned:
-                    if gem_u.star_rating != gem_a.star_rating:
-                        continue
-
-                    new_a = list(gems_a)
-                    new_a[ai] = (cid_u, gem_u)
-
-                    old_res = slot_residual(mg_a, gems_a)
-                    new_res = slot_residual(mg_a, new_a)
-                    if new_res > old_res:
-                        continue
-
-                    old_bonus = count_achievable_bonuses(mg_a, gems_a, bonus_table)
-                    new_bonus = count_achievable_bonuses(mg_a, new_a, bonus_table)
-                    if new_bonus > old_bonus:
-                        current[slot_a] = new_a
-                        gems_a = new_a
-                        # update unassigned: cid_u is now used, cid_a is now free
-                        assigned_ids.add(cid_u)
-                        assigned_ids.discard(cid_a)
-                        unassigned = [
-                            (cid, gem) for cid, gem in all_copies
-                            if cid not in assigned_ids
-                        ]
-                        improved = True
-
-    return current
 
 
 def fill_empty_sockets(
@@ -364,19 +184,18 @@ def fill_empty_sockets(
 ) -> dict[str, list[tuple[int, InventoryGem]]]:
     """Fill empty sockets with leftover inventory gems using a two-pass strategy.
 
-    After the ILP phase, 5-star gem sockets may be left empty because filling
-    them does not reduce residual cost (residual already 0). For 1/2-star gems
-    no prior phase has assigned anything. This function fills all remaining
-    empty positions before the global bonus-swap phase runs, giving the swap
-    phase more material to work with.
+    After the greedy assignment phase, 5-star gem sockets may be left empty
+    because filling them does not reduce residual cost (residual already zero). For
+    1/2-star gems no prior phase has assigned anything. This function fills all
+    remaining empty positions, giving the reorder phase more material to work with.
 
     Two-pass algorithm:
 
     1. **Bonus pass**: For every main gem and star-type group, collect bonus
        requirements that are not yet satisfiable by already-assigned gems.
-       Scan all main gems for bonus requirements *before* filling any non-bonus
-       positions, so a scarce gem is never wasted on a neutral socket when
-       another slot needs it to activate a bonus.
+       All bonus requirements are scanned before filling any neutral positions so
+       a scarce gem is never wasted on a neutral socket when another slot needs it
+       to activate a bonus.
 
     2. **Resonance pass**: Fill any positions still empty after the bonus pass
        with the highest-``compute_socket_resonance_bonus`` compatible gem
@@ -385,9 +204,9 @@ def fill_empty_sockets(
     Args:
         main_gems: All active main gems (any star rating).
         per_slot_gems: Current flat assignment mapping ``slot_name`` to a list
-            of ``(copy_id, gem)`` pairs. May contain empty lists (for slots not
-            yet assigned anything) or partial lists (for 5-star slots where the
-            ILP left some sockets unfilled). Modified on a copy and returned.
+            of ``(copy_id, gem)`` pairs. May contain empty lists (for 1/2-star
+            slots) or partial lists (for 5-star slots the greedy left unfilled).
+            Modified on a copy and returned.
         bonus_table: Full bonus lookup table mapping gem_id to required gem_ids.
         all_copies: All inventory copies as ``(copy_id, gem)`` pairs from
             ``expand_inventory``.
@@ -397,93 +216,98 @@ def fill_empty_sockets(
         applied.
     """
     current = {slot: list(gems) for slot, gems in per_slot_gems.items()}
-    used_ids: set[int] = {cid for gems in current.values() for cid, _ in gems}
+    used_copy_ids: set[int] = {copy_id for gems in current.values() for copy_id, _ in gems}
 
     def get_unassigned() -> list[tuple[int, InventoryGem]]:
-        return [(cid, gem) for cid, gem in all_copies if cid not in used_ids]
+        return [(copy_id, gem) for copy_id, gem in all_copies if copy_id not in used_copy_ids]
 
-    def empty_slots_by_type(mg: MainGem) -> dict[int, int]:
+    def empty_slot_count_by_star_type(main_gem: MainGem) -> dict[int, int]:
         """Return {star_type: empty_count} for each socket type of this gem."""
-        socket_type_map = SOCKET_STAR_TYPE[mg.star_rating]
-        capacity: dict[int, int] = {}
-        for s in range(mg.num_sockets):
-            st = socket_type_map[s]
-            capacity[st] = capacity.get(st, 0) + 1
-        assigned_by_type: dict[int, int] = {}
-        for _, gem in current[mg.slot_name]:
-            assigned_by_type[gem.star_rating] = assigned_by_type.get(gem.star_rating, 0) + 1
-        return {st: max(0, cap - assigned_by_type.get(st, 0)) for st, cap in capacity.items()}
+        socket_type_map = SOCKET_STAR_TYPE[main_gem.star_rating]
+        socket_capacity: dict[int, int] = {}
+        for socket_index in range(main_gem.num_sockets):
+            star_type = socket_type_map[socket_index]
+            socket_capacity[star_type] = socket_capacity.get(star_type, 0) + 1
+        assigned_by_star_type: dict[int, int] = {}
+        for _, gem in current[main_gem.slot_name]:
+            assigned_by_star_type[gem.star_rating] = assigned_by_star_type.get(gem.star_rating, 0) + 1
+        return {
+            star_type: max(0, capacity - assigned_by_star_type.get(star_type, 0))
+            for star_type, capacity in socket_capacity.items()
+        }
 
-    def unsatisfied_bonus_reqs(mg: MainGem, star_type: int) -> list[int]:
+    def unsatisfied_bonus_requirements(main_gem: MainGem, star_type: int) -> list[int]:
         """Return bonus gem_ids for star_type sockets not yet satisfiable."""
-        socket_type_map = SOCKET_STAR_TYPE[mg.star_rating]
-        bonus_reqs = bonus_table.get(mg.gem_id, [])
-        reqs = [
-            bonus_reqs[s] if s < len(bonus_reqs) else 0
-            for s in range(mg.num_sockets)
-            if socket_type_map[s] == star_type
+        socket_type_map = SOCKET_STAR_TYPE[main_gem.star_rating]
+        bonus_reqs = bonus_table.get(main_gem.gem_id, [])
+        requirements = [
+            bonus_reqs[socket_index] if socket_index < len(bonus_reqs) else 0
+            for socket_index in range(main_gem.num_sockets)
+            if socket_type_map[socket_index] == star_type
         ]
-        available = [g.gem_id for _, g in current[mg.slot_name] if g.star_rating == star_type]
-        used_match = [False] * len(available)
+        already_assigned = [
+            gem.gem_id for _, gem in current[main_gem.slot_name] if gem.star_rating == star_type
+        ]
+        already_matched = [False] * len(already_assigned)
         unsatisfied = []
-        for req in reqs:
-            if not req:
+        for requirement in requirements:
+            if not requirement:
                 continue
             matched = False
-            for k, gid in enumerate(available):
-                if not used_match[k] and gid == req:
-                    used_match[k] = True
+            for match_index, assigned_gem_id in enumerate(already_assigned):
+                if not already_matched[match_index] and assigned_gem_id == requirement:
+                    already_matched[match_index] = True
                     matched = True
                     break
             if not matched:
-                unsatisfied.append(req)
+                unsatisfied.append(requirement)
         return unsatisfied
 
-    # --- Pass 1: Bonus fill ---
+    # Pass 1: fill sockets where a bonus gem is needed but not yet present.
     unassigned = get_unassigned()
-    for mg in main_gems:
-        empties = empty_slots_by_type(mg)
-        for star_type, empty_count in empties.items():
+    for main_gem in main_gems:
+        empty_counts = empty_slot_count_by_star_type(main_gem)
+        for star_type, empty_count in empty_counts.items():
             if empty_count <= 0:
                 continue
-            for req_gem_id in unsatisfied_bonus_reqs(mg, star_type):
+            for required_gem_id in unsatisfied_bonus_requirements(main_gem, star_type):
                 if empty_count <= 0:
                     break
-                for i, (cid, gem) in enumerate(unassigned):
-                    if gem.star_rating == star_type and gem.gem_id == req_gem_id:
-                        current[mg.slot_name].append((cid, gem))
-                        used_ids.add(cid)
-                        unassigned.pop(i)
+                for position, (copy_id, gem) in enumerate(unassigned):
+                    if gem.star_rating == star_type and gem.gem_id == required_gem_id:
+                        current[main_gem.slot_name].append((copy_id, gem))
+                        used_copy_ids.add(copy_id)
+                        unassigned.pop(position)
                         empty_count -= 1
                         break
 
-    # --- Pass 2: Resonance fill ---
+    # Pass 2: fill remaining empty sockets with the highest-resonance compatible gem.
     unassigned = get_unassigned()
-    for mg in main_gems:
-        empties = empty_slots_by_type(mg)
-        for star_type, empty_count in empties.items():
+    for main_gem in main_gems:
+        empty_counts = empty_slot_count_by_star_type(main_gem)
+        for star_type, empty_count in empty_counts.items():
             if empty_count <= 0:
                 continue
             compatible = sorted(
-                ((cid, gem) for cid, gem in unassigned if gem.star_rating == star_type),
-                key=lambda cg: compute_socket_resonance_bonus(
-                    cg[1].star_rating, cg[1].active_stars, cg[1].rank
+                (entry for entry in unassigned if entry[1].star_rating == star_type),
+                key=lambda entry: compute_socket_resonance_bonus(
+                    entry[1].star_rating, entry[1].active_stars, entry[1].rank
                 ),
                 reverse=True,
             )
-            for cid, gem in compatible:
+            for copy_id, gem in compatible:
                 if empty_count <= 0:
                     break
-                current[mg.slot_name].append((cid, gem))
-                used_ids.add(cid)
+                current[main_gem.slot_name].append((copy_id, gem))
+                used_copy_ids.add(copy_id)
                 empty_count -= 1
-        unassigned = [(cid, gem) for cid, gem in unassigned if cid not in used_ids]
+        unassigned = [(copy_id, gem) for copy_id, gem in unassigned if copy_id not in used_copy_ids]
 
     return current
 
 
 def reorder_for_bonuses(
-    mg: MainGem,
+    main_gem: MainGem,
     gem_copies: list[tuple[int, InventoryGem]],
     bonus_table: dict[int, list[int]],
 ) -> list[SocketAssignment]:
@@ -495,151 +319,92 @@ def reorder_for_bonuses(
     per main gem, so this is fast even without caching.
 
     Args:
-        mg: The main gem whose sockets are being assigned.
+        main_gem: The main gem whose sockets are being assigned.
         gem_copies: List of ``(copy_id, gem)`` pairs to distribute across
-            ``mg``'s unlocked sockets, as returned by ``global_swap_for_bonuses``.
+            ``main_gem``'s unlocked sockets, as returned by ``fill_empty_sockets``.
         bonus_table: Full bonus lookup table mapping gem_id to required gem_ids.
 
     Returns:
-        List of ``SocketAssignment`` instances of length ``mg.num_sockets``,
-        ordered by socket index (0 to ``mg.num_sockets - 1``). Empty sockets
+        List of ``SocketAssignment`` instances of length ``main_gem.num_sockets``,
+        ordered by socket index (0 to ``main_gem.num_sockets - 1``). Empty sockets
         (no gem available for that star type) have ``gem=None``.
     """
-    socket_type_map = SOCKET_STAR_TYPE[mg.star_rating]
-    bonus_reqs = bonus_table.get(mg.gem_id, [0] * MAX_SOCKETS[mg.star_rating])
+    socket_type_map = SOCKET_STAR_TYPE[main_gem.star_rating]
+    bonus_requirements = bonus_table.get(main_gem.gem_id, [0] * MAX_SOCKETS[main_gem.star_rating])
 
-    # Group gem copies and slots by the star type they accept.
-    # For each unique accepted star type, collect the gems and slots for that group.
     accepted_star_types = sorted(set(socket_type_map.values()))
-    gems_by_type: dict[int, list[tuple[int, InventoryGem]]] = {
-        t: [(cid, gem) for cid, gem in gem_copies if gem.star_rating == t]
-        for t in accepted_star_types
+    gems_by_star_type: dict[int, list[tuple[int, InventoryGem]]] = {
+        star_type: [(copy_id, gem) for copy_id, gem in gem_copies if gem.star_rating == star_type]
+        for star_type in accepted_star_types
     }
-    slots_by_type: dict[int, list[int]] = {
-        t: [s for s in range(mg.num_sockets) if socket_type_map[s] == t]
-        for t in accepted_star_types
+    sockets_by_star_type: dict[int, list[int]] = {
+        star_type: [
+            socket_index
+            for socket_index in range(main_gem.num_sockets)
+            if socket_type_map[socket_index] == star_type
+        ]
+        for star_type in accepted_star_types
     }
 
-    def count_bonuses_for_ordering(
-        slots: list[int],
+    def count_activated_bonuses(
+        socket_positions: list[int],
         gems: list[tuple[int, InventoryGem]],
     ) -> int:
-        """Count bonuses activated by pairing ``slots[i]`` with ``gems[i]``."""
+        """Count bonuses activated by pairing socket_positions[i] with gems[i]."""
         return sum(
             1
-            for slot, (_, gem) in zip(slots, gems)
-            if (req := (bonus_reqs[slot] if slot < len(bonus_reqs) else 0))
-            and gem.gem_id == req
+            for socket_position, (_, gem) in zip(socket_positions, gems)
+            if (
+                bonus_requirement := (
+                    bonus_requirements[socket_position]
+                    if socket_position < len(bonus_requirements)
+                    else 0
+                )
+            )
+            and gem.gem_id == bonus_requirement
         )
 
     def best_permutation(
-        slots: list[int],
+        socket_positions: list[int],
         gems: list[tuple[int, InventoryGem]],
     ) -> list[tuple[int, InventoryGem]]:
-        """Return the permutation of ``gems`` that maximizes bonus count."""
-        best, best_count = list(gems), count_bonuses_for_ordering(slots, gems)
-        for perm in permutations(gems):
-            c = count_bonuses_for_ordering(slots, list(perm))
-            if c > best_count:
-                best_count, best = c, list(perm)
-        return best
+        """Return the permutation of gems that maximizes activated bonuses."""
+        best_ordering = list(gems)
+        best_bonus_count = count_activated_bonuses(socket_positions, gems)
+        for permutation in permutations(gems):
+            bonus_count = count_activated_bonuses(socket_positions, list(permutation))
+            if bonus_count > best_bonus_count:
+                best_bonus_count, best_ordering = bonus_count, list(permutation)
+        return best_ordering
 
-    # Find the best gem ordering per star-type group.
-    ordered_by_type: dict[int, list[tuple[int, InventoryGem]]] = {
-        t: best_permutation(slots_by_type[t], gems_by_type[t])
-        for t in accepted_star_types
+    best_ordering_by_star_type: dict[int, list[tuple[int, InventoryGem]]] = {
+        star_type: best_permutation(sockets_by_star_type[star_type], gems_by_star_type[star_type])
+        for star_type in accepted_star_types
     }
-    iters_by_type = {t: iter(ordered_by_type[t]) for t in accepted_star_types}
+    gem_iterators_by_star_type = {
+        star_type: iter(best_ordering_by_star_type[star_type])
+        for star_type in accepted_star_types
+    }
 
     result: list[SocketAssignment] = []
-    for s in range(mg.num_sockets):
-        accepted = socket_type_map[s]
-        entry = next(iters_by_type[accepted], None)
-        if entry is None:
-            result.append(SocketAssignment(socket_index=s))
+    for socket_index in range(main_gem.num_sockets):
+        accepted_star_type = socket_type_map[socket_index]
+        next_gem = next(gem_iterators_by_star_type[accepted_star_type], None)
+        if next_gem is None:
+            result.append(SocketAssignment(socket_index=socket_index))
         else:
-            cid, gem = entry
-            req = bonus_reqs[s] if s < len(bonus_reqs) else 0
-            activated = bool(req and gem.gem_id == req)
+            copy_id, gem = next_gem
+            bonus_requirement = (
+                bonus_requirements[socket_index]
+                if socket_index < len(bonus_requirements)
+                else 0
+            )
             result.append(SocketAssignment(
-                socket_index=s,
+                socket_index=socket_index,
                 gem=gem,
-                copy_id=cid,
+                copy_id=copy_id,
                 contribution=gem.contribution,
-                bonus_activated=activated,
+                bonus_activated=bool(bonus_requirement and gem.gem_id == bonus_requirement),
             ))
-
-    return result
-
-
-def assign_leftover_gems(
-    low_star_gems: list[MainGem],
-    unassigned_copies: list[tuple[int, InventoryGem]],
-    bonus_table: dict[int, list[int]],
-) -> dict[str, list[SocketAssignment]]:
-    """Assign leftover inventory gems to 1- and 2-star main gem sockets.
-
-    Called after the ILP optimization for 5-star gems. Since socketed gem
-    power does not offset the awakening cost of 1/2-star main gems, the only
-    goal here is to maximize bonus activations. Gems are assigned greedily:
-    each socket first tries to find a matching bonus gem; if none is available,
-    any compatible gem is assigned instead.
-
-    Each inventory copy can be used at most once across all slots.
-
-    Args:
-        low_star_gems: 1- and 2-star main gems to assign sockets for.
-        unassigned_copies: Inventory copies not yet used by 5-star optimization,
-            as ``(copy_id, gem)`` pairs.
-        bonus_table: Merged bonus lookup table covering all star ratings.
-
-    Returns:
-        Dictionary mapping ``slot_name`` to a list of ``SocketAssignment``
-        objects, one per unlocked socket of each 1/2-star main gem.
-    """
-    result: dict[str, list[SocketAssignment]] = {}
-    used_ids: set[int] = set()
-
-    for mg in low_star_gems:
-        socket_type_map = SOCKET_STAR_TYPE[mg.star_rating]
-        bonus_reqs = bonus_table.get(mg.gem_id, [])
-        assignments: list[SocketAssignment] = []
-
-        for s in range(mg.num_sockets):
-            accepted_star = socket_type_map[s]
-            bonus_req = bonus_reqs[s] if s < len(bonus_reqs) else 0
-
-            # Prefer a gem that matches the bonus requirement.
-            chosen: tuple[int, InventoryGem] | None = None
-            if bonus_req:
-                for cid, gem in unassigned_copies:
-                    if cid not in used_ids and gem.star_rating == accepted_star:
-                        if gem.gem_id == bonus_req:
-                            chosen = (cid, gem)
-                            break
-
-            # Fall back to any compatible gem.
-            if chosen is None:
-                for cid, gem in unassigned_copies:
-                    if cid not in used_ids and gem.star_rating == accepted_star:
-                        chosen = (cid, gem)
-                        break
-
-            if chosen is None:
-                assignments.append(SocketAssignment(socket_index=s))
-            else:
-                cid, gem = chosen
-                used_ids.add(cid)
-                raw_req = bonus_reqs[s] if s < len(bonus_reqs) else 0
-                activated = bool(raw_req and gem.gem_id == raw_req)
-                assignments.append(SocketAssignment(
-                    socket_index=s,
-                    gem=gem,
-                    copy_id=cid,
-                    contribution=gem.contribution,
-                    bonus_activated=activated,
-                ))
-
-        result[mg.slot_name] = assignments
 
     return result

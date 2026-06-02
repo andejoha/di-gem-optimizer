@@ -16,7 +16,7 @@ from fastapi.responses import StreamingResponse
 
 from app.api.converters import domain_to_response, request_to_domain
 from app.api.schemas import BonusSocket, ConvertedGemItem, GemInfo, InventoryItem, OptimizeRequest, OptimizeResponse, RemainingInventoryItem, ShopPurchaseItem, ShopResponse
-from app.core.config import BASE_POWER, ILP_ALLOW_UNLIMITED, SOCKET_UNLOCK_RANK
+from app.core.config import BASE_POWER, SOCKET_UNLOCK_RANK
 from app.core.data import GEMS
 from app.core.models import UpgradeOptimizationResult
 from app.core.pipeline import _run_pipeline
@@ -171,13 +171,11 @@ def _shop_trial(
     """Worker function evaluated per thread for each shop candidate.
 
     Must be module-level so it is unambiguously importable by thread workers.
-    Always uses disable_time_limit=False so unlimited CBC solves cannot fan
-    out across all worker threads simultaneously.
     """
     trial_request, enable_upgrades, convert_1star, gem_id = args
     resp = _run_optimization(
         trial_request, enable_upgrades, convert_1star,
-        enable_shop=False, disable_time_limit=False,
+        enable_shop=False,
     )
     return gem_id, resp.summary.surplus_or_shortfall, resp, trial_request
 
@@ -187,7 +185,6 @@ def _run_shop_search(
     enable_upgrades: bool,
     convert_1star: bool,
     progress: ProgressReporter,
-    disable_time_limit: bool = False,
 ) -> OptimizeResponse:
     """Greedy Telluric Fragments shop search.
 
@@ -204,7 +201,7 @@ def _run_shop_search(
     """
     # Run the baseline (no purchases).
     baseline_response = _run_optimization(
-        request, enable_upgrades, convert_1star, enable_shop=False, disable_time_limit=disable_time_limit
+        request, enable_upgrades, convert_1star, enable_shop=False,
     )
     baseline_surplus = baseline_response.summary.surplus_or_shortfall
 
@@ -356,16 +353,12 @@ def _run_optimization(
     convert_1star: bool,
     enable_shop: bool = False,
     progress: ProgressReporter = NullReporter(),
-    disable_time_limit: bool = False,
 ) -> OptimizeResponse:
     """Core optimization logic shared by both the plain POST and SSE endpoints."""
-    if disable_time_limit and not ILP_ALLOW_UNLIMITED:
-        disable_time_limit = False
-
     # Shop search wraps the normal optimization; delegate immediately so that
     # the inner trial calls use enable_shop=False and cannot recurse.
     if enable_shop and request.telluric_fragments > 0:
-        return _run_shop_search(request, enable_upgrades, convert_1star, progress, disable_time_limit)
+        return _run_shop_search(request, enable_upgrades, convert_1star, progress)
 
     available_power, main_gems, skipped_slots, inventory = request_to_domain(request)
 
@@ -384,17 +377,17 @@ def _run_optimization(
         inventory = [g for g in inventory if not (g.star_rating == 1 and g.rank == "1")]
         available_power = available_power + len(r1_gems)
 
-    baseline = _run_pipeline(available_power, main_gems, skipped_slots, inventory, progress=progress, disable_time_limit=disable_time_limit)
+    baseline = _run_pipeline(available_power, main_gems, skipped_slots, inventory, progress=progress)
 
     if not enable_upgrades:
         response = domain_to_response(baseline, upgrade_result=None, inventory=inventory)
         return _finalize_r1_conversion(response, available_power_orig, r1_gems)
 
-    # Iterative upgrade passes: after each ILP re-solve the new socket
+    # Iterative upgrade passes: after each re-solve the new socket
     # assignments may include gems that weren't socketed in the baseline,
     # making them eligible for upgrade in the next pass.  This handles cases
     # such as a second 5-star socket being "freed" when the first-pass upgrade
-    # of a high-rank gem causes the ILP to move it to a different slot.
+    # of a high-rank gem causes the greedy to move it to a different slot.
     _MAX_UPGRADE_PASSES = 4
 
     all_applied_raw = []        # Raw deltas from every committed pass (unfiltered)
@@ -427,7 +420,6 @@ def _run_optimization(
             available_power, main_gems, skipped_slots, pass_inventory,
             progress=progress if pass_idx == 0 else NullReporter(),
             stage_prefix="rerun_" if pass_idx == 0 else f"rerun_pass{pass_idx}_",
-            disable_time_limit=disable_time_limit,
         )
 
         # Only commit this pass if it strictly improves on the best result seen so
@@ -516,7 +508,6 @@ def optimize(
     enable_upgrades: bool = False,
     convert_1star: bool = False,
     enable_shop: bool = False,
-    disable_time_limit: bool = False,
 ) -> OptimizeResponse:
     """Run the gem power optimizer pipeline.
 
@@ -540,7 +531,7 @@ def optimize(
         enable_upgrades, enable_shop, request.telluric_fragments,
     )
     t0 = time.perf_counter()
-    response = _run_optimization(request, enable_upgrades, convert_1star, enable_shop, disable_time_limit=disable_time_limit)
+    response = _run_optimization(request, enable_upgrades, convert_1star, enable_shop)
     bonuses = sum(
         s["bonuses_activated"]
         for s in response.gem_results.model_dump().values()
@@ -562,7 +553,6 @@ async def optimize_stream(
     enable_upgrades: bool = False,
     convert_1star: bool = False,
     enable_shop: bool = False,
-    disable_time_limit: bool = False,
 ) -> StreamingResponse:
     """Run the optimizer and stream progress events via Server-Sent Events.
 
@@ -589,7 +579,7 @@ async def optimize_stream(
 
     def _run_sync() -> None:
         try:
-            result = _run_optimization(request, enable_upgrades, convert_1star, enable_shop, progress=reporter, disable_time_limit=disable_time_limit)
+            result = _run_optimization(request, enable_upgrades, convert_1star, enable_shop, progress=reporter)
             bonuses = sum(s["bonuses_activated"] for s in result.gem_results.model_dump().values() if s is not None)
             logger.info(
                 "POST /optimize/stream  done %.2fs — residual=%d surplus=%d bonuses=%d",

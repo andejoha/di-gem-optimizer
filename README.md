@@ -1,6 +1,6 @@
 # Diablo Immortal Legendary Gem Optimizer
 
-Optimizes the assignment of inventory gems into awakening sockets of equipped gems, minimizing the gem power drawn from the player's pool. Uses Integer Linear Programming (ILP) to find the optimal assignment, followed by greedy heuristics to maximize resonance bonus activations.
+Optimizes the assignment of inventory gems into awakening sockets of equipped gems, minimizing the gem power drawn from the player's pool. Uses a greedy closest-fit heuristic — assigning the gem whose provided power best matches each main gem's remaining cost — followed by bonus-targeting socket fills and intra-gem reordering to maximize resonance bonus activations.
 
 ## Docker (recommended for deployment)
 
