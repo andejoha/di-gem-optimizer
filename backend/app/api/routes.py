@@ -292,6 +292,7 @@ def _run_optimization(
             result = _run_pipeline(
                 available_power, main_gems, skipped_slots, working,
                 progress=progress if first_pipeline_run else NullReporter(),
+                skip_bonus_phases=True,
             )
             first_pipeline_run = False
             relevant = _residual_assignments(result.gem_assignments)
@@ -361,13 +362,17 @@ def _run_optimization(
         # depths_2 will be reset to maximum at the top of the outer loop
 
     # Unpack the chosen candidate.
-    chosen_result = best_candidate["result"]
+    # Re-run the full pipeline (with bonus phases) on the winning inventory so
+    # the display result has correct bonus activations and resonance.  The walk
+    # used skip_bonus_phases=True, so best_candidate["result"] only has the
+    # residual-relevant data needed to pick the winner.
+    chosen_working = best_candidate["working"]
+    chosen_result = _run_pipeline(available_power, main_gems, skipped_slots, chosen_working)
     filtered_upgrades = best_candidate["filtered"]
     dropped_ops = best_candidate["dropped"]
     gems_to_restore = best_candidate["restore"]
     effective_residual = best_candidate["effective_residual"]
     upgrade_cost = best_candidate["upgrade_cost"]
-    chosen_working = best_candidate["working"]
 
     improvement = baseline.total_residual_cost - effective_residual
 

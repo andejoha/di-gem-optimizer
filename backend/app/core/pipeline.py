@@ -22,6 +22,7 @@ from app.core.models import (
 from app.core.optimizer import (
     expand_inventory,
     fill_empty_sockets,
+    redistribute_for_bonuses,
     reorder_for_bonuses,
     solve_assignment,
 )
@@ -36,12 +37,14 @@ def _run_pipeline(
     inventory: list[InventoryGem],
     progress: ProgressReporter = NullReporter(),
     stage_prefix: str = "",
+    skip_bonus_phases: bool = False,
 ) -> OptimizationResult:
     """Execute the core optimization pipeline with pre-parsed data.
 
-    Runs all three optimization phases (greedy closest-fit assignment, empty
-    socket fill, intra-gem socket reordering) on the provided in-memory data
-    structures and returns a fully populated ``OptimizationResult``.
+    Runs all four optimization phases (greedy closest-fit assignment, empty
+    socket fill, cross-gem bonus redistribution, intra-gem socket reordering)
+    on the provided in-memory data structures and returns a fully populated
+    ``OptimizationResult``.
 
     This function is separated from any I/O so that the upgrade optimization
     feature can re-run the pipeline with a modified in-memory inventory
@@ -52,6 +55,12 @@ def _run_pipeline(
         main_gems: Active main gems to optimize sockets for.
         skipped_slots: Slot names that were excluded during parsing.
         inventory: Available gem copies to assign into sockets.
+        skip_bonus_phases: When ``True``, skip the ``redistribute_for_bonuses``
+            and ``reorder_for_bonuses`` phases and instead produce a flat
+            socket assignment (gems placed in socket order without permutation
+            or bonus scoring).  Use this for upgrade-walk iterations where only
+            the residual cost matters; the caller is responsible for running the
+            full pipeline on the final chosen inventory.
 
     Returns:
         ``OptimizationResult`` with per-slot ``GemResult`` objects and global
@@ -91,12 +100,45 @@ def _run_pipeline(
     progress.report(f"{stage_prefix}fill_empty", "running", detail="Filling empty sockets...", force=True)
     per_slot_gems = fill_empty_sockets(main_gems, per_slot_gems, bonus_table, all_copies)
 
-    progress.report(f"{stage_prefix}reorder", "running", detail="Reordering sockets...", force=True)
     gem_assignments: dict[str, list[SocketAssignment]] = {}
-    for main_gem in main_gems:
-        gem_assignments[main_gem.slot_name] = reorder_for_bonuses(
-            main_gem, per_slot_gems[main_gem.slot_name], bonus_table
+    if skip_bonus_phases:
+        # Flat assignment: place gems into compatible sockets in their existing
+        # order without permutation or bonus scoring.  Contribution and gem
+        # identity are correct for residual and upgrade-filter purposes; bonus
+        # fields are left at their zero defaults.
+        from app.core.config import SOCKET_STAR_TYPE
+        for main_gem in main_gems:
+            socket_type_map = SOCKET_STAR_TYPE[main_gem.star_rating]
+            gems_by_star: dict[int, list[tuple[int, InventoryGem]]] = {}
+            for copy_id, gem in per_slot_gems[main_gem.slot_name]:
+                gems_by_star.setdefault(gem.star_rating, []).append((copy_id, gem))
+            iters = {st: iter(copies) for st, copies in gems_by_star.items()}
+            sockets: list[SocketAssignment] = []
+            for socket_index in range(main_gem.num_sockets):
+                st = socket_type_map[socket_index]
+                nxt = next(iters.get(st, iter([])), None)
+                if nxt is None:
+                    sockets.append(SocketAssignment(socket_index=socket_index))
+                else:
+                    copy_id, gem = nxt
+                    sockets.append(SocketAssignment(
+                        socket_index=socket_index,
+                        gem=gem,
+                        copy_id=copy_id,
+                        contribution=gem.contribution,
+                    ))
+            gem_assignments[main_gem.slot_name] = sockets
+    else:
+        progress.report(f"{stage_prefix}redistribute", "running", detail="Redistributing for bonuses...", force=True)
+        per_slot_gems = redistribute_for_bonuses(
+            main_gems, per_slot_gems, bonus_table, available_power, all_copies
         )
+
+        progress.report(f"{stage_prefix}reorder", "running", detail="Reordering sockets...", force=True)
+        for main_gem in main_gems:
+            gem_assignments[main_gem.slot_name] = reorder_for_bonuses(
+                main_gem, per_slot_gems[main_gem.slot_name], bonus_table
+            )
 
     gem_results: list[GemResult] = []
     total_socketed = 0

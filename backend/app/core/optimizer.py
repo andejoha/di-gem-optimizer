@@ -1,6 +1,6 @@
 """Greedy power-assignment and bonus optimization for the gem resonance optimizer.
 
-The optimization pipeline has three phases:
+The optimization pipeline has four phases:
 
 1. **Greedy assignment** (``solve_assignment``): Assigns inventory gem copies to
    main-gem sockets using a closest-fit heuristic. Each step picks the 5-star
@@ -12,7 +12,12 @@ The optimization pipeline has three phases:
    by the greedy phase (residual already zero, or no matching gem available) with
    bonus-targeting or resonance-maximising gems from the remaining inventory.
 
-3. **Intra-gem reordering** (``reorder_for_bonuses``): Brute-force permutation
+3. **Cross-gem redistribution** (``redistribute_for_bonuses``): Swaps gem
+   ownership between main gems (and pulls in unused inventory gems) to activate
+   more resonance bonuses, as long as the plan stays feasible.  Operates on
+   ownership only; per-socket placement is delegated to the next phase.
+
+4. **Intra-gem reordering** (``reorder_for_bonuses``): Brute-force permutation
    within each star-type group (sockets 0-2 for 2-star, sockets 3-4 for 5-star)
    to place the right gem in the right socket for maximum bonus activations.
 """
@@ -299,6 +304,348 @@ def fill_empty_sockets(
                 used_copy_ids.add(copy_id)
                 empty_count -= 1
         unassigned = [(copy_id, gem) for copy_id, gem in unassigned if copy_id not in used_copy_ids]
+
+    return current
+
+
+def total_residual_for(
+    main_gems: list[MainGem],
+    per_slot_gems: dict[str, list[tuple[int, InventoryGem]]],
+) -> int:
+    """Compute total residual power cost across all main gems.
+
+    5-star main gems have their residual reduced by the sum of their socketed
+    gem contributions; 1/2-star main gems always carry their full
+    ``required_power`` as residual (socketed power does not offset awakening
+    cost for lower-star gems).
+
+    Args:
+        main_gems: All active main gems.
+        per_slot_gems: Current ownership mapping ``slot_name`` to a list of
+            ``(copy_id, gem)`` pairs.
+
+    Returns:
+        Sum of per-main residual costs.
+    """
+    total = 0
+    for mg in main_gems:
+        socketed = sum(gem.contribution for _, gem in per_slot_gems.get(mg.slot_name, []))
+        if mg.star_rating == 5:
+            total += max(0, mg.required_power - socketed)
+        else:
+            total += mg.required_power
+    return total
+
+
+def max_bonuses_for_owned(
+    main_gem: MainGem,
+    owned: list[tuple[int, InventoryGem]],
+    bonus_table: dict[int, list[int]],
+) -> int:
+    """Count the maximum bonuses activatable for a main gem given an owned set.
+
+    Performs a per-socket-star-type greedy multiset match between the socket
+    bonus requirements and the gem_ids of the owned gems.  For each star type,
+    bonus requirements are collected from ``bonus_table`` and each non-zero
+    requirement is matched to one unused owned gem with an equal ``gem_id``.
+
+    Because bonus matching is pure equality on ``gem_id``, the greedy approach
+    is optimal: each distinct id contributes ``min(#requirements, #owned)``
+    matches, and no reordering can improve that.
+
+    Args:
+        main_gem: The main gem whose bonus requirements are checked.
+        owned: List of ``(copy_id, gem)`` pairs the main gem currently holds.
+        bonus_table: Mapping of ``gem_id`` to a per-socket list of required
+            gem_ids (0 = no requirement for that socket).
+
+    Returns:
+        Maximum number of bonuses that can be activated.
+    """
+    socket_type_map = SOCKET_STAR_TYPE[main_gem.star_rating]
+    bonus_requirements = bonus_table.get(main_gem.gem_id, [0] * MAX_SOCKETS[main_gem.star_rating])
+    accepted_star_types = set(socket_type_map.values())
+    total = 0
+    for star_type in accepted_star_types:
+        # Required gem_ids for sockets of this star type, excluding zeroes.
+        requirements = [
+            bonus_requirements[socket_index]
+            for socket_index in range(main_gem.num_sockets)
+            if socket_type_map[socket_index] == star_type
+            and socket_index < len(bonus_requirements)
+            and bonus_requirements[socket_index]
+        ]
+        if not requirements:
+            continue
+        # Available gem_ids from owned gems of this star type.
+        available: list[int] = [gem.gem_id for _, gem in owned if gem.star_rating == star_type]
+        # Greedy match: consume one available id per requirement.
+        used = [False] * len(available)
+        for req in requirements:
+            for idx, avail_id in enumerate(available):
+                if not used[idx] and avail_id == req:
+                    used[idx] = True
+                    total += 1
+                    break
+    return total
+
+
+def redistribute_for_bonuses(
+    main_gems: list[MainGem],
+    per_slot_gems: dict[str, list[tuple[int, InventoryGem]]],
+    bonus_table: dict[int, list[int]],
+    available_power: int,
+    all_copies: list[tuple[int, InventoryGem]],
+) -> dict[str, list[tuple[int, InventoryGem]]]:
+    """Swap gem ownership between main gems to activate more resonance bonuses.
+
+    Performs a best-improvement hill-climbing search over candidate moves until
+    no improving move exists (fixpoint).  All moves are same-star-type only,
+    respecting ``SOCKET_STAR_TYPE`` constraints.
+
+    Three candidate move kinds per pair of main gems:
+    - **Swap**: exchange one owned gem from main A with one owned gem from main B.
+    - **Transfer**: move a gem from A to B when B has a free socket of that type
+      (no gem returned to A).
+    - **Swap with unassigned**: exchange an owned gem of any main with an
+      unassigned inventory copy of the same star type (the displaced gem returns
+      to the unassigned pool).
+
+    Feasibility guard:
+    - A move is accepted only when ``bonus_gain > 0`` and the resulting total
+      residual satisfies ``new_residual <= max(available_power, starting_residual)``.
+      This allows the residual to rise into spare power budget, but never makes
+      things worse than the incoming plan when the plan starts infeasible.
+
+    Within each sweep the best move (highest ``(bonus_gain, -new_residual)``,
+    tie-broken by ``(slot_name_A, copy_id_A, slot_name_B, copy_id_B)``) is
+    applied and the sweep restarts.  Swaps involving only 1/2-star main gems
+    never change residual (no power offset applies to those mains), so they are
+    accepted whenever they gain any bonus.
+
+    This is a documented heuristic, not a provably globally optimal assignment.
+    Sizes are tiny (≤~8 main gems, ≤5 sockets each), so convergence is fast.
+
+    Args:
+        main_gems: All active main gems (any star rating).
+        per_slot_gems: Current ownership mapping ``slot_name`` to a list of
+            ``(copy_id, gem)`` pairs as produced by ``fill_empty_sockets``.
+            Not mutated; a working copy is made internally.
+        bonus_table: Full bonus lookup table mapping gem_id to required gem_ids.
+        available_power: The player's gem power pool (used for feasibility).
+        all_copies: All inventory copies as ``(copy_id, gem)`` pairs from
+            ``expand_inventory`` (used to pull in unassigned gems).
+
+    Returns:
+        Updated ``per_slot_gems`` mapping after all improving moves have been
+        applied.  Ownership only — per-socket placement is handled by the
+        subsequent ``reorder_for_bonuses`` phase.
+    """
+    # Build a working copy of per_slot_gems (lists copied; gem objects shared).
+    current: dict[str, list[tuple[int, InventoryGem]]] = {
+        slot: list(gems) for slot, gems in per_slot_gems.items()
+    }
+
+    starting_residual = total_residual_for(main_gems, current)
+    residual_ceiling = max(available_power, starting_residual)
+
+    def socket_capacity_by_star_type(main_gem: MainGem) -> dict[int, int]:
+        """Total socket slots per star type for this main gem."""
+        socket_type_map = SOCKET_STAR_TYPE[main_gem.star_rating]
+        capacity: dict[int, int] = {}
+        for socket_index in range(main_gem.num_sockets):
+            st = socket_type_map[socket_index]
+            capacity[st] = capacity.get(st, 0) + 1
+        return capacity
+
+    def free_socket_count(main_gem: MainGem, star_type: int) -> int:
+        """Number of unoccupied sockets of ``star_type`` in ``main_gem``."""
+        capacity = socket_capacity_by_star_type(main_gem).get(star_type, 0)
+        assigned = sum(1 for _, gem in current[main_gem.slot_name] if gem.star_rating == star_type)
+        return max(0, capacity - assigned)
+
+    def gem_residual(main_gem: MainGem) -> int:
+        """Residual for a single main gem from the current working state."""
+        if main_gem.star_rating != 5:
+            return main_gem.required_power
+        socketed = sum(gem.contribution for _, gem in current[main_gem.slot_name])
+        return max(0, main_gem.required_power - socketed)
+
+    # Pre-compute per-main-gem bonus counts from current state so we can
+    # compute deltas without rescanning all gems on every candidate move.
+    bonus_counts: dict[str, int] = {
+        mg.slot_name: max_bonuses_for_owned(mg, current[mg.slot_name], bonus_table)
+        for mg in main_gems
+    }
+
+    # Set of copy_ids that are currently owned by any main gem.
+    owned_copy_ids: set[int] = {
+        copy_id for gems in current.values() for copy_id, _ in gems
+    }
+
+    improved = True
+    while improved:
+        improved = False
+        best_key: tuple | None = None
+        best_move: tuple | None = None  # Encoded as ('swap', mg_a, idx_a, mg_b, idx_b)
+                                        # or ('transfer', mg_a, idx_a, mg_b)
+                                        # or ('unassigned', mg_a, idx_a, copy_id_b, gem_b)
+
+        # ------------------------------------------------------------------
+        # Candidate A: swaps / transfers between two already-owned gems
+        # ------------------------------------------------------------------
+        for i, mg_a in enumerate(main_gems):
+            for j, mg_b in enumerate(main_gems):
+                if j <= i:
+                    continue
+                slot_a = mg_a.slot_name
+                slot_b = mg_b.slot_name
+
+                # For each star type present in BOTH gems' sockets, try swaps.
+                star_types_a = set(socket_capacity_by_star_type(mg_a))
+                star_types_b = set(socket_capacity_by_star_type(mg_b))
+                shared_star_types = star_types_a & star_types_b
+
+                for star_type in shared_star_types:
+                    gems_a = [(idx, copy_id, gem) for idx, (copy_id, gem) in enumerate(current[slot_a]) if gem.star_rating == star_type]
+                    gems_b = [(idx, copy_id, gem) for idx, (copy_id, gem) in enumerate(current[slot_b]) if gem.star_rating == star_type]
+
+                    for idx_a, copy_id_a, gem_a in gems_a:
+                        # Swap gem_a with each gem_b.
+                        for idx_b, copy_id_b, gem_b in gems_b:
+                            # Quick-reject: if gem_ids are the same, swapping
+                            # cannot change bonus counts (and contribution
+                            # change only matters if residual differs, which
+                            # we still check, but skip identical gem_ids).
+                            if gem_a.gem_id == gem_b.gem_id and gem_a.contribution == gem_b.contribution:
+                                continue
+                            # Simulate the swap.
+                            new_a = [g for g in current[slot_a] if g[0] != copy_id_a] + [(copy_id_b, gem_b)]
+                            new_b = [g for g in current[slot_b] if g[0] != copy_id_b] + [(copy_id_a, gem_a)]
+                            bonus_a_new = max_bonuses_for_owned(mg_a, new_a, bonus_table)
+                            bonus_b_new = max_bonuses_for_owned(mg_b, new_b, bonus_table)
+                            bonus_gain = (bonus_a_new + bonus_b_new) - (bonus_counts[slot_a] + bonus_counts[slot_b])
+                            if bonus_gain <= 0:
+                                continue
+                            # Residual delta (only 5-star mains change).
+                            old_res_a = gem_residual(mg_a)
+                            old_res_b = gem_residual(mg_b)
+                            if mg_a.star_rating == 5:
+                                new_res_a = max(0, mg_a.required_power - sum(g.contribution for _, g in new_a))
+                            else:
+                                new_res_a = mg_a.required_power
+                            if mg_b.star_rating == 5:
+                                new_res_b = max(0, mg_b.required_power - sum(g.contribution for _, g in new_b))
+                            else:
+                                new_res_b = mg_b.required_power
+                            new_total_residual = (
+                                total_residual_for(main_gems, current)
+                                - old_res_a - old_res_b
+                                + new_res_a + new_res_b
+                            )
+                            if new_total_residual > residual_ceiling:
+                                continue
+                            key = (bonus_gain, -new_total_residual, slot_a, copy_id_a, slot_b, copy_id_b)
+                            if best_key is None or key > best_key:
+                                best_key = key
+                                best_move = ('swap', mg_a, idx_a, copy_id_a, gem_a, mg_b, idx_b, copy_id_b, gem_b)
+
+                        # Transfer gem_a into a free socket of mg_b (no gem returned).
+                        if free_socket_count(mg_b, star_type) > 0:
+                            new_a = [g for g in current[slot_a] if g[0] != copy_id_a]
+                            new_b = current[slot_b] + [(copy_id_a, gem_a)]
+                            bonus_a_new = max_bonuses_for_owned(mg_a, new_a, bonus_table)
+                            bonus_b_new = max_bonuses_for_owned(mg_b, new_b, bonus_table)
+                            bonus_gain = (bonus_a_new + bonus_b_new) - (bonus_counts[slot_a] + bonus_counts[slot_b])
+                            if bonus_gain <= 0:
+                                continue
+                            old_res_a = gem_residual(mg_a)
+                            old_res_b = gem_residual(mg_b)
+                            if mg_a.star_rating == 5:
+                                new_res_a = max(0, mg_a.required_power - sum(g.contribution for _, g in new_a))
+                            else:
+                                new_res_a = mg_a.required_power
+                            if mg_b.star_rating == 5:
+                                new_res_b = max(0, mg_b.required_power - sum(g.contribution for _, g in new_b))
+                            else:
+                                new_res_b = mg_b.required_power
+                            new_total_residual = (
+                                total_residual_for(main_gems, current)
+                                - old_res_a - old_res_b
+                                + new_res_a + new_res_b
+                            )
+                            if new_total_residual > residual_ceiling:
+                                continue
+                            key = (bonus_gain, -new_total_residual, slot_a, copy_id_a, slot_b, -1)
+                            if best_key is None or key > best_key:
+                                best_key = key
+                                best_move = ('transfer', mg_a, idx_a, copy_id_a, gem_a, mg_b)
+
+        # ------------------------------------------------------------------
+        # Candidate B: swap an owned gem with an unassigned inventory copy
+        # ------------------------------------------------------------------
+        unassigned = [
+            (copy_id, gem) for copy_id, gem in all_copies
+            if copy_id not in owned_copy_ids
+        ]
+        for mg_a in main_gems:
+            slot_a = mg_a.slot_name
+            star_types_a = set(socket_capacity_by_star_type(mg_a))
+            for star_type in star_types_a:
+                gems_a = [(idx, copy_id, gem) for idx, (copy_id, gem) in enumerate(current[slot_a]) if gem.star_rating == star_type]
+                for idx_a, copy_id_a, gem_a in gems_a:
+                    for copy_id_b, gem_b in unassigned:
+                        if gem_b.star_rating != star_type:
+                            continue
+                        if gem_a.gem_id == gem_b.gem_id and gem_a.contribution == gem_b.contribution:
+                            continue
+                        new_a = [g for g in current[slot_a] if g[0] != copy_id_a] + [(copy_id_b, gem_b)]
+                        bonus_a_new = max_bonuses_for_owned(mg_a, new_a, bonus_table)
+                        bonus_gain = bonus_a_new - bonus_counts[slot_a]
+                        if bonus_gain <= 0:
+                            continue
+                        old_res_a = gem_residual(mg_a)
+                        if mg_a.star_rating == 5:
+                            new_res_a = max(0, mg_a.required_power - sum(g.contribution for _, g in new_a))
+                        else:
+                            new_res_a = mg_a.required_power
+                        new_total_residual = (
+                            total_residual_for(main_gems, current)
+                            - old_res_a + new_res_a
+                        )
+                        if new_total_residual > residual_ceiling:
+                            continue
+                        key = (bonus_gain, -new_total_residual, slot_a, copy_id_a, "", copy_id_b)
+                        if best_key is None or key > best_key:
+                            best_key = key
+                            best_move = ('unassigned', mg_a, idx_a, copy_id_a, gem_a, copy_id_b, gem_b)
+
+        if best_move is None:
+            break
+
+        # Apply the best move found this sweep.
+        move_type = best_move[0]
+        if move_type == 'swap':
+            _, mg_a, _, copy_id_a, gem_a, mg_b, _, copy_id_b, gem_b = best_move
+            current[mg_a.slot_name] = [g for g in current[mg_a.slot_name] if g[0] != copy_id_a] + [(copy_id_b, gem_b)]
+            current[mg_b.slot_name] = [g for g in current[mg_b.slot_name] if g[0] != copy_id_b] + [(copy_id_a, gem_a)]
+            bonus_counts[mg_a.slot_name] = max_bonuses_for_owned(mg_a, current[mg_a.slot_name], bonus_table)
+            bonus_counts[mg_b.slot_name] = max_bonuses_for_owned(mg_b, current[mg_b.slot_name], bonus_table)
+        elif move_type == 'transfer':
+            _, mg_a, _, copy_id_a, gem_a, mg_b = best_move
+            current[mg_a.slot_name] = [g for g in current[mg_a.slot_name] if g[0] != copy_id_a]
+            current[mg_b.slot_name] = current[mg_b.slot_name] + [(copy_id_a, gem_a)]
+            # copy_id_a is still owned (now by mg_b), so owned_copy_ids is unchanged.
+            bonus_counts[mg_a.slot_name] = max_bonuses_for_owned(mg_a, current[mg_a.slot_name], bonus_table)
+            bonus_counts[mg_b.slot_name] = max_bonuses_for_owned(mg_b, current[mg_b.slot_name], bonus_table)
+        else:  # 'unassigned'
+            _, mg_a, _, copy_id_a, gem_a, copy_id_b, gem_b = best_move
+            current[mg_a.slot_name] = [g for g in current[mg_a.slot_name] if g[0] != copy_id_a] + [(copy_id_b, gem_b)]
+            owned_copy_ids.discard(copy_id_a)
+            owned_copy_ids.add(copy_id_b)
+            bonus_counts[mg_a.slot_name] = max_bonuses_for_owned(mg_a, current[mg_a.slot_name], bonus_table)
+
+        improved = True
 
     return current
 
