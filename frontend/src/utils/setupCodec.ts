@@ -14,7 +14,7 @@
  *   Per stack (5 bytes):
  *     Bytes 0-1: GemId uint16 big-endian
  *     Byte 2:   EncodedRank
- *     Byte 3:   ActiveStars (1-5)
+ *     Byte 3:   ActiveStars (1-5) | (dormant ? 0x80 : 0)  — high bit encodes dormant flag
  *     Byte 4:   Quantity (1-255)
  */
 
@@ -102,7 +102,7 @@ export function encodeSetup(state: CodecState): string {
     buf[pos++] = (stack.gem_id >> 8) & 0xFF;
     buf[pos++] = stack.gem_id & 0xFF;
     buf[pos++] = encodeRank(stack.rank);
-    buf[pos++] = stack.active_stars;
+    buf[pos++] = stack.active_stars | (stack.dormant ? 0x80 : 0);
     buf[pos++] = Math.min(stack.quantity, 255);
   }
 
@@ -157,8 +157,11 @@ export function decodeSetup(encoded: string, gemById: Map<number, GemInfo>): Cod
   for (let i = 0; i < stackCount; i++) {
     const gemId = (bytes[pos++] << 8) | bytes[pos++];
     const encodedRank = bytes[pos++];
-    const activeStars = bytes[pos++];
+    const activeStarsByte = bytes[pos++];
     const quantity = bytes[pos++];
+
+    const dormant = (activeStarsByte & 0x80) !== 0;
+    const activeStars = activeStarsByte & 0x7F;
 
     if (!gemById.has(gemId)) continue;
     if (activeStars < 1 || activeStars > 5) throw new Error(`Invalid active_stars value: ${activeStars}`);
@@ -172,6 +175,7 @@ export function decodeSetup(encoded: string, gemById: Map<number, GemInfo>): Cod
       rank: decodeRank(encodedRank),
       active_stars: activeStars,
       quantity,
+      dormant,
     });
   }
 

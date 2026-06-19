@@ -1,7 +1,11 @@
 import { useState } from 'react';
 import Autocomplete from '@mui/material/Autocomplete';
 import Box from '@mui/material/Box';
+import ButtonBase from '@mui/material/ButtonBase';
+import Tooltip from '@mui/material/Tooltip';
 import IconButton from '../buttons/IconButton';
+import checkedIcon from '../../assets/images/buttons/checked-box.png';
+import uncheckedIcon from '../../assets/images/buttons/unchecked-box.png';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
@@ -15,12 +19,14 @@ import type { GemInfo } from '../../types/api';
 import type { InventoryGemStack } from '../../types/inventory';
 import { getGemImageUrl, defaultGemImage } from '../../utils/gearAssets';
 import { getMaxSubRank, parseRank } from '../../utils/rankUtils';
+import { dormantContribution } from '../../utils/gemPowerCost';
 import StarRatingSelector from '../gear/StarRatingSelector';
 
 interface InventoryGemDialogProps {
   open: boolean;
   currentStack: InventoryGemStack | null;
   gems: GemInfo[];
+  gemPower: number;
   onSave: (data: Omit<InventoryGemStack, 'id'>) => void;
   onRemove: () => void;
   onClose: () => void;
@@ -30,6 +36,7 @@ export default function InventoryGemDialog({
   open,
   currentStack,
   gems,
+  gemPower,
   onSave,
   onRemove,
   onClose,
@@ -45,11 +52,28 @@ export default function InventoryGemDialog({
   const [mainRank, setMainRank] = useState<number | ''>(initialMain);
   const [subRank, setSubRank] = useState<number>(initialProg);
   const [quantityStr, setQuantityStr] = useState<string>(String(currentStack?.quantity ?? 1));
+  const [dormant, setDormant] = useState<boolean>(currentStack?.dormant ?? false);
 
   const effectiveMainRank = mainRank || 1;
 
   const showSubRank =
     selectedGem !== null && selectedGem.star_rating !== 1 && effectiveMainRank >= 4 && effectiveMainRank < 10;
+
+  const effectiveRank = showSubRank && subRank > 0
+    ? `${effectiveMainRank}.${subRank}`
+    : `${effectiveMainRank}`;
+
+  // Compute GP delta for dormant toggle (only meaningful when editing an existing stack).
+  const isEditing = currentStack !== null;
+  const gpDelta = isEditing && selectedGem
+    ? dormantContribution({
+        dormant,
+        quantity: Math.max(1, parseInt(quantityStr, 10) || 1),
+        star_rating: selectedGem.star_rating,
+        rank: effectiveRank,
+      }) - dormantContribution(currentStack)
+    : 0;
+  const gpInsufficient = gpDelta < 0 && gemPower + gpDelta < 0;
 
   function handleGemChange(gem: GemInfo | null) {
     setSelectedGem(gem);
@@ -83,21 +107,17 @@ export default function InventoryGemDialog({
   }
 
   function handleSave() {
-    if (!selectedGem) return;
-    const rank = showSubRank && subRank > 0
-      ? `${effectiveMainRank}.${subRank}`
-      : `${effectiveMainRank}`;
+    if (!selectedGem || gpInsufficient) return;
     const quantity = Math.max(1, parseInt(quantityStr, 10) || 1);
     onSave({
       gem_id: selectedGem.id,
       star_rating: selectedGem.star_rating,
-      rank,
+      rank: effectiveRank,
       active_stars: activeStars,
       quantity,
+      dormant,
     });
   }
-
-  const isEditing = currentStack !== null;
 
   return (
     <Dialog open={open} onClose={onClose} fullScreen={fullScreen} maxWidth="xs" fullWidth>
@@ -138,14 +158,36 @@ export default function InventoryGemDialog({
 
           {selectedGem && (
             <Box>
-              <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
-                Active Stars
-              </Typography>
-              <StarRatingSelector
-                starRating={selectedGem.star_rating}
-                activeStars={activeStars}
-                onChange={setActiveStars}
-              />
+              <Stack direction="row" alignItems="flex-end" justifyContent="space-between">
+                <Box>
+                  <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
+                    Active Stars
+                  </Typography>
+                  <StarRatingSelector
+                    starRating={selectedGem.star_rating}
+                    activeStars={activeStars}
+                    onChange={setActiveStars}
+                  />
+                </Box>
+                {effectiveMainRank > 1 && (
+                  <Tooltip title={`Dormant: ${dormant ? 'on' : 'off'}`}>
+                    <ButtonBase
+                      onClick={() => setDormant((d) => !d)}
+                      sx={{ borderRadius: 1, display: 'flex', alignItems: 'center', gap: 0.75 }}
+                    >
+                      <Typography variant="body1" color="text.secondary" sx={{ userSelect: 'none' }}>
+                        Dormant
+                      </Typography>
+                      <Box component="img" src={dormant ? checkedIcon : uncheckedIcon} sx={{ width: 28, height: 28 }} />
+                    </ButtonBase>
+                  </Tooltip>
+                )}
+              </Stack>
+              {gpInsufficient && (
+                <Typography variant="caption" color="error" display="block" sx={{ mt: 0.5 }}>
+                  Not enough Gem Power to reactivate this gem.
+                </Typography>
+              )}
             </Box>
           )}
 
@@ -196,7 +238,7 @@ export default function InventoryGemDialog({
         )}
         <Box sx={{ flex: 1 }} />
         <IconButton size="xxs" variant="secondary" icon="close" onClick={onClose} />
-        <IconButton size="xxs" icon="check" onClick={handleSave} disabled={!selectedGem} />
+        <IconButton size="xxs" icon="check" onClick={handleSave} disabled={!selectedGem || gpInsufficient} />
       </DialogActions>
     </Dialog>
   );

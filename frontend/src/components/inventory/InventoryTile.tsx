@@ -44,7 +44,12 @@ export default memo(function InventoryTile({ stack, onTileClick, onEmptyClick }:
         <Box
           component="img"
           src={stack ? inventoryFilledBg : inventoryEmptyBg}
-          sx={{ display: 'block', width: '100%', height: 'auto' }}
+          sx={{
+            display: 'block',
+            width: '100%',
+            height: 'auto',
+            ...(stack?.dormant && { filter: 'grayscale(1)' }),
+          }}
         />
         {stack && (
           <>
@@ -59,6 +64,7 @@ export default memo(function InventoryTile({ stack, onTileClick, onEmptyClick }:
                 width: '75%',
                 objectFit: 'contain',
                 pointerEvents: 'none',
+                ...(stack.dormant && { filter: 'grayscale(1)' }),
               }}
             />
             {pctLabel && (

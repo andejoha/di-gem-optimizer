@@ -7,20 +7,23 @@ export interface InventoryGemStack {
   rank: string;
   active_stars: number;
   quantity: number;
+  dormant?: boolean;
 }
 
-export function inventoryStackKey(item: Pick<InventoryGemStack, 'gem_id' | 'rank' | 'active_stars'>): string {
-  return `${item.gem_id}|${item.rank}|${item.active_stars}`;
+export function inventoryStackKey(item: Pick<InventoryGemStack, 'gem_id' | 'rank' | 'active_stars' | 'dormant'>): string {
+  return `${item.gem_id}|${item.rank}|${item.active_stars}|${item.dormant ? 1 : 0}`;
 }
 
 export function stacksToInventoryItems(stacks: InventoryGemStack[]): InventoryItem[] {
-  return stacks.flatMap((stack) =>
-    Array.from({ length: stack.quantity }, () => ({
-      gem_id: stack.gem_id,
-      rank: stack.rank,
-      active_stars: stack.active_stars,
-    }))
-  );
+  return stacks
+    .filter((stack) => !stack.dormant)
+    .flatMap((stack) =>
+      Array.from({ length: stack.quantity }, () => ({
+        gem_id: stack.gem_id,
+        rank: stack.rank,
+        active_stars: stack.active_stars,
+      }))
+    );
 }
 
 export function remainingItemsToStacks(items: RemainingInventoryItem[]): InventoryGemStack[] {
