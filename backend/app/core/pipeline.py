@@ -12,7 +12,7 @@ import time
 
 logger = logging.getLogger(__name__)
 
-from app.core.data import GEMS
+from app.core.data import COST_1STAR, COST_2STAR, COST_5STAR, GEMS
 from app.core.models import (
     GemResult,
     InventoryGem,
@@ -27,7 +27,9 @@ from app.core.optimizer import (
     solve_assignment,
 )
 from app.core.progress import NullReporter, ProgressReporter
-from app.core.rules import compute_slot_resonance
+from app.core.rules import compute_extractable_power, compute_slot_resonance
+
+_COST_TABLES: dict[int, dict] = {1: COST_1STAR, 2: COST_2STAR, 5: COST_5STAR}
 
 
 def _run_pipeline(
@@ -140,6 +142,22 @@ def _run_pipeline(
                 main_gem, per_slot_gems[main_gem.slot_name], bonus_table
             )
 
+    # Compute dormant GP: GP recovered by making every unsocketed inventory
+    # copy dormant.  "Unsocketed" means not assigned to *any* main gem socket
+    # (5-star or 1/2-star).  Rank-1 gems have required_gem_power == 0 and
+    # contribute nothing.
+    assigned_copy_ids: set[int] = {
+        a.copy_id
+        for asgns in gem_assignments.values()
+        for a in asgns
+        if a.copy_id >= 0
+    }
+    total_dormant_power = sum(
+        compute_extractable_power(gem.rank, _COST_TABLES[gem.star_rating])
+        for copy_id, gem in all_copies
+        if copy_id not in assigned_copy_ids
+    )
+
     gem_results: list[GemResult] = []
     total_socketed = 0
     total_required = 0
@@ -197,4 +215,5 @@ def _run_pipeline(
         bonus_table=bonus_table,
         main_gems=main_gems,
         total_resonance=total_resonance,
+        total_dormant_power=total_dormant_power,
     )

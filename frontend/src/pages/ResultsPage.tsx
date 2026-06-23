@@ -19,6 +19,7 @@ import UpgradesSection from '../components/results/UpgradesSection';
 import GearSlotResult from '../components/results/GearSlotResult';
 import RemainingInventory from '../components/results/RemainingInventory';
 import ConvertedGemsSection from '../components/results/ConvertedGemsSection';
+import DormantGemsSection from '../components/results/DormantGemsSection';
 
 interface LocationState {
   optimizeResponse: OptimizeResponse;
@@ -33,7 +34,7 @@ function isValidState(state: unknown): state is LocationState {
 }
 
 function buildResultCodecState(response: OptimizeResponse): CodecState {
-  const { summary, gem_results, remaining_inventory } = response;
+  const { summary, gem_results, remaining_inventory, dormant_gems } = response;
 
   // Build gem setup from results
   const gemSetup: GemSetup = {};
@@ -47,10 +48,20 @@ function buildResultCodecState(response: OptimizeResponse): CodecState {
     };
   }
 
-  // Merge remaining inventory and socketed gems into stacks
+  // Build a set of dormant keys so we can mark remaining stacks as dormant.
+  // Key: "gem_id|rank|active_stars" (without dormant flag) — matches the
+  // identity used by DormantGemItem.
+  const dormantKeySet = new Set(
+    (dormant_gems ?? []).map((d) => `${d.gem_id}|${d.rank}|${d.active_stars}`)
+  );
+
+  // Merge remaining inventory and socketed gems into stacks.
+  // Dormant gems are marked so the codec round-trips their GP contribution.
   const stackMap = new Map<string, InventoryGemStack>();
   for (const stack of remainingItemsToStacks(remaining_inventory)) {
-    stackMap.set(inventoryStackKey(stack), stack);
+    const isDormant = dormantKeySet.has(`${stack.gem_id}|${stack.rank}|${stack.active_stars}`);
+    const dormantStack = isDormant ? { ...stack, dormant: true } : stack;
+    stackMap.set(inventoryStackKey(dormantStack), dormantStack);
   }
   for (const slot of SLOT_ORDER) {
     const result = gem_results[slot];
@@ -86,7 +97,11 @@ function buildResultCodecState(response: OptimizeResponse): CodecState {
   }
 
   const upgradeCost = response.upgrades?.total_upgrade_cost ?? 0;
-  const gemPower = Math.max(0, summary.available_power - upgradeCost);
+  // Dormant GP is already folded into summary.surplus_or_shortfall; add it back
+  // to available_power so the exported pool matches what the input side expects
+  // (dormant stacks are excluded from the optimize request but their GP is part
+  // of the gem power input field).
+  const gemPower = Math.max(0, summary.available_power - upgradeCost + (summary.dormant_gem_power ?? 0));
 
   return { gemSetup, gemPower, stacks: Array.from(stackMap.values()) };
 }
@@ -101,7 +116,7 @@ export default function ResultsPage() {
     return <Navigate to="/" replace />;
   }
 
-  const { summary, gem_results, upgrades, remaining_inventory, converted_gems } = location.state.optimizeResponse;
+  const { summary, gem_results, upgrades, remaining_inventory, converted_gems, dormant_gems } = location.state.optimizeResponse;
 
   const exportCode = useMemo(
     () => exportOpen ? encodeSetup(buildResultCodecState(location.state.optimizeResponse)) : '',
@@ -140,6 +155,10 @@ export default function ResultsPage() {
           <ConvertedGemsSection convertedGems={converted_gems} />
         )}
 
+        {dormant_gems && dormant_gems.length > 0 && (
+          <DormantGemsSection dormantGems={dormant_gems} />
+        )}
+
         {upgrades && upgrades.upgrades_applied.length > 0 && (
           <UpgradesSection upgrades={upgrades} />
         )}
@@ -157,7 +176,7 @@ export default function ResultsPage() {
           </Stack>
         </Box>
 
-        <RemainingInventory items={remaining_inventory} />
+        <RemainingInventory items={remaining_inventory} dormantGems={dormant_gems ?? []} />
       </Stack>
 
       <ImportExportDialog

@@ -61,6 +61,27 @@ def is_socket_unlocked(socket_idx: int, rank_str: str, star_rating: int = 5) -> 
     return socket_idx < num_sockets_unlocked(rank_str, star_rating)
 
 
+def compute_extractable_power(
+    rank: str,
+    cost_table: dict[str, UpgradeCostEntry],
+) -> int:
+    """Return the GP recovered when a gem at ``rank`` is made dormant.
+
+    Making a gem dormant returns the cumulative gem power spent upgrading it
+    (``required_gem_power``), but NOT the gem copies consumed as fodder.
+    Rank-1 gems have ``required_gem_power == 0`` and return nothing.
+
+    Args:
+        rank: Current rank of the gem (e.g. ``"5"`` or ``"5.3"``).
+        cost_table: Upgrade cost lookup table for the gem's star rating.
+
+    Returns:
+        GP recovered (``>= 0``). Returns ``0`` for unknown ranks.
+    """
+    entry = cost_table.get(rank)
+    return entry.required_gem_power if entry else 0
+
+
 def compute_contribution(
     star_rating: int,
     rank: str,

@@ -89,6 +89,7 @@ export interface SummaryResponse {
   surplus_or_shortfall: number;
   skipped_slots: string[];
   total_resonance: number;
+  dormant_gem_power: number;
 }
 
 export interface UpgradeItem {
@@ -129,12 +130,22 @@ export interface ConvertedGemItem {
   gem_power_gained: number;
 }
 
+export interface DormantGemItem {
+  gem_id: number;
+  star_rating: number;
+  rank: string;
+  active_stars: number;
+  quantity: number;
+  gem_power_gained: number;
+}
+
 export interface OptimizeResponse {
   summary: SummaryResponse;
   gem_results: GemResults;
   upgrades?: UpgradesResponse | null;
   remaining_inventory: RemainingInventoryItem[];
   converted_gems: ConvertedGemItem[];
+  dormant_gems: DormantGemItem[];
 }
 
 // ---------------------------------------------------------------------------

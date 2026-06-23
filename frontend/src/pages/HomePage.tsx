@@ -20,7 +20,8 @@ import WelcomeDialog from '../components/tutorial/WelcomeDialog';
 import TutorialDialog from '../components/tutorial/TutorialDialog';
 import ImportExportDialog from '../components/toolbar/ImportExportDialog';
 import type { InventoryGemStack } from '../types/inventory';
-import { stacksToInventoryItems } from '../types/inventory';
+import { allStacksToInventoryItems, stacksToInventoryItems } from '../types/inventory';
+import { dormantContribution } from '../utils/gemPowerCost';
 import GearGrid from '../components/gear/GearGrid';
 import InventorySection from '../components/inventory/InventorySection';
 import { optimize, optimizeWithProgress } from '../services/gemApi';
@@ -130,10 +131,18 @@ export default function HomePage() {
     setError(null);
     setProgress(null);
     try {
+      // When upgrades are enabled, dormant gems are re-activated: they enter
+      // the inventory as regular copies and their stored GP is spent back into
+      // the pool (subtracted).  The pool may go negative if the player's raw
+      // pool is smaller than the total dormant GP — the upgrade walk handles
+      // this by finding upgrades that close the resulting gap.
+      const dormantGP = enableUpgrades
+        ? stacks.reduce((sum, s) => sum + dormantContribution(s), 0)
+        : 0;
       const request: OptimizeRequest = {
-        gem_power: gemPower,
+        gem_power: gemPower - dormantGP,
         gem_setup: gemSetup,
-        inventory: stacksToInventoryItems(stacks),
+        inventory: enableUpgrades ? allStacksToInventoryItems(stacks) : stacksToInventoryItems(stacks),
       };
       let optimizeResponse;
       try {

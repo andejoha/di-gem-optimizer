@@ -5,6 +5,7 @@ from typing import Optional
 from fastapi import HTTPException
 
 from app.api.schemas import (
+    DormantGemItem,
     GemResults,
     OptimizeRequest,
     OptimizeResponse,
@@ -26,9 +27,12 @@ from app.core.models import (
 )
 from app.core.rules import (
     compute_contribution,
+    compute_extractable_power,
     compute_socket_resonance_bonus,
     num_sockets_unlocked,
 )
+
+_COST_TABLES: dict[int, dict] = {1: COST_1STAR, 2: COST_2STAR, 5: COST_5STAR}
 
 
 def request_to_domain(
@@ -137,18 +141,8 @@ def domain_to_response(
     # upgrade GP cost) so the summary surplus reflects what the player truly has
     # left after paying for both awakening and upgrades.
     summary_residual = upgrade_result.effective_residual if upgrade_result is not None else residual
-    feasible = summary_residual <= result.available_power
-
-    summary = SummaryResponse(
-        total_socketed_power=result.total_socketed_power,
-        total_required_power=result.total_required_power,
-        total_residual_cost=summary_residual,
-        available_power=result.available_power,
-        status="feasible" if feasible else "shortfall",
-        surplus_or_shortfall=result.available_power - summary_residual,
-        skipped_slots=result.skipped_slots,
-        total_resonance=result.total_resonance,
-    )
+    # Dormant GP is computed below once we know which gems are unassigned.
+    # We defer building the summary until after the remaining-inventory pass.
 
     slot_map: dict[str, SlotResponse] = {}
     bonus_table = result.bonus_table
@@ -226,16 +220,19 @@ def domain_to_response(
     if upgrade_result is not None:
         bl = upgrade_result.baseline
         bl_residual = bl.total_residual_cost
-        bl_feasible = bl_residual <= bl.available_power
+        bl_D = bl.total_dormant_power
+        bl_effective_available = bl.available_power + bl_D
+        bl_feasible = bl_residual <= bl_effective_available
         baseline_summary = SummaryResponse(
             total_socketed_power=bl.total_socketed_power,
             total_required_power=bl.total_required_power,
             total_residual_cost=bl_residual,
             available_power=bl.available_power,
             status="feasible" if bl_feasible else "shortfall",
-            surplus_or_shortfall=bl.available_power - bl_residual,
+            surplus_or_shortfall=bl_effective_available - bl_residual,
             skipped_slots=bl.skipped_slots,
             total_resonance=bl.total_resonance,
+            dormant_gem_power=bl_D,
         )
         upgrades_response = UpgradesResponse(
             upgrades_applied=[
@@ -258,27 +255,66 @@ def domain_to_response(
             baseline_summary=baseline_summary,
         )
 
+    # Compute remaining inventory and dormant gems in a single pass over the
+    # unassigned copies.  Dormant GP is the sum of GP recoverable by making
+    # every unsocketed gem dormant (rank-1 gems contribute 0 and are omitted
+    # from dormant_gems but still appear in remaining_inventory).
     assigned_ids = {
         a.copy_id
         for assignments in result.gem_assignments.values()
         for a in assignments
         if a.copy_id >= 0
     }
-    remaining_inventory = [
-        RemainingInventoryItem(
+    remaining_inventory: list[RemainingInventoryItem] = []
+    dormant_map: dict[tuple, list[int]] = {}  # (gem_id, star, rank, active) -> [gp per copy]
+    for i, gem in enumerate(inventory):
+        if i in assigned_ids:
+            continue
+        remaining_inventory.append(RemainingInventoryItem(
             gem_id=gem.gem_id,
             star_rating=gem.star_rating,
             rank=gem.rank,
             active_stars=gem.active_stars,
             contribution=gem.contribution,
+        ))
+        gp = compute_extractable_power(gem.rank, _COST_TABLES[gem.star_rating])
+        if gp > 0:
+            key = (gem.gem_id, gem.star_rating, gem.rank, gem.active_stars)
+            dormant_map.setdefault(key, []).append(gp)
+
+    total_dormant_power = sum(gp for gplist in dormant_map.values() for gp in gplist)
+    dormant_gems: list[DormantGemItem] = [
+        DormantGemItem(
+            gem_id=k[0],
+            star_rating=k[1],
+            rank=k[2],
+            active_stars=k[3],
+            quantity=len(gplist),
+            gem_power_gained=sum(gplist),
         )
-        for i, gem in enumerate(inventory)
-        if i not in assigned_ids
+        for k, gplist in dormant_map.items()
     ]
+
+    # Build summary now that we know the dormant GP.
+    D = total_dormant_power
+    effective_available = result.available_power + D
+    feasible = summary_residual <= effective_available
+    summary = SummaryResponse(
+        total_socketed_power=result.total_socketed_power,
+        total_required_power=result.total_required_power,
+        total_residual_cost=summary_residual,
+        available_power=result.available_power,
+        status="feasible" if feasible else "shortfall",
+        surplus_or_shortfall=effective_available - summary_residual,
+        skipped_slots=result.skipped_slots,
+        total_resonance=result.total_resonance,
+        dormant_gem_power=D,
+    )
 
     return OptimizeResponse(
         summary=summary,
         gem_results=gem_results,
         upgrades=upgrades_response,
         remaining_inventory=remaining_inventory,
+        dormant_gems=dormant_gems,
     )

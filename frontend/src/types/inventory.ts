@@ -26,6 +26,19 @@ export function stacksToInventoryItems(stacks: InventoryGemStack[]): InventoryIt
     );
 }
 
+/** Convert all stacks — including dormant ones — to active inventory items.
+ *  Used for the upgrade walk, where dormant gems are re-activated and their
+ *  GP cost is subtracted from the pool before sending the request. */
+export function allStacksToInventoryItems(stacks: InventoryGemStack[]): InventoryItem[] {
+  return stacks.flatMap((stack) =>
+    Array.from({ length: stack.quantity }, () => ({
+      gem_id: stack.gem_id,
+      rank: stack.rank,
+      active_stars: stack.active_stars,
+    }))
+  );
+}
+
 export function remainingItemsToStacks(items: RemainingInventoryItem[]): InventoryGemStack[] {
   const map = new Map<string, InventoryGemStack>();
   for (const item of items) {

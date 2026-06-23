@@ -376,3 +376,4 @@ class OptimizationResult:
     bonus_table: dict[int, list[int]]
     main_gems: list[MainGem]
     total_resonance: int = 0
+    total_dormant_power: int = 0

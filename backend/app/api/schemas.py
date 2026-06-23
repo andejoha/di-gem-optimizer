@@ -40,7 +40,12 @@ class InventoryItem(BaseModel):
 
 class OptimizeRequest(BaseModel):
     gem_power: int = Field(
-        gt=0, description="Player's available gem power pool")
+        description=(
+            "Player's available gem power pool. "
+            "May be negative when dormant gems are activated for the upgrade walk "
+            "(their GP cost is subtracted before the request is sent)."
+        ),
+    )
     gem_setup: GemSetup = Field(
         description="Equipped gems per slot. Omitted slots are treated as empty.")
     inventory: list[InventoryItem] = Field(
@@ -101,6 +106,10 @@ class SummaryResponse(BaseModel):
     )
     skipped_slots: list[str]
     total_resonance: int
+    dormant_gem_power: int = Field(
+        default=0,
+        description="GP recovered by making all unsocketed inventory gems dormant",
+    )
 
 
 class UpgradeItem(BaseModel):
@@ -148,12 +157,24 @@ class ConvertedGemItem(BaseModel):
     gem_power_gained: int
 
 
+class DormantGemItem(BaseModel):
+    gem_id: int
+    star_rating: int
+    rank: str
+    active_stars: int
+    quantity: int
+    gem_power_gained: int = Field(
+        description="Total GP recoverable by making all copies of this gem dormant"
+    )
+
+
 class OptimizeResponse(BaseModel):
     summary: SummaryResponse
     gem_results: GemResults
     upgrades: Optional[UpgradesResponse] = None
     remaining_inventory: list[RemainingInventoryItem] = []
     converted_gems: list[ConvertedGemItem] = []
+    dormant_gems: list[DormantGemItem] = []
 
 
 # ---------------------------------------------------------------------------

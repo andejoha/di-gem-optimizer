@@ -81,7 +81,11 @@ def _finalize_r1_conversion(
         return response
 
     total_residual = response.summary.total_residual_cost
-    gems_used = min(len(r1_gems), max(0, total_residual - available_power_orig))
+    # Dormant GP is already counted in available_power on the summary side; we
+    # must subtract it here so R1 gems are only converted to cover the portion
+    # of residual not already offset by dormant extraction.
+    D = response.summary.dormant_gem_power
+    gems_used = min(len(r1_gems), max(0, total_residual - available_power_orig - D))
 
     # Restore unused R1 gems to remaining_inventory
     unused = r1_gems[gems_used:]
@@ -98,7 +102,8 @@ def _finalize_r1_conversion(
 
     # Patch available_power to reflect only what was actually used
     new_available = available_power_orig + gems_used
-    new_surplus = new_available - total_residual
+    # Surplus = base available + R1 converted + dormant - residual
+    new_surplus = new_available + D - total_residual
 
     patched_summary = response.summary.model_copy(update={
         "available_power": new_available,
@@ -112,9 +117,10 @@ def _finalize_r1_conversion(
     patched_upgrades = response.upgrades
     if response.upgrades is not None:
         bl_residual = response.upgrades.baseline_summary.total_residual_cost
-        bl_gems_used = min(len(r1_gems), max(0, bl_residual - available_power_orig))
+        bl_D = response.upgrades.baseline_summary.dormant_gem_power
+        bl_gems_used = min(len(r1_gems), max(0, bl_residual - available_power_orig - bl_D))
         bl_new_available = available_power_orig + bl_gems_used
-        bl_new_surplus = bl_new_available - bl_residual
+        bl_new_surplus = bl_new_available + bl_D - bl_residual
         patched_baseline_summary = response.upgrades.baseline_summary.model_copy(update={
             "available_power": bl_new_available,
             "status": "feasible" if bl_new_surplus >= 0 else "shortfall",
@@ -299,6 +305,10 @@ def _run_optimization(
             filtered, dropped, restore = filter_upgrades_to_socketed(applied, relevant)
             upgrade_cost = sum(delta.additional_gem_power for delta in filtered)
             effective_residual = result.total_residual_cost + upgrade_cost
+            # Net residual accounts for GP recoverable by making unsocketed gems
+            # dormant.  Use this for walk decisions; keep effective_residual (gross)
+            # for display in UpgradeOptimizationResult.
+            net_residual = effective_residual - result.total_dormant_power
 
             # Collapse all non-socketed 2-star chains to depth 0 immediately.
             # A non-socketed chain at depth > 0 has its upgrade cost refunded by
@@ -318,11 +328,13 @@ def _run_optimization(
                 continue  # re-evaluate with fodder restored
 
             # All non-socketed chains are at depth 0 — this is a clean state.
-            if best_candidate is None or effective_residual < best_candidate["effective_residual"]:
+            if best_candidate is None or net_residual < best_candidate["net_residual"]:
                 logger.info(
-                    "upgrade walk: new best  effective_residual=%d  residual=%d  upgrade_cost=%d  shortfall=%d",
-                    effective_residual, result.total_residual_cost, upgrade_cost,
-                    effective_residual - available_power_orig,
+                    "upgrade walk: new best  net_residual=%d  effective_residual=%d  dormant=%d  "
+                    "residual=%d  upgrade_cost=%d  shortfall=%d",
+                    net_residual, effective_residual, result.total_dormant_power,
+                    result.total_residual_cost, upgrade_cost,
+                    net_residual - available_power_orig,
                 )
                 for slot_name, assignments in sorted(relevant.items()):
                     socketed_gems = [
@@ -334,10 +346,11 @@ def _run_optimization(
                 best_candidate = {
                     "result": result, "filtered": filtered, "dropped": dropped,
                     "restore": restore, "effective_residual": effective_residual,
+                    "net_residual": net_residual,
                     "upgrade_cost": upgrade_cost, "working": working,
                 }
 
-            if effective_residual <= available_power_orig:
+            if net_residual <= available_power_orig:
                 surplus_found = True
                 break
 
@@ -345,7 +358,7 @@ def _run_optimization(
             if peel_index_2 < 0:
                 break  # All 2-star at depth 0 — fall through to peel one 5-star
 
-            _log_peel(chains_2[peel_index_2], depths_2[peel_index_2], effective_residual)
+            _log_peel(chains_2[peel_index_2], depths_2[peel_index_2], net_residual)
             depths_2[peel_index_2] -= 1
 
         if surplus_found:
@@ -357,7 +370,7 @@ def _run_optimization(
         if peel_index_5 < 0:
             break  # no 5-star chains left to peel
 
-        _log_peel(chains_5[peel_index_5], depths_5[peel_index_5], effective_residual)
+        _log_peel(chains_5[peel_index_5], depths_5[peel_index_5], net_residual)
         depths_5[peel_index_5] -= 1
         # depths_2 will be reset to maximum at the top of the outer loop
 

@@ -65,6 +65,11 @@ export default function SummaryCard({ summary }: Props) {
           <Row label="Residual Cost">
             <IconValue icon={gemPowerIcon} value={summary.total_residual_cost} />
           </Row>
+          {summary.dormant_gem_power > 0 && (
+            <Row label="Dormant GP Recovered">
+              <IconValue icon={gemPowerIcon} value={summary.dormant_gem_power} color="success.main" />
+            </Row>
+          )}
           <Row label={surplus >= 0 ? 'Surplus' : 'Shortfall'}>
             <IconValue
               icon={gemPowerIcon}
