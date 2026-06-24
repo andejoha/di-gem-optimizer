@@ -242,7 +242,7 @@ GEMS: dict[int, GemDef] = {
     5025: _g(5025, "Haunt Coil",             5, [2025, 2016, 2017, 5005, 5015]),
     5026: _g(5026, "Fated Trail",            5, [2014, 2023, 2025, 5006, 5017]),
     5027: _g(5027, "Leviathan Tomb",         5, [2003, 2026, 2028, 5021, 5022]),
-    5028: _g(5028, "Hellbound Desire",       5, [2025, 2023, 2017, 5016, 5009]),
+    5028: _g(5028, "Hellbound Desire",       5, [2023, 2025, 2017, 5009, 5016]),
 
     # ----- 2-star gems (2001–2032) -----
     # bonus_gem_ids: 3 entries per gem (rank 3, 5, 7 unlocks)
