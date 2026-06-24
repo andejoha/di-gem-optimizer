@@ -97,8 +97,16 @@ export function encodeSetup(state: CodecState): string {
     buf[pos++] = gem.active_stars;
   }
 
-  buf[pos++] = state.stacks.length;
-  for (const stack of state.stacks) {
+  const sortedStacks = [...state.stacks].sort((a, b) => {
+    if (a.gem_id !== b.gem_id) return a.gem_id - b.gem_id;
+    const ra = encodeRank(a.rank), rb = encodeRank(b.rank);
+    if (ra !== rb) return ra - rb;
+    if (a.active_stars !== b.active_stars) return a.active_stars - b.active_stars;
+    return (a.dormant ? 1 : 0) - (b.dormant ? 1 : 0);
+  });
+
+  buf[pos++] = sortedStacks.length;
+  for (const stack of sortedStacks) {
     buf[pos++] = (stack.gem_id >> 8) & 0xFF;
     buf[pos++] = stack.gem_id & 0xFF;
     buf[pos++] = encodeRank(stack.rank);
