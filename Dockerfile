@@ -30,6 +30,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/ ./
 
 COPY --from=frontend-build /app/frontend/dist /usr/share/nginx/html
+RUN chmod -R a+rX /usr/share/nginx/html
 
 COPY nginx.conf /etc/nginx/nginx.conf.template
 COPY start.sh /app/start.sh

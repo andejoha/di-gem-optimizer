@@ -1,7 +1,11 @@
 services:
   gem-optimizer:
-    build: .
-    image: gem-optimizer
+    build:
+      context: .
+      platforms:
+        - linux/amd64
+        - linux/arm64
+    image: di-gem-optimizer:latest
     container_name: di-gem-optimizer
     ports:
-      - "8080:8080"
+      - "0.0.0.0:8080:8080"

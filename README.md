@@ -34,6 +34,48 @@ docker run -p 8080:8080 gem-optimizer
 | `PORT` | `8080` | Port nginx listens on. Set automatically by Azure App Service. |
 | `CORS_ORIGINS` | `http://localhost:5173` | Comma-separated list of allowed CORS origins. Not needed when the frontend and backend are served from the same origin (i.e. in Docker). |
 
+**Multi-architecture build**
+
+*Using Docker*
+
+```bash
+docker buildx build --platform linux/arm64,linux/amd64 -t di-gem-optimizer:latest .
+```
+
+*Using Docker Compose*
+
+```bash
+docker compose build
+```
+
+*Using Podman*
+
+```bash
+podman build --platform linux/arm64,linux/amd64 --manifest di-gem-optimizer:latest .
+```
+
+**Push to Docker Hub**
+
+*Using Docker* — log in and build+push in one step (required for multi-arch):
+
+```bash
+docker login
+```
+
+```bash
+docker buildx build --platform linux/arm64,linux/amd64 --push -t docker.io/andejoha/di-gem-optimizer:latest .
+```
+
+*Using Podman* — log in first:
+
+```bash
+podman login docker.io
+```
+
+```bash
+podman manifest push di-gem-optimizer:latest docker://docker.io/andejoha/di-gem-optimizer:latest
+```
+
 **Azure App Service**
 
 Push the image to Azure Container Registry and deploy it as a Web App for Containers. Set the health check path to `/api/health` in the App Service configuration.
