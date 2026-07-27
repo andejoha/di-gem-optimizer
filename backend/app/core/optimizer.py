@@ -28,8 +28,9 @@ from itertools import permutations
 logger = logging.getLogger(__name__)
 
 from app.core.config import MAX_SOCKETS, SOCKET_STAR_TYPE
+from app.core.data import COST_TABLES
 from app.core.models import InventoryGem, MainGem, SocketAssignment
-from app.core.rules import compute_socket_resonance_bonus
+from app.core.rules import compute_extractable_power, compute_socket_resonance_bonus
 
 
 def expand_inventory(
@@ -337,6 +338,32 @@ def total_residual_for(
     return total
 
 
+def dormant_power_for(
+    all_copies: list[tuple[int, InventoryGem]],
+    owned_copy_ids: set[int],
+) -> int:
+    """Compute GP recoverable by making every unowned copy in ``all_copies`` dormant.
+
+    Mirrors the dormant-GP accounting in ``pipeline._run_pipeline`` (there
+    applied to the final socket assignment; here applied to an in-progress
+    ownership set during ``redistribute_for_bonuses``), so that a move which
+    pulls an unassigned gem into a socket is charged for the dormant GP it
+    displaces, not just the residual it changes.
+
+    Args:
+        all_copies: All inventory copies as ``(copy_id, gem)`` pairs.
+        owned_copy_ids: copy_ids currently assigned to some main gem.
+
+    Returns:
+        Total GP recoverable from copies not in ``owned_copy_ids``.
+    """
+    return sum(
+        compute_extractable_power(gem.rank, COST_TABLES[gem.star_rating])
+        for copy_id, gem in all_copies
+        if copy_id not in owned_copy_ids
+    )
+
+
 def max_bonuses_for_owned(
     main_gem: MainGem,
     owned: list[tuple[int, InventoryGem]],
@@ -394,7 +421,7 @@ def redistribute_for_bonuses(
     main_gems: list[MainGem],
     per_slot_gems: dict[str, list[tuple[int, InventoryGem]]],
     bonus_table: dict[int, list[int]],
-    available_power: int,
+    budget: int,
     all_copies: list[tuple[int, InventoryGem]],
 ) -> dict[str, list[tuple[int, InventoryGem]]]:
     """Swap gem ownership between main gems to activate more resonance bonuses.
@@ -412,12 +439,21 @@ def redistribute_for_bonuses(
       to the unassigned pool).
 
     Feasibility guard:
-    - A move is accepted only when ``bonus_gain > 0`` and the resulting total
-      residual satisfies ``new_residual <= max(available_power, starting_residual)``.
-      This allows the residual to rise into spare power budget, but never makes
-      things worse than the incoming plan when the plan starts infeasible.
+    - Define ``cost = total_residual - dormant_power``, where ``dormant_power``
+      is the GP recoverable by making every currently-unowned copy dormant
+      (``dormant_power_for``). This is the same quantity the API surfaces as
+      ``available_power + dormant_gem_power - residual`` in the response
+      summary, so a move accepted here can never make the *displayed* surplus
+      worse than the ceiling below.
+    - A move is accepted only when ``bonus_gain > 0`` and the resulting
+      ``new_cost <= max(budget, starting_cost)``. This allows cost to rise into
+      spare budget, but never makes things worse than the incoming plan when
+      the plan starts over budget. Swap and transfer moves only reassign
+      ownership between two already-owned mains, so they never change
+      ``dormant_power``; only the swap-with-unassigned move does, because it
+      moves a copy across the owned/unowned boundary.
 
-    Within each sweep the best move (highest ``(bonus_gain, -new_residual)``,
+    Within each sweep the best move (highest ``(bonus_gain, -new_cost)``,
     tie-broken by ``(slot_name_A, copy_id_A, slot_name_B, copy_id_B)``) is
     applied and the sweep restarts.  Swaps involving only 1/2-star main gems
     never change residual (no power offset applies to those mains), so they are
@@ -432,9 +468,12 @@ def redistribute_for_bonuses(
             ``(copy_id, gem)`` pairs as produced by ``fill_empty_sockets``.
             Not mutated; a working copy is made internally.
         bonus_table: Full bonus lookup table mapping gem_id to required gem_ids.
-        available_power: The player's gem power pool (used for feasibility).
+        budget: GP the player can still spend on this phase — i.e. the pool,
+            net of any GP already committed elsewhere (such as an applied
+            upgrade plan). Used for the feasibility ceiling above.
         all_copies: All inventory copies as ``(copy_id, gem)`` pairs from
-            ``expand_inventory`` (used to pull in unassigned gems).
+            ``expand_inventory`` (used to pull in unassigned gems and to
+            compute dormant power).
 
     Returns:
         Updated ``per_slot_gems`` mapping after all improving moves have been
@@ -446,8 +485,20 @@ def redistribute_for_bonuses(
         slot: list(gems) for slot, gems in per_slot_gems.items()
     }
 
+    # Set of copy_ids that are currently owned by any main gem. Declared here
+    # (rather than after bonus_counts below) because it is needed to compute
+    # the starting dormant power for the cost ceiling.
+    owned_copy_ids: set[int] = {
+        copy_id for gems in current.values() for copy_id, _ in gems
+    }
+
     starting_residual = total_residual_for(main_gems, current)
-    residual_ceiling = max(available_power, starting_residual)
+    starting_dormant = dormant_power_for(all_copies, owned_copy_ids)
+    starting_cost = starting_residual - starting_dormant
+    cost_ceiling = max(budget, starting_cost)
+    # Dormant power only changes for swap-with-unassigned moves; tracked
+    # incrementally as the working state's ownership boundary shifts.
+    current_dormant = starting_dormant
 
     def socket_capacity_by_star_type(main_gem: MainGem) -> dict[int, int]:
         """Total socket slots per star type for this main gem."""
@@ -476,11 +527,6 @@ def redistribute_for_bonuses(
     bonus_counts: dict[str, int] = {
         mg.slot_name: max_bonuses_for_owned(mg, current[mg.slot_name], bonus_table)
         for mg in main_gems
-    }
-
-    # Set of copy_ids that are currently owned by any main gem.
-    owned_copy_ids: set[int] = {
-        copy_id for gems in current.values() for copy_id, _ in gems
     }
 
     improved = True
@@ -543,9 +589,12 @@ def redistribute_for_bonuses(
                                 - old_res_a - old_res_b
                                 + new_res_a + new_res_b
                             )
-                            if new_total_residual > residual_ceiling:
+                            # Swaps only reassign ownership between two already-
+                            # owned mains, so dormant power is unaffected.
+                            new_cost = new_total_residual - current_dormant
+                            if new_cost > cost_ceiling:
                                 continue
-                            key = (bonus_gain, -new_total_residual, slot_a, copy_id_a, slot_b, copy_id_b)
+                            key = (bonus_gain, -new_cost, slot_a, copy_id_a, slot_b, copy_id_b)
                             if best_key is None or key > best_key:
                                 best_key = key
                                 best_move = ('swap', mg_a, idx_a, copy_id_a, gem_a, mg_b, idx_b, copy_id_b, gem_b)
@@ -574,9 +623,12 @@ def redistribute_for_bonuses(
                                 - old_res_a - old_res_b
                                 + new_res_a + new_res_b
                             )
-                            if new_total_residual > residual_ceiling:
+                            # Transfers only reassign ownership between two
+                            # already-owned mains, so dormant power is unaffected.
+                            new_cost = new_total_residual - current_dormant
+                            if new_cost > cost_ceiling:
                                 continue
-                            key = (bonus_gain, -new_total_residual, slot_a, copy_id_a, slot_b, -1)
+                            key = (bonus_gain, -new_cost, slot_a, copy_id_a, slot_b, -1)
                             if best_key is None or key > best_key:
                                 best_key = key
                                 best_move = ('transfer', mg_a, idx_a, copy_id_a, gem_a, mg_b)
@@ -613,9 +665,17 @@ def redistribute_for_bonuses(
                             total_residual_for(main_gems, current)
                             - old_res_a + new_res_a
                         )
-                        if new_total_residual > residual_ceiling:
+                        # gem_a leaves ownership (becomes dormant-eligible);
+                        # gem_b enters it (no longer dormant-eligible).
+                        new_dormant = (
+                            current_dormant
+                            + compute_extractable_power(gem_a.rank, COST_TABLES[gem_a.star_rating])
+                            - compute_extractable_power(gem_b.rank, COST_TABLES[gem_b.star_rating])
+                        )
+                        new_cost = new_total_residual - new_dormant
+                        if new_cost > cost_ceiling:
                             continue
-                        key = (bonus_gain, -new_total_residual, slot_a, copy_id_a, "", copy_id_b)
+                        key = (bonus_gain, -new_cost, slot_a, copy_id_a, "", copy_id_b)
                         if best_key is None or key > best_key:
                             best_key = key
                             best_move = ('unassigned', mg_a, idx_a, copy_id_a, gem_a, copy_id_b, gem_b)
@@ -643,6 +703,10 @@ def redistribute_for_bonuses(
             current[mg_a.slot_name] = [g for g in current[mg_a.slot_name] if g[0] != copy_id_a] + [(copy_id_b, gem_b)]
             owned_copy_ids.discard(copy_id_a)
             owned_copy_ids.add(copy_id_b)
+            current_dormant += (
+                compute_extractable_power(gem_a.rank, COST_TABLES[gem_a.star_rating])
+                - compute_extractable_power(gem_b.rank, COST_TABLES[gem_b.star_rating])
+            )
             bonus_counts[mg_a.slot_name] = max_bonuses_for_owned(mg_a, current[mg_a.slot_name], bonus_table)
 
         improved = True

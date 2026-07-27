@@ -27,6 +27,7 @@ import pytest
 from app.core.data import COST_2STAR, COST_5STAR
 from app.core.models import InventoryGem, MainGem
 from app.core.optimizer import (
+    dormant_power_for,
     expand_inventory,
     max_bonuses_for_owned,
     redistribute_for_bonuses,
@@ -100,6 +101,25 @@ def test_total_residual_cannot_go_negative():
     inv = _inv(5002, 5, "7")           # contribution=2407 >> 850
     per_slot = {"head": [(0, inv)]}
     assert total_residual_for([mg], per_slot) == 0
+
+
+# ---------------------------------------------------------------------------
+# dormant_power_for
+# ---------------------------------------------------------------------------
+
+def test_dormant_power_sums_unowned_extractable_power():
+    """Only copies absent from owned_copy_ids contribute extractable GP."""
+    owned = _inv(5002, 5, "1")   # contribution=32, required_gem_power=0 -> extractable 0
+    unowned_a = _inv(9999, 5, "5")  # required_gem_power=475
+    unowned_b = _inv(9998, 5, "6")  # required_gem_power=850
+    all_copies = [(0, owned), (1, unowned_a), (2, unowned_b)]
+    assert dormant_power_for(all_copies, owned_copy_ids={0}) == 475 + 850
+
+
+def test_dormant_power_zero_when_all_owned():
+    inv = _inv(5002, 5, "6")
+    all_copies = [(0, inv)]
+    assert dormant_power_for(all_copies, owned_copy_ids={0}) == 0
 
 
 # ---------------------------------------------------------------------------
@@ -227,6 +247,48 @@ def test_swap_with_unassigned_blocked_by_feasibility():
     owned_ids = {gem.gem_id for _, gem in result["head"]}
     assert 9999 in owned_ids, "original high-contribution gem must stay"
     assert 5002 not in owned_ids, "bonus gem must NOT be swapped in (infeasible)"
+
+
+def test_swap_with_unassigned_allowed_when_outgoing_dormant_gp_covers_the_gap():
+    """Net-cost accounting must credit the dormant GP an outgoing gem frees up.
+
+    mg_a owns a deeply-upgraded 5-star gem (rank "6": required_gems=14,
+    required_gem_power=850, contribution=1298) that does NOT activate the
+    bonus. An unassigned rank "1" gem (contribution=32, required_gem_power=0)
+    DOES activate the bonus but is far weaker.
+
+    Gross residual rises from 277 to 1543 (a 1266 increase) — comfortably
+    over a budget of 700, so the old residual-only guard would reject this
+    swap outright.
+
+    But the outgoing rank "6" gem becomes dormant-eligible once displaced,
+    recovering its full required_gem_power (850). Net cost only rises by
+    32 * (14 - 1) = 416 (to 693), which DOES fit under budget=700: the
+    player's true affordable ceiling accounts for GP they can reclaim by
+    making the displaced gem dormant, so the swap should be allowed.
+    """
+    mg_a = _main("head", 5001, 5, "7")  # required_power=1575, 5 sockets
+
+    inv_owned = _inv(9999, 5, "6")  # gem_id=9999 (non-bonus), contribution=1298
+    inv_bonus = _inv(5002, 5, "1")  # gem_id=5002 matches socket-3 req, contribution=32
+
+    per_slot: dict[str, list] = {"head": [(0, inv_owned)]}
+    bonus_table = {5001: [0, 0, 0, 5002, 0]}
+
+    # Starting residual: max(0, 1575 - 1298) = 277.
+    # Starting cost: 277 - dormant(0, since the unassigned rank-1 gem has
+    # required_gem_power=0) = 277.
+    # Budget=700 > starting cost, so the ceiling is 700.
+    budget = 700
+    all_copies = [(0, inv_owned), (1, inv_bonus)]
+
+    result = redistribute_for_bonuses(
+        [mg_a], per_slot, bonus_table, budget, all_copies
+    )
+
+    owned_ids = {gem.gem_id for _, gem in result["head"]}
+    assert 5002 in owned_ids, "bonus gem should be swapped in (net cost fits budget)"
+    assert 9999 not in owned_ids, "displaced gem becomes dormant-eligible, not owned"
 
 
 # ---------------------------------------------------------------------------

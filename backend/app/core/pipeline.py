@@ -12,7 +12,7 @@ import time
 
 logger = logging.getLogger(__name__)
 
-from app.core.data import COST_1STAR, COST_2STAR, COST_5STAR, GEMS
+from app.core.data import COST_TABLES, GEMS
 from app.core.models import (
     GemResult,
     InventoryGem,
@@ -29,8 +29,6 @@ from app.core.optimizer import (
 from app.core.progress import NullReporter, ProgressReporter
 from app.core.rules import compute_extractable_power, compute_slot_resonance
 
-_COST_TABLES: dict[int, dict] = {1: COST_1STAR, 2: COST_2STAR, 5: COST_5STAR}
-
 
 def _run_pipeline(
     available_power: int,
@@ -40,6 +38,7 @@ def _run_pipeline(
     progress: ProgressReporter = NullReporter(),
     stage_prefix: str = "",
     skip_bonus_phases: bool = False,
+    committed_cost: int = 0,
 ) -> OptimizationResult:
     """Execute the core optimization pipeline with pre-parsed data.
 
@@ -63,6 +62,11 @@ def _run_pipeline(
             or bonus scoring).  Use this for upgrade-walk iterations where only
             the residual cost matters; the caller is responsible for running the
             full pipeline on the final chosen inventory.
+        committed_cost: GP already committed elsewhere (e.g. an upgrade plan
+            applied to ``inventory`` before this call) and therefore no longer
+            available for ``redistribute_for_bonuses`` to spend on resonance
+            bonuses. Subtracted from ``available_power`` before it is passed
+            to that phase; has no effect when ``skip_bonus_phases`` is set.
 
     Returns:
         ``OptimizationResult`` with per-slot ``GemResult`` objects and global
@@ -133,7 +137,7 @@ def _run_pipeline(
     else:
         progress.report(f"{stage_prefix}redistribute", "running", detail="Redistributing for bonuses...", force=True)
         per_slot_gems = redistribute_for_bonuses(
-            main_gems, per_slot_gems, bonus_table, available_power, all_copies
+            main_gems, per_slot_gems, bonus_table, available_power - committed_cost, all_copies
         )
 
         progress.report(f"{stage_prefix}reorder", "running", detail="Reordering sockets...", force=True)
@@ -153,7 +157,7 @@ def _run_pipeline(
         if a.copy_id >= 0
     }
     total_dormant_power = sum(
-        compute_extractable_power(gem.rank, _COST_TABLES[gem.star_rating])
+        compute_extractable_power(gem.rank, COST_TABLES[gem.star_rating])
         for copy_id, gem in all_copies
         if copy_id not in assigned_copy_ids
     )

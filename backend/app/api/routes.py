@@ -381,7 +381,12 @@ def _run_optimization(
     # used skip_bonus_phases=True, so best_candidate["result"] only has the
     # residual-relevant data needed to pick the winner.
     chosen_working = best_candidate["working"]
-    chosen_result = _run_pipeline(available_power, main_gems, skipped_slots, chosen_working)
+    # committed_cost keeps redistribute_for_bonuses from double-spending the GP
+    # already committed to the chosen upgrade plan (best_candidate["upgrade_cost"]).
+    chosen_result = _run_pipeline(
+        available_power, main_gems, skipped_slots, chosen_working,
+        committed_cost=best_candidate["upgrade_cost"],
+    )
 
     # The walk only tracked whether upgrade targets landed in five-star sockets
     # (the only ones that offset residual). The bonus-phase re-run above can

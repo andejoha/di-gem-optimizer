@@ -337,6 +337,12 @@ GEM_BY_NAME: dict[str, GemDef] = {g.name: g for g in GEMS.values()}
 # a gem to a given whole rank using the direct upgrade system (rank N → N+1,
 # skipping all sub-ranks).
 #
+COST_TABLES: dict[int, dict[str, UpgradeCostEntry]] = {1: COST_1STAR, 2: COST_2STAR, 5: COST_5STAR}
+"""Upgrade cost table lookup keyed by star rating, for callers that need to
+resolve the correct table generically (e.g. ``compute_extractable_power``
+callers operating on gems of mixed star rating)."""
+
+
 # Each entry maps a target whole rank (int) to a dict of {material_rank: count}.
 # Material tiers are always rank 1, rank 3, and rank 5.
 #

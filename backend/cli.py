@@ -21,7 +21,8 @@ from pydantic import ValidationError
 
 from app.api.routes import gem_data, health, optimize
 from app.api.schemas import OptimizeRequest
-from app.core.data import GEMS
+from app.core.data import COST_TABLES, GEMS
+from app.core.rules import compute_extractable_power
 
 SLOT_ORDER = ["head", "chest", "shoulders", "legs", "main_hand", "off_hand", "alt_main_hand", "alt_off_hand"]
 
@@ -45,8 +46,17 @@ def _decode_rank(encoded: int) -> str:
     return str(main) if sub == 0 else f"{main}.{sub}"
 
 
-def _decode_import_string(import_string: str) -> dict:
-    """Port of setupCodec.ts decodeSetup() — decodes base64url binary to OptimizeRequest dict."""
+def _decode_import_string(import_string: str, subtract_dormant: bool = True) -> dict:
+    """Port of setupCodec.ts decodeSetup() — decodes base64url binary to OptimizeRequest dict.
+
+    Args:
+        import_string: Base64url-encoded share code from the frontend.
+        subtract_dormant: When True (default), subtract the GP recoverable
+            from already-dormant inventory copies from ``gem_power``, mirroring
+            what the frontend does before submitting an optimize request
+            (``HomePage.tsx`` sends ``gem_power - dormantGP``). Set False to
+            get the raw share-code ``gem_power`` value instead.
+    """
     # Restore standard base64 padding
     s = import_string.replace("-", "+").replace("_", "/")
     s += "==" [: (4 - len(s) % 4) % 4]
@@ -93,18 +103,36 @@ def _decode_import_string(import_string: str) -> dict:
         raise ValueError("Invalid import code: unexpected data length")
 
     inventory: list = []
+    dormant_gp = 0
     for _ in range(stack_count):
         gem_id = (data[pos] << 8) | data[pos + 1]; pos += 2
         encoded_rank = data[pos]; pos += 1
-        active_stars = data[pos]; pos += 1
+        active_stars_byte = data[pos]; pos += 1
         quantity = data[pos]; pos += 1
+
+        # High bit encodes dormant; the low 7 bits are the active-stars count
+        # (setupCodec.ts:171-172). Reading the byte raw here previously fed
+        # values like 130/133 into active_stars, which fails validation.
+        dormant = bool(active_stars_byte & 0x80)
+        active_stars = active_stars_byte & 0x7F
 
         if gem_id not in GEMS:
             continue
 
         rank = _decode_rank(encoded_rank)
+        if dormant:
+            star_rating = GEMS[gem_id].star_rating
+            dormant_gp += quantity * compute_extractable_power(rank, COST_TABLES[star_rating])
         for _ in range(quantity):
-            inventory.append({"gem_id": gem_id, "rank": rank, "active_stars": active_stars})
+            inventory.append({
+                "gem_id": gem_id,
+                "rank": rank,
+                "active_stars": active_stars,
+                "dormant": dormant,
+            })
+
+    if subtract_dormant:
+        gem_power -= dormant_gp
 
     return {"gem_power": gem_power, "gem_setup": gem_setup, "inventory": inventory}
 
@@ -135,7 +163,7 @@ def cmd_optimize(args):
 
 
 def cmd_decode(args):
-    result = _decode_import_string(args.import_string)
+    result = _decode_import_string(args.import_string, subtract_dormant=not args.raw_gem_power)
     print(json.dumps(result, indent=2))
 
 
@@ -158,6 +186,13 @@ def main():
 
     dec = sub.add_parser("decode", help="Decode a frontend import/export string to OptimizeRequest JSON")
     dec.add_argument("import_string", help="Base64url-encoded import string from the frontend")
+    dec.add_argument(
+        "--raw_gem_power", action="store_true", default=False,
+        help=(
+            "Report the share code's raw gem_power without subtracting already-dormant "
+            "GP. By default (like the frontend before submitting) dormant GP is subtracted."
+        ),
+    )
 
     args = parser.parse_args()
 
