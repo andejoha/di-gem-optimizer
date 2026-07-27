@@ -152,8 +152,8 @@ def compute_socket_resonance_bonus(star_rating: int, active_stars: int, rank: st
     The bonus depends on the socketed gem's type and rank:
       - 1-star gem: ``1 × integer_rank``
       - 2-star gem: ``2 × integer_rank``
-      - 5-star gem with 2 or 3 active stars: ``10 × integer_rank``
-      - 5-star gem with 4 or 5 active stars: ``11 × integer_rank``
+      - 5-star gem with 2, 3, or 4 active stars: ``10 × integer_rank``
+      - 5-star gem with 5 active stars: ``11 × integer_rank``
 
     Args:
         star_rating: Star tier of the socketed gem (``1``, ``2``, or ``5``).
@@ -168,9 +168,9 @@ def compute_socket_resonance_bonus(star_rating: int, active_stars: int, rank: st
         return 1 * integer_rank
     if star_rating == 2:
         return 2 * integer_rank
-    if active_stars in (2, 3):
-        return 10 * integer_rank
-    return 11 * integer_rank
+    if active_stars == 5:
+        return 11 * integer_rank
+    return 10 * integer_rank
 
 
 def compute_slot_resonance(
