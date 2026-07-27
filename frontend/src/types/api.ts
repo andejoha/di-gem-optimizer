@@ -37,6 +37,10 @@ export interface InventoryItem {
   gem_id: number;
   rank: string;
   active_stars: number;
+  /** Whether the player already marked this copy dormant before submitting.
+   *  The copy is still sent as active (its GP is already subtracted from
+   *  gem_power); this only lets the response suppress no-op recommendations. */
+  dormant?: boolean;
 }
 
 export interface OptimizeRequest {
@@ -90,6 +94,7 @@ export interface SummaryResponse {
   skipped_slots: string[];
   total_resonance: number;
   dormant_gem_power: number;
+  newly_dormant_gem_power: number;
 }
 
 export interface UpgradeItem {
@@ -135,8 +140,11 @@ export interface DormantGemItem {
   star_rating: number;
   rank: string;
   active_stars: number;
+  /** Number of copies newly recommended for dormancy (excludes already-dormant copies). */
   quantity: number;
   gem_power_gained: number;
+  /** Number of unsocketed copies of this gem that were already dormant on input. */
+  already_dormant_quantity: number;
 }
 
 export interface OptimizeResponse {

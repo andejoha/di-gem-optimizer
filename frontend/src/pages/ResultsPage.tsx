@@ -155,7 +155,7 @@ export default function ResultsPage() {
           <ConvertedGemsSection convertedGems={converted_gems} />
         )}
 
-        {dormant_gems && dormant_gems.length > 0 && (
+        {dormant_gems && dormant_gems.some((d) => d.quantity > 0) && (
           <DormantGemsSection dormantGems={dormant_gems} />
         )}
 

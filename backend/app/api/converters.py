@@ -1,5 +1,6 @@
 """Conversion helpers between API schemas and core domain objects."""
 
+from collections import Counter
 from typing import Optional
 
 from fastapi import HTTPException
@@ -130,10 +131,31 @@ def request_to_domain(
     return available_power, main_gems, skipped_slots, inventory
 
 
+def already_dormant_counter(request: OptimizeRequest) -> Counter:
+    """Count inventory copies the player already marked dormant before submitting.
+
+    Keyed by ``(gem_id, star_rating, rank, active_stars)`` — the same identity
+    ``domain_to_response`` uses for ``dormant_gems`` — so already-dormant copies
+    can be matched against the optimizer's unassigned-copy list and excluded
+    from "make this dormant" recommendations.
+    """
+    counter: Counter = Counter()
+    for inv_item in request.inventory:
+        if not inv_item.dormant:
+            continue
+        gem_def = GEMS.get(inv_item.gem_id)
+        if gem_def is None:
+            continue
+        key = (inv_item.gem_id, gem_def.star_rating, inv_item.rank.strip(), inv_item.active_stars)
+        counter[key] += 1
+    return counter
+
+
 def domain_to_response(
     result: OptimizationResult,
     upgrade_result: Optional[UpgradeOptimizationResult],
     inventory: list[InventoryGem],
+    already_dormant: Optional[Counter] = None,
 ) -> OptimizeResponse:
     """Convert internal domain objects into a JSON-serialisable response model."""
     residual = result.total_residual_cost
@@ -233,6 +255,7 @@ def domain_to_response(
             skipped_slots=bl.skipped_slots,
             total_resonance=bl.total_resonance,
             dormant_gem_power=bl_D,
+            newly_dormant_gem_power=bl_D,
         )
         upgrades_response = UpgradesResponse(
             upgrades_applied=[
@@ -283,17 +306,30 @@ def domain_to_response(
             dormant_map.setdefault(key, []).append(gp)
 
     total_dormant_power = sum(gp for gplist in dormant_map.values() for gp in gplist)
-    dormant_gems: list[DormantGemItem] = [
-        DormantGemItem(
+
+    # Split each key's unassigned copies into "already dormant on input" (no-op,
+    # excluded from the recommendation) and "newly" dormant (an actual action
+    # the player still needs to take). already_dormant copies are consumed
+    # highest-GP-first so a partially-upgraded stack's newest copy is the one
+    # reported as newly dormant.
+    already_dormant = already_dormant or Counter()
+    dormant_gems: list[DormantGemItem] = []
+    total_newly_dormant_power = 0
+    for k, gplist in dormant_map.items():
+        gplist_sorted = sorted(gplist, reverse=True)
+        already_count = min(already_dormant.get(k, 0), len(gplist_sorted))
+        already_gp = gplist_sorted[:already_count]
+        newly_gp = gplist_sorted[already_count:]
+        total_newly_dormant_power += sum(newly_gp)
+        dormant_gems.append(DormantGemItem(
             gem_id=k[0],
             star_rating=k[1],
             rank=k[2],
             active_stars=k[3],
-            quantity=len(gplist),
-            gem_power_gained=sum(gplist),
-        )
-        for k, gplist in dormant_map.items()
-    ]
+            quantity=len(newly_gp),
+            gem_power_gained=sum(newly_gp),
+            already_dormant_quantity=already_count,
+        ))
 
     # Build summary now that we know the dormant GP.
     D = total_dormant_power
@@ -309,6 +345,7 @@ def domain_to_response(
         skipped_slots=result.skipped_slots,
         total_resonance=result.total_resonance,
         dormant_gem_power=D,
+        newly_dormant_gem_power=total_newly_dormant_power,
     )
 
     return OptimizeResponse(

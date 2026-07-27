@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
-from app.api.converters import domain_to_response, request_to_domain
+from app.api.converters import already_dormant_counter, domain_to_response, request_to_domain
 from app.api.schemas import BonusSocket, ConvertedGemItem, GemInfo, OptimizeRequest, OptimizeResponse, RemainingInventoryItem
 from app.core.config import SOCKET_UNLOCK_RANK
 from app.core.data import GEMS
@@ -161,6 +161,7 @@ def _run_optimization(
 ) -> OptimizeResponse:
     """Core optimization logic shared by both the plain POST and SSE endpoints."""
     available_power, main_gems, skipped_slots, inventory = request_to_domain(request)
+    already_dormant = already_dormant_counter(request)
 
     if not main_gems:
         raise HTTPException(
@@ -180,7 +181,7 @@ def _run_optimization(
     baseline = _run_pipeline(available_power, main_gems, skipped_slots, inventory, progress=progress)
 
     if not enable_upgrades:
-        response = domain_to_response(baseline, upgrade_result=None, inventory=inventory)
+        response = domain_to_response(baseline, upgrade_result=None, inventory=inventory, already_dormant=already_dormant)
         return _finalize_r1_conversion(response, available_power_orig, r1_gems)
 
     # Build upgrade chains (one per socketable gem type) and run the
@@ -214,7 +215,7 @@ def _run_optimization(
             effective_residual=baseline.total_residual_cost,
             improvement=0,
         )
-        response = domain_to_response(baseline, upgrade_result=upgrade_result, inventory=inventory)
+        response = domain_to_response(baseline, upgrade_result=upgrade_result, inventory=inventory, already_dormant=already_dormant)
         return _finalize_r1_conversion(response, available_power_orig, r1_gems)
 
     progress.report("upgrades", "running", detail="Evaluating upgrade potential...", force=True)
@@ -381,11 +382,26 @@ def _run_optimization(
     # residual-relevant data needed to pick the winner.
     chosen_working = best_candidate["working"]
     chosen_result = _run_pipeline(available_power, main_gems, skipped_slots, chosen_working)
-    filtered_upgrades = best_candidate["filtered"]
-    dropped_ops = best_candidate["dropped"]
-    gems_to_restore = best_candidate["restore"]
-    effective_residual = best_candidate["effective_residual"]
-    upgrade_cost = best_candidate["upgrade_cost"]
+
+    # The walk only tracked whether upgrade targets landed in five-star sockets
+    # (the only ones that offset residual). The bonus-phase re-run above can
+    # place gems differently, so re-check the walk's kept upgrades against the
+    # *full* socket assignment (five- and two-star) and drop any whose target
+    # ends up unsocketed entirely — otherwise the response could recommend
+    # both upgrading a gem and making it dormant, which is a pointless upgrade.
+    # filter_upgrades_to_socketed only ever removes ops here (it is re-applied
+    # to an already-filtered list), so upgrade_cost can only decrease.
+    filtered_upgrades, dropped_ops2, gems_to_restore2 = filter_upgrades_to_socketed(
+        best_candidate["filtered"], chosen_result.gem_assignments,
+    )
+    # dropped_ops2 is chronologically earlier than the walk's own dropped_ops
+    # (it's a suffix of the already-filtered chain, drawn from before the
+    # walk's cutoff point) — order it first so reverted-in-reverse unwinds
+    # multi-step chains highest-rank-first.
+    dropped_ops = dropped_ops2 + best_candidate["dropped"]
+    gems_to_restore = gems_to_restore2 + best_candidate["restore"]
+    upgrade_cost = sum(delta.additional_gem_power for delta in filtered_upgrades)
+    effective_residual = chosen_result.total_residual_cost + upgrade_cost
 
     improvement = baseline.total_residual_cost - effective_residual
 
@@ -423,7 +439,10 @@ def _run_optimization(
                 break
     display_inventory.extend(gems_to_restore)
 
-    response = domain_to_response(chosen_result, upgrade_result=upgrade_result, inventory=display_inventory)
+    response = domain_to_response(
+        chosen_result, upgrade_result=upgrade_result, inventory=display_inventory,
+        already_dormant=already_dormant,
+    )
     return _finalize_r1_conversion(response, available_power_orig, r1_gems)
 
 

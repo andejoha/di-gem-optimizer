@@ -35,6 +35,7 @@ export function allStacksToInventoryItems(stacks: InventoryGemStack[]): Inventor
       gem_id: stack.gem_id,
       rank: stack.rank,
       active_stars: stack.active_stars,
+      dormant: !!stack.dormant,
     }))
   );
 }

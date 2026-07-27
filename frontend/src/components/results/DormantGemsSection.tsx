@@ -15,9 +15,12 @@ interface Props {
 
 export default function DormantGemsSection({ dormantGems }: Props) {
   const { gemById } = useGemData();
-  if (dormantGems.length === 0) return null;
+  // Gems already dormant on input that are still unused are no-ops for the
+  // player — only show entries that represent a new recommendation.
+  const newlyDormant = dormantGems.filter((item) => item.quantity > 0);
+  if (newlyDormant.length === 0) return null;
 
-  const totalGained = dormantGems.reduce((sum, item) => sum + item.gem_power_gained, 0);
+  const totalGained = newlyDormant.reduce((sum, item) => sum + item.gem_power_gained, 0);
 
   return (
     <Card>
@@ -34,7 +37,7 @@ export default function DormantGemsSection({ dormantGems }: Props) {
         </Box>
         <Divider sx={{ mb: 2 }} />
         <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-          {dormantGems.map((item) => (
+          {newlyDormant.map((item) => (
             <Box
               key={`${item.gem_id}|${item.rank}|${item.active_stars}`}
               sx={{

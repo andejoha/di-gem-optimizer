@@ -36,6 +36,15 @@ class InventoryItem(BaseModel):
     active_stars: int = Field(
         ge=1, le=5,
         description="Number of active stars (1 for 1-star; 2 for 2-star; 2–5 for 5-star)")
+    dormant: bool = Field(
+        default=False,
+        description=(
+            "Whether the player already marked this copy dormant before submitting. "
+            "The copy is still sent as an active inventory item and its GP is already "
+            "subtracted from gem_power; this flag only lets the response suppress "
+            "'make this dormant' recommendations that would be no-ops."
+        ),
+    )
 
 
 class OptimizeRequest(BaseModel):
@@ -110,6 +119,13 @@ class SummaryResponse(BaseModel):
         default=0,
         description="GP recovered by making all unsocketed inventory gems dormant",
     )
+    newly_dormant_gem_power: int = Field(
+        default=0,
+        description=(
+            "GP recovered by making unsocketed inventory gems dormant, excluding "
+            "copies that were already dormant on input"
+        ),
+    )
 
 
 class UpgradeItem(BaseModel):
@@ -162,9 +178,15 @@ class DormantGemItem(BaseModel):
     star_rating: int
     rank: str
     active_stars: int
-    quantity: int
+    quantity: int = Field(
+        description="Number of copies newly recommended for dormancy (excludes already-dormant copies)"
+    )
     gem_power_gained: int = Field(
-        description="Total GP recoverable by making all copies of this gem dormant"
+        description="GP recoverable by making the newly recommended copies dormant"
+    )
+    already_dormant_quantity: int = Field(
+        default=0,
+        description="Number of unsocketed copies of this gem that were already dormant on input",
     )
 
 
