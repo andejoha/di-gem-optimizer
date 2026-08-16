@@ -3,17 +3,17 @@ import LinearProgress from '@mui/material/LinearProgress';
 import Typography from '@mui/material/Typography';
 import type { ProgressEvent } from '../../types/progress';
 
+// Keys match the stage names emitted by core/pipeline.ts and
+// core/api/runOptimization.ts exactly. `redistribute` was previously
+// missing here (it fell through to progress.detail); the other removed
+// keys were never actually emitted by the backend.
 const STAGE_LABELS: Record<string, string> = {
   assignment: 'Solving gem assignment...',
-  rerun_assignment: 'Re-solving gem assignment...',
   fill_empty: 'Filling empty sockets...',
-  rerun_fill_empty: 'Re-filling empty sockets...',
+  redistribute: 'Redistributing for bonuses...',
   reorder: 'Reordering sockets...',
-  leftover: 'Assigning remaining gems...',
   upgrades: 'Evaluating upgrades...',
   upgrades_rerun: 'Re-optimizing with upgrades...',
-  rerun_reorder: 'Re-ordering sockets...',
-  rerun_leftover: 'Re-assigning remaining gems...',
 };
 
 interface Props {

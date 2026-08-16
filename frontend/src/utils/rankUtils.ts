@@ -1,7 +1,23 @@
-// Max sub-rank per star rating and main rank, derived from backend upgrade cost tables.
+import { COST_2STAR, COST_5STAR } from '../core/data';
+
+// Max sub-rank per star rating and main rank, derived from the real upgrade
+// cost tables at module load (previously a hand-maintained literal
+// "derived from backend upgrade cost tables" -- now derived for real).
+function deriveMaxSubRank(costTable: ReadonlyMap<string, unknown>): Partial<Record<number, number>> {
+  const result: Partial<Record<number, number>> = {};
+  for (const rank of costTable.keys()) {
+    const [mainStr, subStr] = rank.split('.');
+    if (subStr === undefined) continue;
+    const main = Number(mainStr);
+    const sub = Number(subStr);
+    result[main] = Math.max(result[main] ?? 0, sub);
+  }
+  return result;
+}
+
 const MAX_SUB_RANK: Partial<Record<number, Partial<Record<number, number>>>> = {
-  2: { 4: 1,  5: 4,  6: 4,  7: 5,  8: 8,  9: 11 },
-  5: { 4: 4,  5: 5,  6: 11, 7: 11, 8: 17, 9: 17 },
+  2: deriveMaxSubRank(COST_2STAR),
+  5: deriveMaxSubRank(COST_5STAR),
 };
 
 export function getMaxSubRank(starRating: number, mainRank: number): number {

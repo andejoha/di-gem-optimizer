@@ -1,8 +1,13 @@
 import type { SlotName } from '../types/api';
+// SLOT_ORDER's source of truth is core/constants.ts (it must match the
+// backend's GemSetup field declaration order exactly, and is also depended
+// on by the optimizer core); re-exported here rather than duplicated so
+// this module's existing importers don't need to change.
+import { SLOT_ORDER } from '../core/constants';
 import starFilled from '../assets/images/buttons/star-filled.png';
 import starEmpty from '../assets/images/buttons/star-empty.png';
 
-export { starFilled, starEmpty };
+export { starFilled, starEmpty, SLOT_ORDER };
 
 interface SlotMeta {
   label: string;
@@ -19,13 +24,6 @@ export const SLOT_META: Record<SlotName, SlotMeta> = {
   alt_main_hand: { label: 'Alternate Main\u00A0Hand',     iconFile: 'main-hand.png' },
   alt_off_hand:  { label: 'Alternate Off\u2011Hand',      iconFile: 'off-hand.png' },
 };
-
-export const SLOT_ORDER: SlotName[] = [
-  'head', 'chest',
-  'shoulders', 'legs',
-  'main_hand', 'off_hand',
-  'alt_main_hand', 'alt_off_hand',
-];
 
 const gearImages = import.meta.glob<{ default: string }>(
   '../assets/images/gear/*.png',

@@ -2,6 +2,7 @@ import type { GemInfo, GemSetup } from '../types/api';
 import type { InventoryGemStack } from '../types/inventory';
 import { encodeSetup, generateId, type CodecState } from './setupCodec';
 import { SLOT_ORDER } from './gearAssets';
+import { requiredGemPower } from './gemPowerCost';
 
 function shuffle<T>(arr: T[]): T[] {
   const result = [...arr];
@@ -14,17 +15,6 @@ function shuffle<T>(arr: T[]): T[] {
 
 function randInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-// Cumulative GP cost to reach integer rank N from rank 0.
-// Index = rank (0-10). Source: backend/app/core/data.py COST_2STAR / COST_5STAR.
-const GP_COST_2STAR = [0, 0, 5, 20, 45, 65, 150, 235, 340, 490, 685];
-const GP_COST_5STAR = [0, 0, 50, 125, 225, 475, 850, 1575, 2300, 3375, 4450];
-
-function gpCost(starRating: number, rank: number): number {
-  return starRating === 5
-    ? (GP_COST_5STAR[rank] ?? 0)
-    : (GP_COST_2STAR[rank] ?? 0);
 }
 
 export function generateExampleSetups(gems: GemInfo[]): { random: string; max: string } {
@@ -118,7 +108,7 @@ export function generateExampleSetups(gems: GemInfo[]): { random: string; max: s
   // Gem power: exact cost of all 8 main gems at their selected ranks.
   const gemPower = SLOT_ORDER.reduce((sum, slot, i) => {
     const item = randomGemSetup[slot];
-    return sum + (item ? gpCost(i < 6 ? 5 : 2, parseInt(item.target_rank)) : 0);
+    return sum + (item ? requiredGemPower(i < 6 ? 5 : 2, item.target_rank) : 0);
   }, 0);
 
   const randomState: CodecState = { gemSetup: randomGemSetup, gemPower, stacks };

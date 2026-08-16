@@ -1,88 +1,77 @@
-import apiClient from './apiClient';
-import type {
-  GemInfo,
-  HealthResponse,
-  OptimizeRequest,
-  OptimizeResponse,
-} from '../types/api';
+import type { OptimizeRequest, OptimizeResponse } from '../types/api';
 import type { ProgressEvent } from '../types/progress';
+import type { WorkerRequest, WorkerResponse } from '../workers/optimizer.worker';
 
-export async function getHealth(): Promise<HealthResponse> {
-  const { data } = await apiClient.get<HealthResponse>('/api/health');
-  return data;
+let worker: Worker | null = null;
+let nextRequestId = 0;
+
+function getWorker(): Worker {
+  if (worker === null) {
+    worker = new Worker(new URL('../workers/optimizer.worker.ts', import.meta.url), { type: 'module' });
+  }
+  return worker;
 }
 
-export async function getGemData(): Promise<GemInfo[]> {
-  const { data } = await apiClient.get<GemInfo[]>('/api/gem-data');
-  return data;
+/** Terminates and drops the worker so a future call starts fresh -- guards against a corrupted worker state poisoning subsequent runs after an error. */
+function resetWorker(): void {
+  worker?.terminate();
+  worker = null;
 }
 
-export async function optimize(
-  request: OptimizeRequest,
-  enableUpgrades: boolean = false,
-  convert1Star: boolean = false,
-): Promise<OptimizeResponse> {
-  const { data } = await apiClient.post<OptimizeResponse>(
-    '/api/optimize',
-    request,
-    { params: { enable_upgrades: enableUpgrades, convert_1star: convert1Star } },
-  );
-  return data;
-}
-
+/**
+ * Runs the optimizer in a Web Worker, invoking onProgress for each stage
+ * transition and resolving with the final result. This is the primary path
+ * used by HomePage; optimize() below is a synchronous main-thread fallback.
+ */
 export async function optimizeWithProgress(
   request: OptimizeRequest,
   enableUpgrades: boolean,
   convert1Star: boolean,
   onProgress: (event: ProgressEvent) => void,
 ): Promise<OptimizeResponse> {
-  const baseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '';
-  const params = new URLSearchParams({
-    enable_upgrades: String(enableUpgrades),
-    convert_1star: String(convert1Star),
-  });
+  const id = nextRequestId++;
+  const w = getWorker();
 
-  const response = await fetch(`${baseUrl}/api/optimize/stream?${params}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(request),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Optimization request failed (${response.status})`);
-  }
-  if (!response.body) {
-    throw new Error('No response body from server');
-  }
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-
-    // SSE events are separated by double newlines.
-    const blocks = buffer.split('\n\n');
-    buffer = blocks.pop() ?? '';
-
-    for (const block of blocks) {
-      const eventType = block.match(/^event: (.+)$/m)?.[1];
-      const dataLine = block.match(/^data: (.+)$/m)?.[1];
-      if (!dataLine) continue;
-
-      if (eventType === 'progress') {
-        onProgress(JSON.parse(dataLine) as ProgressEvent);
-      } else if (eventType === 'result') {
-        return JSON.parse(dataLine) as OptimizeResponse;
-      } else if (eventType === 'error') {
-        const errBody = JSON.parse(dataLine) as { detail?: string };
-        throw new Error(errBody.detail ?? 'Optimization failed');
+  return new Promise<OptimizeResponse>((resolve, reject) => {
+    const handleMessage = (event: MessageEvent<WorkerResponse>) => {
+      if (event.data.id !== id) return; // stale reply from a superseded request
+      const msg = event.data;
+      if (msg.type === 'progress') {
+        onProgress({ stage: msg.stage, status: msg.status, iteration: msg.iteration, detail: msg.detail });
+        return;
       }
-    }
-  }
+      w.removeEventListener('message', handleMessage);
+      w.removeEventListener('error', handleError);
+      if (msg.type === 'result') {
+        resolve(msg.data);
+      } else {
+        resetWorker();
+        reject(new Error(msg.detail));
+      }
+    };
+    const handleError = (event: ErrorEvent) => {
+      w.removeEventListener('message', handleMessage);
+      w.removeEventListener('error', handleError);
+      resetWorker();
+      reject(new Error(event.message || 'Worker error during optimization'));
+    };
 
-  throw new Error('Stream ended without a result');
+    w.addEventListener('message', handleMessage);
+    w.addEventListener('error', handleError);
+
+    const payload: WorkerRequest = { id, request, enableUpgrades, convert1Star };
+    w.postMessage(payload);
+  });
+}
+
+/**
+ * Synchronous main-thread fallback for environments where the Web Worker
+ * fails to start. Dynamically imported so its dependency graph (the entire
+ * optimizer/pipeline/upgrades/converters core) doesn't land in the main
+ * bundle chunk -- that code is only needed inside the worker, or here, on
+ * this rarely-taken path.
+ */
+export async function optimize(request: OptimizeRequest, enableUpgrades: boolean = false, convert1Star: boolean = false): Promise<OptimizeResponse> {
+  const { runOptimization } = await import('../core/api/runOptimization');
+  return runOptimization(request, enableUpgrades, convert1Star);
 }
