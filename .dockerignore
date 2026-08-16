@@ -2,18 +2,12 @@
 .git
 .gitignore
 
-# Python
-__pycache__
-*.py[cod]
-*.pyo
-.pytest_cache
-.venv
-venv
-env
-
 # Frontend
 frontend/node_modules
 frontend/dist
+
+# Differential golden corpus (dev/test only, not needed at build time)
+golden
 
 # IDE / editor
 .idea

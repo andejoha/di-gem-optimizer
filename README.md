@@ -2,9 +2,21 @@
 
 Optimizes the assignment of inventory gems into awakening sockets of equipped gems, minimizing the gem power drawn from the player's pool. Uses a greedy closest-fit heuristic — assigning the gem whose provided power best matches each main gem's remaining cost — followed by bonus-targeting socket fills and intra-gem reordering to maximize resonance bonus activations.
 
-## Docker (recommended for deployment)
+The optimizer runs entirely in your browser (in a Web Worker, so the UI stays responsive during the heaviest upgrade-search runs) — there is no backend server. The app is a static site: build it, host the files anywhere, done.
 
-Bundles the frontend and backend into a single container. Requires [Docker](https://docs.docker.com/get-docker/).
+## Static hosting (no Docker required)
+
+```bash
+cd frontend
+npm install
+npm run build
+```
+
+This produces `frontend/dist/` — a set of static files deployable to any static host (Azure Static Web Apps, GitHub Pages, Netlify, S3 + CloudFront, a plain nginx box, etc.). Configure your host's SPA fallback to serve `index.html` for unknown paths (equivalent to `try_files $uri $uri/ /index.html` — see `nginx.conf.template` for the reference configuration this project uses in Docker).
+
+## Docker
+
+A thin `nginx:alpine` image serving the built static files, for environments that expect a container (e.g. Azure App Service Web App for Containers). Requires [Docker](https://docs.docker.com/get-docker/).
 
 **Build and run**
 
@@ -32,7 +44,6 @@ docker run -p 8080:8080 gem-optimizer
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PORT` | `8080` | Port nginx listens on. Set automatically by Azure App Service. |
-| `CORS_ORIGINS` | `http://localhost:5173` | Comma-separated list of allowed CORS origins. Not needed when the frontend and backend are served from the same origin (i.e. in Docker). |
 
 **Multi-architecture build**
 
@@ -78,151 +89,27 @@ podman manifest push di-gem-optimizer:latest docker://docker.io/andejoha/di-gem-
 
 **Azure App Service**
 
-Push the image to Azure Container Registry and deploy it as a Web App for Containers. Set the health check path to `/api/health` in the App Service configuration.
+Push the image to Azure Container Registry and deploy it as a Web App for Containers. Set the health check path to `/healthz` in the App Service configuration — **not** `/` or any other app route: with the SPA fallback in place, any unknown path returns the HTML shell with a 200, so a probe against `/` would report healthy even if the app were broken. `/healthz` is a real static endpoint that only nginx itself can serve.
 
 ---
 
-## Starting the frontend
+## Developing
 
 **Prerequisites:** Node.js 18+
-
-**1. Install dependencies (first time only)**
 
 ```bash
 cd frontend
 npm install
-```
-
-**2. Start the dev server**
-
-```bash
 npm run dev
 ```
 
-The frontend is now available at `http://localhost:5173`.
+The app is now available at `http://localhost:5173`.
 
-> The backend must also be running for the frontend to connect successfully (see below).
-
-## Starting the API server
-
-**Prerequisites:** Python 3.12+
-
-**1. Create and activate a virtual environment (first time only)**
+**Tests**
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate       # Linux / macOS
-# .venv\Scripts\activate        # Windows
+cd frontend
+npm test
 ```
 
-**2. Install dependencies (first time only)**
-
-```bash
-pip install -r backend/requirements.txt
-```
-
-**3. Start the server**
-
-```bash
-cd backend
-uvicorn app.main:app --host localhost --port 8000 --reload
-```
-
-The API is now available at `http://localhost:8000`.
-
-## CLI tool
-
-The CLI calls the same functions as the API endpoints — no server required. Run all commands from the `backend/` directory with the virtual environment activated.
-
-```bash
-cd backend
-```
-
-**Health check**
-
-```bash
-python cli.py health
-```
-
-**List all gems** (IDs, names, star ratings, bonus socket requirements)
-
-```bash
-python cli.py gem-data
-```
-
-**Run the optimizer**
-
-Pass the request body as an inline JSON string or a path to a JSON file:
-
-```bash
-# Inline JSON
-python cli.py optimize '{"gem_power": 772, "gem_setup": {"head": {"gem_id": 5018, "target_rank": "5", "active_stars": 4}}, "inventory": [{"gem_id": 5007, "rank": "1", "active_stars": 2}]}'
-
-# JSON file
-python cli.py optimize request.json
-
-# With optional flags
-python cli.py optimize request.json --enable_upgrades --convert_1star
-```
-
-Flags:
-- `--enable_upgrades` — analyse profitable gem upgrades and re-run with the upgraded inventory
-- `--convert_1star` — convert rank-1 1-star inventory gems into gem power before optimizing
-
-**Decode a frontend import string**
-
-The frontend's import/export feature produces a compact base64url string. Use `decode` to convert it to an `OptimizeRequest` JSON body:
-
-```bash
-python cli.py decode <import_string>
-```
-
-The output can be piped directly into `optimize`:
-
-```bash
-python cli.py decode <import_string> | python cli.py optimize - --enable_upgrades
-```
-
-Or saved to a file first:
-
-```bash
-python cli.py decode <import_string> > request.json
-python cli.py optimize request.json
-```
-
-## API reference
-
-Interactive Swagger UI: `http://localhost:8000/docs`
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/api/health` | Health check |
-| `POST` | `/api/optimize` | Run the gem optimizer |
-| `GET` | `/api/gem-data` | List of known gem names by star rating (for autocomplete) |
-
-### POST /api/optimize
-
-**Query parameters:**
-- `enable_upgrades` (bool, default `false`) — also analyse profitable gem upgrades and re-run the optimizer with the upgraded inventory.
-- `convert_1star` (bool, default `false`) — convert rank-1 1-star inventory gems into gem power before optimizing.
-
-**Request body:**
-
-```json
-{
-  "gem_power": 772,
-  "gem_setup": {
-    "head":      { "gem_id": 5018, "target_rank": "5",   "active_stars": 4 },
-    "chest":     { "gem_id": 5007, "target_rank": "4.1", "active_stars": 3 },
-    "shoulders": { "gem_id": 5024, "target_rank": "4",   "active_stars": 3 }
-  },
-  "inventory": [
-    { "gem_id": 5007, "rank": "1", "active_stars": 2 },
-    { "gem_id": 2025, "rank": "5", "active_stars": 2 }
-  ]
-}
-```
-
-- `gem_power` — the player's available gem power pool.
-- `gem_setup` — equipped gems per slot. Supported slots: `head`, `chest`, `shoulders`, `legs`, `main_hand`, `off_hand`, `alt_main_hand`, `alt_off_hand`. Omitted slots are skipped.
-- `inventory` — socketable gem copies. Each entry is one physical copy; add duplicate entries for multiple copies of the same gem. Use `GET /api/gem-data` to look up gem IDs.
+The optimizer core (`frontend/src/core/`) has no dependency on React, the DOM, or a worker — it can be imported and called directly from a script or test, same as any other TypeScript module.

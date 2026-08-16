@@ -1,0 +1,47 @@
+# Server block only -- the nginx:alpine base image supplies the surrounding
+# nginx.conf (worker_processes/events/http/mime.types) and includes every
+# file under /etc/nginx/conf.d/*.conf automatically. The base image's
+# entrypoint runs envsubst over this file (matching ${PORT} against the
+# container's environment) before nginx starts, so no custom start script
+# or gettext-base install is needed (contrast with the old start.sh, which
+# existed only to run this step and to supervise the now-deleted Python
+# process alongside nginx).
+server {
+    listen ${PORT};
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    access_log /dev/stdout;
+    error_log /dev/stderr warn;
+
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml text/javascript image/svg+xml;
+    gzip_min_length 256;
+
+    # Real static 200, not the SPA fallback below -- Azure's health check
+    # must hit an endpoint that actually reflects nginx being up, not the
+    # HTML shell that try_files would serve for ANY unknown path (which
+    # would make the health check pass even if the app were broken).
+    location = /healthz {
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
+    location /assets/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # The SPA shell must never be cached -- a stale index.html can
+    # reference hashed asset filenames from a previous deploy that no
+    # longer exist.
+    location = /index.html {
+        add_header Cache-Control "no-cache";
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
