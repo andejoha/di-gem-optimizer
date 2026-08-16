@@ -1,10 +1,10 @@
 # Golden regression corpus
 
 A fixed set of `OptimizeRequest`/`OptimizeResponse` pairs used as a
-regression suite for the optimizer core (`frontend/src/core/**`). Every
+regression suite for the optimizer core (`src/core/**`). Every
 case is run through `runOptimization` and its result compared
 byte-for-byte against the corresponding `*.expected.json` file --
-see `frontend/test/core/golden.test.ts`, which runs the whole corpus on
+see `test/core/golden.test.ts`, which runs the whole corpus on
 every test run.
 
 Any intentional change to the optimizer's behavior should update the

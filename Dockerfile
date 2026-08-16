@@ -1,24 +1,24 @@
 # ============================================================
-# Stage 1: Build the React frontend
+# Stage 1: Build the app
 # ============================================================
-FROM node:22-alpine AS frontend-build
+FROM node:22-alpine AS build
 
-WORKDIR /app/frontend
+WORKDIR /app
 
-COPY frontend/package.json frontend/package-lock.json ./
+COPY package.json package-lock.json ./
 RUN npm ci
 
-COPY frontend/ ./
+COPY . .
 RUN npm run build
 
 # ============================================================
 # Stage 2: Static nginx runtime
 # ============================================================
-# The optimizer runs entirely in the browser (see frontend/src/core/) --
-# there is no backend process to run alongside nginx anymore.
+# The optimizer runs entirely in the browser (see src/core/) -- there is
+# no backend process to run alongside nginx.
 FROM nginx:1.27-alpine AS runtime
 
-COPY --from=frontend-build /app/frontend/dist /usr/share/nginx/html
+COPY --from=build /app/dist /usr/share/nginx/html
 RUN chmod -R a+rX /usr/share/nginx/html
 
 # The base image's entrypoint runs envsubst over every file in

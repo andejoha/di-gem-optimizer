@@ -2,11 +2,11 @@
 .git
 .gitignore
 
-# Frontend
-frontend/node_modules
-frontend/dist
-# Note: frontend/test (including the golden regression corpus) is NOT
-# excluded here -- `npm run build` runs `tsc -b` across all three project
+# Dependencies / build output
+node_modules
+dist
+# Note: test/ (including the golden regression corpus) is NOT excluded
+# here -- `npm run build` runs `tsc -b` across all three project
 # references (app, node, test), and a project with zero matched input
 # files is a hard TypeScript error, not a no-op.
 

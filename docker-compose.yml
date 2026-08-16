@@ -8,4 +8,4 @@ services:
     image: di-gem-optimizer:latest
     container_name: di-gem-optimizer
     ports:
-      - "0.0.0.0:8080:8080"
+      - '0.0.0.0:8080:8080'
