@@ -4,8 +4,8 @@ A fixed set of `OptimizeRequest`/`OptimizeResponse` pairs used as a
 regression suite for the optimizer core (`frontend/src/core/**`). Every
 case is run through `runOptimization` and its result compared
 byte-for-byte against the corresponding `*.expected.json` file --
-see `frontend/src/core/__tests__/golden.test.ts`, which runs the whole
-corpus on every test run.
+see `frontend/test/core/golden.test.ts`, which runs the whole corpus on
+every test run.
 
 Any intentional change to the optimizer's behavior should update the
 affected `*.expected.json` files alongside the code change, with the

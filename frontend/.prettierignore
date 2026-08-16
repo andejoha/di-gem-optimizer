@@ -1,2 +1,7 @@
 dist
 coverage
+
+# Golden regression fixtures: their exact byte formatting is part of what
+# the differential test asserts against, so a formatter must never touch them.
+test/golden
+test/fixtures

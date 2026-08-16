@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { COST_1STAR, COST_2STAR, COST_5STAR } from '../data';
+import { COST_1STAR, COST_2STAR, COST_5STAR } from '../../src/core/data';
 import {
   computeBaseResonance,
   computeContribution,
@@ -7,7 +7,7 @@ import {
   computeSocketResonanceBonus,
   isSocketUnlocked,
   numSocketsUnlocked,
-} from '../rules';
+} from '../../src/core/rules';
 
 describe('numSocketsUnlocked', () => {
   it('5-star: unlocks at ranks 3,4,5,6,7', () => {

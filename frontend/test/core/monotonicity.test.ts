@@ -10,10 +10,10 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { runOptimization } from '../api/runOptimization';
-import type { OptimizeRequest } from '../api/types';
+import { runOptimization } from '../../src/core/api/runOptimization';
+import type { OptimizeRequest } from '../../src/core/api/types';
 
-const FIXTURE_PATH = fileURLToPath(new URL('./fixtures/reported_shortfall_setup.json', import.meta.url));
+const FIXTURE_PATH = fileURLToPath(new URL('../fixtures/reported_shortfall_setup.json', import.meta.url));
 const BASE_REQUEST: OptimizeRequest = JSON.parse(readFileSync(FIXTURE_PATH, 'utf-8'));
 
 function optimize(gemPower: number) {

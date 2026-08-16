@@ -14,12 +14,12 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { COST_2STAR, COST_5STAR } from '../data';
-import type { InventoryGem, MainGem } from '../models';
-import { makeInventoryGem } from '../models';
-import { type CopyEntry, dormantPowerFor, maxBonusesForOwned, redistributeForBonuses, totalResidualFor } from '../optimizer';
-import { runPipeline } from '../pipeline';
-import { computeContribution, numSocketsUnlocked } from '../rules';
+import { COST_2STAR, COST_5STAR } from '../../src/core/data';
+import type { InventoryGem, MainGem } from '../../src/core/models';
+import { makeInventoryGem } from '../../src/core/models';
+import { type CopyEntry, dormantPowerFor, maxBonusesForOwned, redistributeForBonuses, totalResidualFor } from '../../src/core/optimizer';
+import { runPipeline } from '../../src/core/pipeline';
+import { computeContribution, numSocketsUnlocked } from '../../src/core/rules';
 
 function inv(gemId: number, star: number, rank: string, activeStars = 2): InventoryGem {
   const table = star === 2 ? COST_2STAR : COST_5STAR;

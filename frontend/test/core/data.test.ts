@@ -11,9 +11,9 @@ import {
   RESONANCE_1STAR,
   RESONANCE_2STAR,
   RESONANCE_5STAR,
-} from '../data';
+} from '../../src/core/data';
 
-const GOLDEN_DIR = fileURLToPath(new URL('../../../../golden', import.meta.url));
+const GOLDEN_DIR = fileURLToPath(new URL('../golden', import.meta.url));
 
 function loadGoldenGemData(): Array<{ id: number; name: string; star_rating: number; bonus_gems: unknown[] }> {
   return JSON.parse(readFileSync(`${GOLDEN_DIR}/gem-data.json`, 'utf-8'));

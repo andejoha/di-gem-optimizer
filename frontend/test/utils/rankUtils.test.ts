@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getMaxSubRank } from './rankUtils';
+import { getMaxSubRank } from '../../src/utils/rankUtils';
 
 // Pins the cost-table-derived MAX_SUB_RANK against the original hand-written
 // literal it replaced, so a future cost-table change can't silently drift

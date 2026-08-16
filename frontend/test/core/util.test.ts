@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { cloneGem, cloneGems } from '../util/clone';
-import { countOf, gemRankKey, gemTypeKey, increment } from '../util/keys';
-import { permutations } from '../util/permutations';
-import { compareTuples } from '../util/tupleCompare';
+import { cloneGem, cloneGems } from '../../src/core/util/clone';
+import { countOf, gemRankKey, gemTypeKey, increment } from '../../src/core/util/keys';
+import { permutations } from '../../src/core/util/permutations';
+import { compareTuples } from '../../src/core/util/tupleCompare';
 
 describe('compareTuples', () => {
   it('compares numeric tuples lexicographically', () => {

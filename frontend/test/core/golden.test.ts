@@ -6,11 +6,11 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { runOptimization } from '../api/runOptimization';
-import type { OptimizeRequest } from '../api/types';
-import { ValidationError } from '../api/validate';
+import { runOptimization } from '../../src/core/api/runOptimization';
+import type { OptimizeRequest } from '../../src/core/api/types';
+import { ValidationError } from '../../src/core/api/validate';
 
-const GOLDEN_DIR = fileURLToPath(new URL('../../../../golden', import.meta.url));
+const GOLDEN_DIR = fileURLToPath(new URL('../golden', import.meta.url));
 
 const FLAG_COMBOS: Array<[key: string, enableUpgrades: boolean, convert1Star: boolean]> = [
   ['0-0', false, false],

@@ -9,8 +9,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { runOptimization } from '../api/runOptimization';
-import type { InventoryItem, OptimizeResponse } from '../api/types';
+import { runOptimization } from '../../src/core/api/runOptimization';
+import type { InventoryItem, OptimizeResponse } from '../../src/core/api/types';
 
 const HEAD_SETUP = { gem_id: 5001, target_rank: '1', active_stars: 5 };
 
