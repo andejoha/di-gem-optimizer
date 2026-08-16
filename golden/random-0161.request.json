@@ -1,0 +1,18 @@
+{
+  "gem_power": 13573,
+  "gem_setup": {
+    "main_hand": {
+      "gem_id": 5023,
+      "target_rank": "10",
+      "active_stars": 2
+    }
+  },
+  "inventory": [
+    {
+      "gem_id": 1028,
+      "rank": "1",
+      "active_stars": 1,
+      "dormant": false
+    }
+  ]
+}

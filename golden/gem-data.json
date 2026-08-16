@@ -1,0 +1,1854 @@
+[
+  {
+    "id": 5001,
+    "name": "Phoenix Ashes",
+    "star_rating": 5,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 2001
+      },
+      {
+        "unlock_rank": 4,
+        "required_gem_id": 2003
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2004
+      },
+      {
+        "unlock_rank": 6,
+        "required_gem_id": 5002
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 5004
+      }
+    ]
+  },
+  {
+    "id": 5002,
+    "name": "Chip of Stone Flesh",
+    "star_rating": 5,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 2002
+      },
+      {
+        "unlock_rank": 4,
+        "required_gem_id": 2006
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2007
+      },
+      {
+        "unlock_rank": 6,
+        "required_gem_id": 5001
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 5005
+      }
+    ]
+  },
+  {
+    "id": 5003,
+    "name": "Frozen Heart",
+    "star_rating": 5,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 2002
+      },
+      {
+        "unlock_rank": 4,
+        "required_gem_id": 2005
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2012
+      },
+      {
+        "unlock_rank": 6,
+        "required_gem_id": 5012
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 5006
+      }
+    ]
+  },
+  {
+    "id": 5004,
+    "name": "Howler's Call",
+    "star_rating": 5,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 2004
+      },
+      {
+        "unlock_rank": 4,
+        "required_gem_id": 2005
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2006
+      },
+      {
+        "unlock_rank": 6,
+        "required_gem_id": 5012
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 5001
+      }
+    ]
+  },
+  {
+    "id": 5005,
+    "name": "Seeping Bile",
+    "star_rating": 5,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 2007
+      },
+      {
+        "unlock_rank": 4,
+        "required_gem_id": 2008
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2001
+      },
+      {
+        "unlock_rank": 6,
+        "required_gem_id": 5006
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 5010
+      }
+    ]
+  },
+  {
+    "id": 5006,
+    "name": "Blessing of the Worthy",
+    "star_rating": 5,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 2003
+      },
+      {
+        "unlock_rank": 4,
+        "required_gem_id": 2002
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2005
+      },
+      {
+        "unlock_rank": 6,
+        "required_gem_id": 5007
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 5005
+      }
+    ]
+  },
+  {
+    "id": 5007,
+    "name": "Blood-Soaked Jade",
+    "star_rating": 5,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 2006
+      },
+      {
+        "unlock_rank": 4,
+        "required_gem_id": 2007
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2008
+      },
+      {
+        "unlock_rank": 6,
+        "required_gem_id": 5012
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 5009
+      }
+    ]
+  },
+  {
+    "id": 5008,
+    "name": "Concentrated Will",
+    "star_rating": 5,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 2013
+      },
+      {
+        "unlock_rank": 4,
+        "required_gem_id": 2004
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2010
+      },
+      {
+        "unlock_rank": 6,
+        "required_gem_id": 5003
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 5011
+      }
+    ]
+  },
+  {
+    "id": 5009,
+    "name": "Echoing Shade",
+    "star_rating": 5,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 2005
+      },
+      {
+        "unlock_rank": 4,
+        "required_gem_id": 2006
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2007
+      },
+      {
+        "unlock_rank": 6,
+        "required_gem_id": 5002
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 5010
+      }
+    ]
+  },
+  {
+    "id": 5010,
+    "name": "Bottled Hope",
+    "star_rating": 5,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 2008
+      },
+      {
+        "unlock_rank": 4,
+        "required_gem_id": 2001
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2003
+      },
+      {
+        "unlock_rank": 6,
+        "required_gem_id": 5004
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 5006
+      }
+    ]
+  },
+  {
+    "id": 5011,
+    "name": "Hellfire Fragment",
+    "star_rating": 5,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 2013
+      },
+      {
+        "unlock_rank": 4,
+        "required_gem_id": 2012
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2010
+      },
+      {
+        "unlock_rank": 6,
+        "required_gem_id": 5008
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 5003
+      }
+    ]
+  },
+  {
+    "id": 5012,
+    "name": "Zwensons Haunting",
+    "star_rating": 5,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 2003
+      },
+      {
+        "unlock_rank": 4,
+        "required_gem_id": 2006
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2008
+      },
+      {
+        "unlock_rank": 6,
+        "required_gem_id": 5007
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 5009
+      }
+    ]
+  },
+  {
+    "id": 5013,
+    "name": "Gloom Cask",
+    "star_rating": 5,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 2002
+      },
+      {
+        "unlock_rank": 4,
+        "required_gem_id": 2001
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2012
+      },
+      {
+        "unlock_rank": 6,
+        "required_gem_id": 5001
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 5002
+      }
+    ]
+  },
+  {
+    "id": 5014,
+    "name": "Starfire Shard",
+    "star_rating": 5,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 2013
+      },
+      {
+        "unlock_rank": 4,
+        "required_gem_id": 2008
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2010
+      },
+      {
+        "unlock_rank": 6,
+        "required_gem_id": 5011
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 5008
+      }
+    ]
+  },
+  {
+    "id": 5015,
+    "name": "Spiteful Blood",
+    "star_rating": 5,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 2005
+      },
+      {
+        "unlock_rank": 4,
+        "required_gem_id": 2004
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2013
+      },
+      {
+        "unlock_rank": 6,
+        "required_gem_id": 5003
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 5009
+      }
+    ]
+  },
+  {
+    "id": 5016,
+    "name": "Void Spark",
+    "star_rating": 5,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 2011
+      },
+      {
+        "unlock_rank": 4,
+        "required_gem_id": 2012
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2010
+      },
+      {
+        "unlock_rank": 6,
+        "required_gem_id": 5004
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 5010
+      }
+    ]
+  },
+  {
+    "id": 5017,
+    "name": "Maw Of The Deep",
+    "star_rating": 5,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 2005
+      },
+      {
+        "unlock_rank": 4,
+        "required_gem_id": 2003
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2011
+      },
+      {
+        "unlock_rank": 6,
+        "required_gem_id": 5011
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 5008
+      }
+    ]
+  },
+  {
+    "id": 5018,
+    "name": "Roiling Consequence",
+    "star_rating": 5,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 2011
+      },
+      {
+        "unlock_rank": 4,
+        "required_gem_id": 2007
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2004
+      },
+      {
+        "unlock_rank": 6,
+        "required_gem_id": 5010
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 5013
+      }
+    ]
+  },
+  {
+    "id": 5019,
+    "name": "Hilt of Many Realms",
+    "star_rating": 5,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 2011
+      },
+      {
+        "unlock_rank": 4,
+        "required_gem_id": 2014
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2008
+      },
+      {
+        "unlock_rank": 6,
+        "required_gem_id": 5007
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 5013
+      }
+    ]
+  },
+  {
+    "id": 5020,
+    "name": "Stormvault",
+    "star_rating": 5,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 2016
+      },
+      {
+        "unlock_rank": 4,
+        "required_gem_id": 2015
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2014
+      },
+      {
+        "unlock_rank": 6,
+        "required_gem_id": 5015
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 5014
+      }
+    ]
+  },
+  {
+    "id": 5021,
+    "name": "Wulfheort",
+    "star_rating": 5,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 2014
+      },
+      {
+        "unlock_rank": 4,
+        "required_gem_id": 2011
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2017
+      },
+      {
+        "unlock_rank": 6,
+        "required_gem_id": 5017
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 5016
+      }
+    ]
+  },
+  {
+    "id": 5022,
+    "name": "Golden Firmament",
+    "star_rating": 5,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 2018
+      },
+      {
+        "unlock_rank": 4,
+        "required_gem_id": 2016
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2015
+      },
+      {
+        "unlock_rank": 6,
+        "required_gem_id": 5014
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 5015
+      }
+    ]
+  },
+  {
+    "id": 5023,
+    "name": "Colossus Engine",
+    "star_rating": 5,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 2020
+      },
+      {
+        "unlock_rank": 4,
+        "required_gem_id": 2015
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2014
+      },
+      {
+        "unlock_rank": 6,
+        "required_gem_id": 5017
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 5016
+      }
+    ]
+  },
+  {
+    "id": 5024,
+    "name": "Blood Floe",
+    "star_rating": 5,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 2023
+      },
+      {
+        "unlock_rank": 4,
+        "required_gem_id": 2020
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2021
+      },
+      {
+        "unlock_rank": 6,
+        "required_gem_id": 5014
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 5013
+      }
+    ]
+  },
+  {
+    "id": 5025,
+    "name": "Haunt Coil",
+    "star_rating": 5,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 2025
+      },
+      {
+        "unlock_rank": 4,
+        "required_gem_id": 2016
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2017
+      },
+      {
+        "unlock_rank": 6,
+        "required_gem_id": 5005
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 5015
+      }
+    ]
+  },
+  {
+    "id": 5026,
+    "name": "Fated Trail",
+    "star_rating": 5,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 2014
+      },
+      {
+        "unlock_rank": 4,
+        "required_gem_id": 2023
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2025
+      },
+      {
+        "unlock_rank": 6,
+        "required_gem_id": 5006
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 5017
+      }
+    ]
+  },
+  {
+    "id": 5027,
+    "name": "Leviathan Tomb",
+    "star_rating": 5,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 2003
+      },
+      {
+        "unlock_rank": 4,
+        "required_gem_id": 2026
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2028
+      },
+      {
+        "unlock_rank": 6,
+        "required_gem_id": 5021
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 5022
+      }
+    ]
+  },
+  {
+    "id": 5028,
+    "name": "Hellbound Desire",
+    "star_rating": 5,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 2023
+      },
+      {
+        "unlock_rank": 4,
+        "required_gem_id": 2025
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2017
+      },
+      {
+        "unlock_rank": 6,
+        "required_gem_id": 5009
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 5016
+      }
+    ]
+  },
+  {
+    "id": 2001,
+    "name": "Power & Command",
+    "star_rating": 2,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1007
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2003
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 2004
+      }
+    ]
+  },
+  {
+    "id": 2002,
+    "name": "Follower's Burden",
+    "star_rating": 2,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1017
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2001
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 2005
+      }
+    ]
+  },
+  {
+    "id": 2003,
+    "name": "The Hunger",
+    "star_rating": 2,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1013
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2002
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 2007
+      }
+    ]
+  },
+  {
+    "id": 2004,
+    "name": "Bloody Reach",
+    "star_rating": 2,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1004
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2008
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 2001
+      }
+    ]
+  },
+  {
+    "id": 2005,
+    "name": "Battleguard",
+    "star_rating": 2,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1005
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2004
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 2002
+      }
+    ]
+  },
+  {
+    "id": 2006,
+    "name": "Unity Crystal",
+    "star_rating": 2,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1017
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2002
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 2007
+      }
+    ]
+  },
+  {
+    "id": 2007,
+    "name": "Cutthroat's Grin",
+    "star_rating": 2,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1001
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2006
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 2008
+      }
+    ]
+  },
+  {
+    "id": 2008,
+    "name": "Lightning Core",
+    "star_rating": 2,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1011
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2001
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 2003
+      }
+    ]
+  },
+  {
+    "id": 2009,
+    "name": "Fervent Fang",
+    "star_rating": 2,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1003
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2004
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 2005
+      }
+    ]
+  },
+  {
+    "id": 2010,
+    "name": "Volatility Shard",
+    "star_rating": 2,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1015
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2013
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 2012
+      }
+    ]
+  },
+  {
+    "id": 2011,
+    "name": "Pain Clasp",
+    "star_rating": 2,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1016
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2012
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 2003
+      }
+    ]
+  },
+  {
+    "id": 2012,
+    "name": "The Abiding Curse",
+    "star_rating": 2,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1016
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2007
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 2006
+      }
+    ]
+  },
+  {
+    "id": 2013,
+    "name": "Kir Sling",
+    "star_rating": 2,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1015
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2010
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 2012
+      }
+    ]
+  },
+  {
+    "id": 2014,
+    "name": "Ironbane",
+    "star_rating": 2,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1015
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2010
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 2013
+      }
+    ]
+  },
+  {
+    "id": 2015,
+    "name": "Mother's Lament",
+    "star_rating": 2,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1003
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2002
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 2001
+      }
+    ]
+  },
+  {
+    "id": 2016,
+    "name": "Viper's Bite",
+    "star_rating": 2,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1005
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2010
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 2011
+      }
+    ]
+  },
+  {
+    "id": 2017,
+    "name": "Igneous Scorn",
+    "star_rating": 2,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1004
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2011
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 2006
+      }
+    ]
+  },
+  {
+    "id": 2018,
+    "name": "Tear of the Comet",
+    "star_rating": 2,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1013
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2014
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 2013
+      }
+    ]
+  },
+  {
+    "id": 2019,
+    "name": "Grim Rhythm",
+    "star_rating": 2,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1008
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2011
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 2010
+      }
+    ]
+  },
+  {
+    "id": 2020,
+    "name": "Mossthorn",
+    "star_rating": 2,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1008
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2014
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 2015
+      }
+    ]
+  },
+  {
+    "id": 2021,
+    "name": "Cold Confidant",
+    "star_rating": 2,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1008
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2017
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 2016
+      }
+    ]
+  },
+  {
+    "id": 2022,
+    "name": "Mourneskull",
+    "star_rating": 2,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1018
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2017
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 2018
+      }
+    ]
+  },
+  {
+    "id": 2023,
+    "name": "Mercy's Harvest",
+    "star_rating": 2,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1022
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2020
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 2018
+      }
+    ]
+  },
+  {
+    "id": 2024,
+    "name": "Crimson Behelit",
+    "star_rating": 2,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1021
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2021
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 2017
+      }
+    ]
+  },
+  {
+    "id": 2025,
+    "name": "Specter Glass",
+    "star_rating": 2,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1019
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2020
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 2016
+      }
+    ]
+  },
+  {
+    "id": 2026,
+    "name": "Stubborn Oracle",
+    "star_rating": 2,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1023
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2014
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 2015
+      }
+    ]
+  },
+  {
+    "id": 2027,
+    "name": "Manaflux",
+    "star_rating": 2,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1004
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2023
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 2021
+      }
+    ]
+  },
+  {
+    "id": 2028,
+    "name": "Fading Nostrum",
+    "star_rating": 2,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1005
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2013
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 2012
+      }
+    ]
+  },
+  {
+    "id": 2029,
+    "name": "Rampart Torch",
+    "star_rating": 2,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1021
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2001
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 2026
+      }
+    ]
+  },
+  {
+    "id": 2030,
+    "name": "War Herald",
+    "star_rating": 2,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1024
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2015
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 2023
+      }
+    ]
+  },
+  {
+    "id": 2031,
+    "name": "Tundra Blight",
+    "star_rating": 2,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1026
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2017
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 2016
+      }
+    ]
+  },
+  {
+    "id": 2032,
+    "name": "The Crucible",
+    "star_rating": 2,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1023
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2026
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 2023
+      }
+    ]
+  },
+  {
+    "id": 2033,
+    "name": "Baneboil",
+    "star_rating": 2,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1028
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2029
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 2028
+      }
+    ]
+  },
+  {
+    "id": 2034,
+    "name": "The Jolted Eye",
+    "star_rating": 2,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1012
+      },
+      {
+        "unlock_rank": 5,
+        "required_gem_id": 2004
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 2010
+      }
+    ]
+  },
+  {
+    "id": 1001,
+    "name": "The Black Rose",
+    "star_rating": 1,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1009
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 1010
+      }
+    ]
+  },
+  {
+    "id": 1002,
+    "name": "Nightmare Wreath",
+    "star_rating": 1,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1011
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 1012
+      }
+    ]
+  },
+  {
+    "id": 1003,
+    "name": "Chained Death",
+    "star_rating": 1,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1006
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 1007
+      }
+    ]
+  },
+  {
+    "id": 1004,
+    "name": "Everlasting Torment",
+    "star_rating": 1,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1009
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 1010
+      }
+    ]
+  },
+  {
+    "id": 1005,
+    "name": "Mocking Laughter",
+    "star_rating": 1,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1012
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 1007
+      }
+    ]
+  },
+  {
+    "id": 1006,
+    "name": "Seled's Weakening",
+    "star_rating": 1,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1010
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 1014
+      }
+    ]
+  },
+  {
+    "id": 1007,
+    "name": "Berserker's Eye",
+    "star_rating": 1,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1004
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 1005
+      }
+    ]
+  },
+  {
+    "id": 1008,
+    "name": "Lo's Focused Gaze",
+    "star_rating": 1,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1001
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 1016
+      }
+    ]
+  },
+  {
+    "id": 1009,
+    "name": "Trickshot Gem",
+    "star_rating": 1,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1017
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 1002
+      }
+    ]
+  },
+  {
+    "id": 1010,
+    "name": "Pain of Subjugation",
+    "star_rating": 1,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1012
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 1013
+      }
+    ]
+  },
+  {
+    "id": 1011,
+    "name": "Respite Stone",
+    "star_rating": 1,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1004
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 1006
+      }
+    ]
+  },
+  {
+    "id": 1012,
+    "name": "Ca'arsen's Invigoration",
+    "star_rating": 1,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1014
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 1001
+      }
+    ]
+  },
+  {
+    "id": 1013,
+    "name": "Defiant Soul",
+    "star_rating": 1,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1002
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 1003
+      }
+    ]
+  },
+  {
+    "id": 1014,
+    "name": "Zod Stone",
+    "star_rating": 1,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1005
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 1006
+      }
+    ]
+  },
+  {
+    "id": 1015,
+    "name": "Heartstone",
+    "star_rating": 1,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1013
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 1002
+      }
+    ]
+  },
+  {
+    "id": 1016,
+    "name": "Blessed Pebble",
+    "star_rating": 1,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1014
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 1011
+      }
+    ]
+  },
+  {
+    "id": 1017,
+    "name": "Freedom and Devotion",
+    "star_rating": 1,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1009
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 1003
+      }
+    ]
+  },
+  {
+    "id": 1018,
+    "name": "Exigent Echo",
+    "star_rating": 1,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1001
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 1002
+      }
+    ]
+  },
+  {
+    "id": 1019,
+    "name": "Eye of the Unyielding",
+    "star_rating": 1,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1006
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 1007
+      }
+    ]
+  },
+  {
+    "id": 1020,
+    "name": "Unrefined Passage",
+    "star_rating": 1,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1010
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 1009
+      }
+    ]
+  },
+  {
+    "id": 1021,
+    "name": "Misery Elixir",
+    "star_rating": 1,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1011
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 1012
+      }
+    ]
+  },
+  {
+    "id": 1022,
+    "name": "Lucent Watcher",
+    "star_rating": 1,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1015
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 1014
+      }
+    ]
+  },
+  {
+    "id": 1023,
+    "name": "Entropic Well",
+    "star_rating": 1,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1018
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 1016
+      }
+    ]
+  },
+  {
+    "id": 1024,
+    "name": "Havoc Bearer",
+    "star_rating": 1,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1019
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 1017
+      }
+    ]
+  },
+  {
+    "id": 1025,
+    "name": "Faltergrasp",
+    "star_rating": 1,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1021
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 1022
+      }
+    ]
+  },
+  {
+    "id": 1026,
+    "name": "Surging Sea",
+    "star_rating": 1,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1023
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 1024
+      }
+    ]
+  },
+  {
+    "id": 1027,
+    "name": "Mountain Toe",
+    "star_rating": 1,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1017
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 1007
+      }
+    ]
+  },
+  {
+    "id": 1028,
+    "name": "Flaystone",
+    "star_rating": 1,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1009
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 1010
+      }
+    ]
+  },
+  {
+    "id": 1029,
+    "name": "Taxman's Pity",
+    "star_rating": 1,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1025
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 1021
+      }
+    ]
+  },
+  {
+    "id": 1030,
+    "name": "Interminus Stone",
+    "star_rating": 1,
+    "bonus_gems": [
+      {
+        "unlock_rank": 3,
+        "required_gem_id": 1015
+      },
+      {
+        "unlock_rank": 7,
+        "required_gem_id": 1013
+      }
+    ]
+  }
+]

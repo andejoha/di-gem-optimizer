@@ -1,0 +1,103 @@
+{
+  "summary": {
+    "total_socketed_power": 17,
+    "total_required_power": 196,
+    "total_residual_cost": 196,
+    "available_power": 12241,
+    "status": "feasible",
+    "surplus_or_shortfall": 12045,
+    "skipped_slots": [
+      "head",
+      "chest",
+      "shoulders",
+      "main_hand",
+      "off_hand",
+      "alt_main_hand",
+      "alt_off_hand"
+    ],
+    "total_resonance": 154,
+    "dormant_gem_power": 0,
+    "newly_dormant_gem_power": 0
+  },
+  "gem_results": {
+    "head": null,
+    "chest": null,
+    "shoulders": null,
+    "legs": {
+      "gem_id": 1023,
+      "star_rating": 1,
+      "active_stars": 1,
+      "target_rank": "10",
+      "sockets_unlocked": 2,
+      "required_power": 196,
+      "total_socketed_power": 17,
+      "residual_cost": 196,
+      "bonuses_activated": 0,
+      "bonuses_possible": 2,
+      "base_resonance": 150,
+      "socket_resonance_bonus": 4,
+      "total_resonance": 154,
+      "sockets": [
+        {
+          "socket_index": 1,
+          "socket_star_type": 1,
+          "status": "assigned",
+          "assigned_gem_id": 1012,
+          "assigned_gem_star_rating": 1,
+          "assigned_gem_rank": "4",
+          "assigned_gem_active_stars": 1,
+          "contribution": 17,
+          "bonus_gem_required_id": 1018,
+          "bonus_activated": false,
+          "socket_resonance": 4
+        },
+        {
+          "socket_index": 2,
+          "socket_star_type": 1,
+          "status": "empty",
+          "assigned_gem_id": null,
+          "assigned_gem_star_rating": null,
+          "assigned_gem_rank": null,
+          "assigned_gem_active_stars": null,
+          "contribution": null,
+          "bonus_gem_required_id": 1016,
+          "bonus_activated": null,
+          "socket_resonance": null
+        }
+      ]
+    },
+    "main_hand": null,
+    "off_hand": null,
+    "alt_main_hand": null,
+    "alt_off_hand": null
+  },
+  "upgrades": {
+    "upgrades_applied": [],
+    "total_upgrade_cost": 0,
+    "baseline_residual_cost": 196,
+    "upgraded_residual_cost": 196,
+    "baseline_summary": {
+      "total_socketed_power": 17,
+      "total_required_power": 196,
+      "total_residual_cost": 196,
+      "available_power": 12241,
+      "status": "feasible",
+      "surplus_or_shortfall": 12045,
+      "skipped_slots": [
+        "head",
+        "chest",
+        "shoulders",
+        "main_hand",
+        "off_hand",
+        "alt_main_hand",
+        "alt_off_hand"
+      ],
+      "total_resonance": 154,
+      "dormant_gem_power": 0,
+      "newly_dormant_gem_power": 0
+    }
+  },
+  "remaining_inventory": [],
+  "converted_gems": [],
+  "dormant_gems": []
+}

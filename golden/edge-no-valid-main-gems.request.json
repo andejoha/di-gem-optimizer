@@ -1,0 +1,11 @@
+{
+  "gem_power": 100,
+  "gem_setup": {},
+  "inventory": [
+    {
+      "gem_id": 2001,
+      "rank": "3",
+      "active_stars": 2
+    }
+  ]
+}

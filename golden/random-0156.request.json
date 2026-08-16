@@ -1,0 +1,47 @@
+{
+  "gem_power": 14133,
+  "gem_setup": {
+    "alt_main_hand": {
+      "gem_id": 5005,
+      "target_rank": "8.9",
+      "active_stars": 4
+    },
+    "main_hand": {
+      "gem_id": 5005,
+      "target_rank": "5",
+      "active_stars": 3
+    }
+  },
+  "inventory": [
+    {
+      "gem_id": 2026,
+      "rank": "4",
+      "active_stars": 2,
+      "dormant": false
+    },
+    {
+      "gem_id": 2024,
+      "rank": "8.2",
+      "active_stars": 2,
+      "dormant": false
+    },
+    {
+      "gem_id": 2034,
+      "rank": "7.2",
+      "active_stars": 2,
+      "dormant": false
+    },
+    {
+      "gem_id": 1027,
+      "rank": "5",
+      "active_stars": 1,
+      "dormant": true
+    },
+    {
+      "gem_id": 2022,
+      "rank": "5",
+      "active_stars": 2,
+      "dormant": false
+    }
+  ]
+}

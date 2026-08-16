@@ -1,0 +1,53 @@
+{
+  "gem_power": 2089,
+  "gem_setup": {
+    "alt_main_hand": {
+      "gem_id": 5004,
+      "target_rank": "7",
+      "active_stars": 5
+    },
+    "legs": {
+      "gem_id": 5027,
+      "target_rank": "7.7",
+      "active_stars": 3
+    },
+    "head": {
+      "gem_id": 5002,
+      "target_rank": "7.8",
+      "active_stars": 3
+    },
+    "alt_off_hand": {
+      "gem_id": 1004,
+      "target_rank": "1",
+      "active_stars": 1
+    },
+    "chest": {
+      "gem_id": 5017,
+      "target_rank": "5.1",
+      "active_stars": 2
+    },
+    "shoulders": {
+      "gem_id": 5026,
+      "target_rank": "9.1",
+      "active_stars": 2
+    },
+    "main_hand": {
+      "gem_id": 2022,
+      "target_rank": "6.1",
+      "active_stars": 2
+    },
+    "off_hand": {
+      "gem_id": 5015,
+      "target_rank": "1",
+      "active_stars": 5
+    }
+  },
+  "inventory": [
+    {
+      "gem_id": 2030,
+      "rank": "9",
+      "active_stars": 2,
+      "dormant": false
+    }
+  ]
+}

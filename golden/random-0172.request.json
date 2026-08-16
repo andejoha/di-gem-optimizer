@@ -1,0 +1,28 @@
+{
+  "gem_power": 9498,
+  "gem_setup": {
+    "shoulders": {
+      "gem_id": 5005,
+      "target_rank": "6.3",
+      "active_stars": 3
+    },
+    "main_hand": {
+      "gem_id": 2026,
+      "target_rank": "2",
+      "active_stars": 2
+    },
+    "head": {
+      "gem_id": 5025,
+      "target_rank": "9.8",
+      "active_stars": 3
+    }
+  },
+  "inventory": [
+    {
+      "gem_id": 5021,
+      "rank": "7.11",
+      "active_stars": 2,
+      "dormant": false
+    }
+  ]
+}

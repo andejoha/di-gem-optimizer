@@ -1,0 +1,42 @@
+{
+  "gem_power": 3118,
+  "gem_setup": {
+    "chest": {
+      "gem_id": 5018,
+      "target_rank": "8.15",
+      "active_stars": 4
+    }
+  },
+  "inventory": [
+    {
+      "gem_id": 5005,
+      "rank": "8.15",
+      "active_stars": 2,
+      "dormant": false
+    },
+    {
+      "gem_id": 2005,
+      "rank": "5.4",
+      "active_stars": 2,
+      "dormant": false
+    },
+    {
+      "gem_id": 5013,
+      "rank": "6.10",
+      "active_stars": 3,
+      "dormant": false
+    },
+    {
+      "gem_id": 5016,
+      "rank": "7.6",
+      "active_stars": 2,
+      "dormant": false
+    },
+    {
+      "gem_id": 1017,
+      "rank": "6",
+      "active_stars": 1,
+      "dormant": true
+    }
+  ]
+}

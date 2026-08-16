@@ -1,0 +1,33 @@
+{
+  "gem_power": 8570,
+  "gem_setup": {
+    "off_hand": {
+      "gem_id": 5004,
+      "target_rank": "6.2",
+      "active_stars": 5
+    },
+    "legs": {
+      "gem_id": 2016,
+      "target_rank": "8.3",
+      "active_stars": 2
+    },
+    "chest": {
+      "gem_id": 5008,
+      "target_rank": "9.14",
+      "active_stars": 3
+    },
+    "alt_off_hand": {
+      "gem_id": 5021,
+      "target_rank": "8.12",
+      "active_stars": 3
+    }
+  },
+  "inventory": [
+    {
+      "gem_id": 5017,
+      "rank": "6.11",
+      "active_stars": 5,
+      "dormant": false
+    }
+  ]
+}

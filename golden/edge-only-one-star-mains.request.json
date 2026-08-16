@@ -1,0 +1,17 @@
+{
+  "gem_power": 30,
+  "gem_setup": {
+    "head": {
+      "gem_id": 1001,
+      "target_rank": "7",
+      "active_stars": 1
+    }
+  },
+  "inventory": [
+    {
+      "gem_id": 1002,
+      "rank": "3",
+      "active_stars": 1
+    }
+  ]
+}

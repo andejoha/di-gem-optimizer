@@ -1,0 +1,23 @@
+{
+  "gem_power": 2795,
+  "gem_setup": {
+    "off_hand": {
+      "gem_id": 5004,
+      "target_rank": "8.12",
+      "active_stars": 2
+    },
+    "legs": {
+      "gem_id": 5001,
+      "target_rank": "7.2",
+      "active_stars": 3
+    }
+  },
+  "inventory": [
+    {
+      "gem_id": 1021,
+      "rank": "6",
+      "active_stars": 1,
+      "dormant": false
+    }
+  ]
+}

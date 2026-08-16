@@ -1,0 +1,212 @@
+{
+  "summary": {
+    "total_socketed_power": 5011,
+    "total_required_power": 2351,
+    "total_residual_cost": 476,
+    "available_power": 9642,
+    "status": "feasible",
+    "surplus_or_shortfall": 9166,
+    "skipped_slots": [
+      "head",
+      "chest",
+      "legs",
+      "main_hand",
+      "alt_main_hand"
+    ],
+    "total_resonance": 1084,
+    "dormant_gem_power": 0,
+    "newly_dormant_gem_power": 0
+  },
+  "gem_results": {
+    "head": null,
+    "chest": null,
+    "shoulders": {
+      "gem_id": 2018,
+      "star_rating": 2,
+      "active_stars": 2,
+      "target_rank": "8.8",
+      "sockets_unlocked": 3,
+      "required_power": 460,
+      "total_socketed_power": 992,
+      "residual_cost": 460,
+      "bonuses_activated": 0,
+      "bonuses_possible": 3,
+      "base_resonance": 267,
+      "socket_resonance_bonus": 32,
+      "total_resonance": 299,
+      "sockets": [
+        {
+          "socket_index": 1,
+          "socket_star_type": 1,
+          "status": "empty",
+          "assigned_gem_id": null,
+          "assigned_gem_star_rating": null,
+          "assigned_gem_rank": null,
+          "assigned_gem_active_stars": null,
+          "contribution": null,
+          "bonus_gem_required_id": 1013,
+          "bonus_activated": null,
+          "socket_resonance": null
+        },
+        {
+          "socket_index": 2,
+          "socket_star_type": 2,
+          "status": "assigned",
+          "assigned_gem_id": 2021,
+          "assigned_gem_star_rating": 2,
+          "assigned_gem_rank": "8.6",
+          "assigned_gem_active_stars": 2,
+          "contribution": 534,
+          "bonus_gem_required_id": 2014,
+          "bonus_activated": false,
+          "socket_resonance": 16
+        },
+        {
+          "socket_index": 3,
+          "socket_star_type": 2,
+          "status": "assigned",
+          "assigned_gem_id": 2001,
+          "assigned_gem_star_rating": 2,
+          "assigned_gem_rank": "8.2",
+          "assigned_gem_active_stars": 2,
+          "contribution": 458,
+          "bonus_gem_required_id": 2013,
+          "bonus_activated": false,
+          "socket_resonance": 16
+        }
+      ]
+    },
+    "legs": null,
+    "main_hand": null,
+    "off_hand": {
+      "gem_id": 1006,
+      "star_rating": 1,
+      "active_stars": 1,
+      "target_rank": "4",
+      "sockets_unlocked": 1,
+      "required_power": 16,
+      "total_socketed_power": 0,
+      "residual_cost": 16,
+      "bonuses_activated": 0,
+      "bonuses_possible": 1,
+      "base_resonance": 60,
+      "socket_resonance_bonus": 0,
+      "total_resonance": 60,
+      "sockets": [
+        {
+          "socket_index": 1,
+          "socket_star_type": 1,
+          "status": "empty",
+          "assigned_gem_id": null,
+          "assigned_gem_star_rating": null,
+          "assigned_gem_rank": null,
+          "assigned_gem_active_stars": null,
+          "contribution": null,
+          "bonus_gem_required_id": 1010,
+          "bonus_activated": null,
+          "socket_resonance": null
+        },
+        {
+          "socket_index": 2,
+          "socket_star_type": 1,
+          "status": "locked",
+          "assigned_gem_id": null,
+          "assigned_gem_star_rating": null,
+          "assigned_gem_rank": null,
+          "assigned_gem_active_stars": null,
+          "contribution": null,
+          "bonus_gem_required_id": 1014,
+          "bonus_activated": null,
+          "socket_resonance": null
+        }
+      ]
+    },
+    "alt_main_hand": null,
+    "alt_off_hand": {
+      "gem_id": 5026,
+      "star_rating": 5,
+      "active_stars": 2,
+      "target_rank": "7.5",
+      "sockets_unlocked": 5,
+      "required_power": 1875,
+      "total_socketed_power": 4019,
+      "residual_cost": 0,
+      "bonuses_activated": 0,
+      "bonuses_possible": 5,
+      "base_resonance": 586,
+      "socket_resonance_bonus": 139,
+      "total_resonance": 725,
+      "sockets": [
+        {
+          "socket_index": 1,
+          "socket_star_type": 2,
+          "status": "assigned",
+          "assigned_gem_id": 2023,
+          "assigned_gem_star_rating": 2,
+          "assigned_gem_rank": "7.2",
+          "assigned_gem_active_stars": 2,
+          "contribution": 329,
+          "bonus_gem_required_id": 2014,
+          "bonus_activated": false,
+          "socket_resonance": 14
+        },
+        {
+          "socket_index": 2,
+          "socket_star_type": 2,
+          "status": "empty",
+          "assigned_gem_id": null,
+          "assigned_gem_star_rating": null,
+          "assigned_gem_rank": null,
+          "assigned_gem_active_stars": null,
+          "contribution": null,
+          "bonus_gem_required_id": 2023,
+          "bonus_activated": null,
+          "socket_resonance": null
+        },
+        {
+          "socket_index": 3,
+          "socket_star_type": 2,
+          "status": "empty",
+          "assigned_gem_id": null,
+          "assigned_gem_star_rating": null,
+          "assigned_gem_rank": null,
+          "assigned_gem_active_stars": null,
+          "contribution": null,
+          "bonus_gem_required_id": 2025,
+          "bonus_activated": null,
+          "socket_resonance": null
+        },
+        {
+          "socket_index": 4,
+          "socket_star_type": 5,
+          "status": "assigned",
+          "assigned_gem_id": 5016,
+          "assigned_gem_star_rating": 5,
+          "assigned_gem_rank": "7.6",
+          "assigned_gem_active_stars": 2,
+          "contribution": 2959,
+          "bonus_gem_required_id": 5006,
+          "bonus_activated": false,
+          "socket_resonance": 70
+        },
+        {
+          "socket_index": 5,
+          "socket_star_type": 5,
+          "status": "assigned",
+          "assigned_gem_id": 5021,
+          "assigned_gem_star_rating": 5,
+          "assigned_gem_rank": "5",
+          "assigned_gem_active_stars": 5,
+          "contribution": 731,
+          "bonus_gem_required_id": 5017,
+          "bonus_activated": false,
+          "socket_resonance": 55
+        }
+      ]
+    }
+  },
+  "upgrades": null,
+  "remaining_inventory": [],
+  "converted_gems": [],
+  "dormant_gems": []
+}

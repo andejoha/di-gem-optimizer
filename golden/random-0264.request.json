@@ -1,0 +1,42 @@
+{
+  "gem_power": 11633,
+  "gem_setup": {
+    "shoulders": {
+      "gem_id": 1019,
+      "target_rank": "2",
+      "active_stars": 1
+    }
+  },
+  "inventory": [
+    {
+      "gem_id": 2021,
+      "rank": "5.2",
+      "active_stars": 2,
+      "dormant": false
+    },
+    {
+      "gem_id": 5007,
+      "rank": "8.1",
+      "active_stars": 2,
+      "dormant": false
+    },
+    {
+      "gem_id": 1023,
+      "rank": "5",
+      "active_stars": 1,
+      "dormant": false
+    },
+    {
+      "gem_id": 2032,
+      "rank": "7.5",
+      "active_stars": 2,
+      "dormant": false
+    },
+    {
+      "gem_id": 2011,
+      "rank": "9.3",
+      "active_stars": 2,
+      "dormant": false
+    }
+  ]
+}

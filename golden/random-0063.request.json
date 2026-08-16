@@ -1,0 +1,377 @@
+{
+  "gem_power": -1064,
+  "gem_setup": {
+    "alt_main_hand": {
+      "gem_id": 1020,
+      "target_rank": "4",
+      "active_stars": 1
+    },
+    "chest": {
+      "gem_id": 5016,
+      "target_rank": "8.17",
+      "active_stars": 2
+    }
+  },
+  "inventory": [
+    {
+      "gem_id": 2013,
+      "rank": "5",
+      "active_stars": 2,
+      "dormant": false
+    },
+    {
+      "gem_id": 2030,
+      "rank": "7.3",
+      "active_stars": 2,
+      "dormant": false
+    },
+    {
+      "gem_id": 5026,
+      "rank": "6.4",
+      "active_stars": 2,
+      "dormant": false
+    },
+    {
+      "gem_id": 5025,
+      "rank": "8.9",
+      "active_stars": 5,
+      "dormant": false
+    },
+    {
+      "gem_id": 1017,
+      "rank": "5",
+      "active_stars": 1,
+      "dormant": false
+    },
+    {
+      "gem_id": 2003,
+      "rank": "7",
+      "active_stars": 2,
+      "dormant": true
+    },
+    {
+      "gem_id": 1005,
+      "rank": "4",
+      "active_stars": 1,
+      "dormant": false
+    },
+    {
+      "gem_id": 2008,
+      "rank": "8",
+      "active_stars": 2,
+      "dormant": true
+    },
+    {
+      "gem_id": 1012,
+      "rank": "2",
+      "active_stars": 1,
+      "dormant": true
+    },
+    {
+      "gem_id": 5016,
+      "rank": "6",
+      "active_stars": 3,
+      "dormant": false
+    },
+    {
+      "gem_id": 2011,
+      "rank": "9.4",
+      "active_stars": 2,
+      "dormant": true
+    },
+    {
+      "gem_id": 2012,
+      "rank": "8.4",
+      "active_stars": 2,
+      "dormant": false
+    },
+    {
+      "gem_id": 1003,
+      "rank": "7",
+      "active_stars": 1,
+      "dormant": false
+    },
+    {
+      "gem_id": 2032,
+      "rank": "7.4",
+      "active_stars": 2,
+      "dormant": false
+    },
+    {
+      "gem_id": 5001,
+      "rank": "9.15",
+      "active_stars": 5,
+      "dormant": false
+    },
+    {
+      "gem_id": 5014,
+      "rank": "5.5",
+      "active_stars": 2,
+      "dormant": false
+    },
+    {
+      "gem_id": 2027,
+      "rank": "5.3",
+      "active_stars": 2,
+      "dormant": false
+    },
+    {
+      "gem_id": 2004,
+      "rank": "9.11",
+      "active_stars": 2,
+      "dormant": false
+    },
+    {
+      "gem_id": 5014,
+      "rank": "7.6",
+      "active_stars": 2,
+      "dormant": false
+    },
+    {
+      "gem_id": 1015,
+      "rank": "7",
+      "active_stars": 1,
+      "dormant": false
+    },
+    {
+      "gem_id": 5021,
+      "rank": "10",
+      "active_stars": 3,
+      "dormant": false
+    },
+    {
+      "gem_id": 1017,
+      "rank": "7",
+      "active_stars": 1,
+      "dormant": false
+    },
+    {
+      "gem_id": 1011,
+      "rank": "9",
+      "active_stars": 1,
+      "dormant": false
+    },
+    {
+      "gem_id": 5009,
+      "rank": "7.9",
+      "active_stars": 4,
+      "dormant": false
+    },
+    {
+      "gem_id": 1007,
+      "rank": "4",
+      "active_stars": 1,
+      "dormant": false
+    },
+    {
+      "gem_id": 2014,
+      "rank": "9.5",
+      "active_stars": 2,
+      "dormant": false
+    },
+    {
+      "gem_id": 2010,
+      "rank": "0",
+      "active_stars": 2,
+      "dormant": false
+    },
+    {
+      "gem_id": 1021,
+      "rank": "2",
+      "active_stars": 1,
+      "dormant": true
+    },
+    {
+      "gem_id": 5007,
+      "rank": "4.4",
+      "active_stars": 5,
+      "dormant": false
+    },
+    {
+      "gem_id": 2026,
+      "rank": "5.2",
+      "active_stars": 2,
+      "dormant": false
+    },
+    {
+      "gem_id": 2023,
+      "rank": "8.5",
+      "active_stars": 2,
+      "dormant": false
+    },
+    {
+      "gem_id": 5006,
+      "rank": "7.2",
+      "active_stars": 5,
+      "dormant": false
+    },
+    {
+      "gem_id": 1002,
+      "rank": "0",
+      "active_stars": 1,
+      "dormant": false
+    },
+    {
+      "gem_id": 1018,
+      "rank": "10",
+      "active_stars": 1,
+      "dormant": false
+    },
+    {
+      "gem_id": 1005,
+      "rank": "3",
+      "active_stars": 1,
+      "dormant": false
+    },
+    {
+      "gem_id": 2007,
+      "rank": "4.1",
+      "active_stars": 2,
+      "dormant": false
+    },
+    {
+      "gem_id": 2021,
+      "rank": "3",
+      "active_stars": 2,
+      "dormant": false
+    },
+    {
+      "gem_id": 2009,
+      "rank": "6.4",
+      "active_stars": 2,
+      "dormant": false
+    },
+    {
+      "gem_id": 1029,
+      "rank": "5",
+      "active_stars": 1,
+      "dormant": false
+    },
+    {
+      "gem_id": 2034,
+      "rank": "9.2",
+      "active_stars": 2,
+      "dormant": false
+    },
+    {
+      "gem_id": 2024,
+      "rank": "2",
+      "active_stars": 2,
+      "dormant": false
+    },
+    {
+      "gem_id": 5025,
+      "rank": "7.4",
+      "active_stars": 3,
+      "dormant": false
+    },
+    {
+      "gem_id": 1007,
+      "rank": "4",
+      "active_stars": 1,
+      "dormant": false
+    },
+    {
+      "gem_id": 2008,
+      "rank": "6.4",
+      "active_stars": 2,
+      "dormant": false
+    },
+    {
+      "gem_id": 2011,
+      "rank": "8",
+      "active_stars": 2,
+      "dormant": false
+    },
+    {
+      "gem_id": 2029,
+      "rank": "10",
+      "active_stars": 2,
+      "dormant": false
+    },
+    {
+      "gem_id": 1020,
+      "rank": "1",
+      "active_stars": 1,
+      "dormant": false
+    },
+    {
+      "gem_id": 5020,
+      "rank": "4.3",
+      "active_stars": 3,
+      "dormant": false
+    },
+    {
+      "gem_id": 5003,
+      "rank": "9.5",
+      "active_stars": 3,
+      "dormant": false
+    },
+    {
+      "gem_id": 5006,
+      "rank": "8.8",
+      "active_stars": 3,
+      "dormant": false
+    },
+    {
+      "gem_id": 1026,
+      "rank": "2",
+      "active_stars": 1,
+      "dormant": false
+    },
+    {
+      "gem_id": 2027,
+      "rank": "9.10",
+      "active_stars": 2,
+      "dormant": true
+    },
+    {
+      "gem_id": 1003,
+      "rank": "2",
+      "active_stars": 1,
+      "dormant": false
+    },
+    {
+      "gem_id": 2023,
+      "rank": "0",
+      "active_stars": 2,
+      "dormant": false
+    },
+    {
+      "gem_id": 2014,
+      "rank": "10",
+      "active_stars": 2,
+      "dormant": false
+    },
+    {
+      "gem_id": 1003,
+      "rank": "3",
+      "active_stars": 1,
+      "dormant": false
+    },
+    {
+      "gem_id": 2012,
+      "rank": "9.5",
+      "active_stars": 2,
+      "dormant": false
+    },
+    {
+      "gem_id": 2017,
+      "rank": "8.7",
+      "active_stars": 2,
+      "dormant": false
+    },
+    {
+      "gem_id": 2004,
+      "rank": "8.3",
+      "active_stars": 2,
+      "dormant": false
+    },
+    {
+      "gem_id": 5019,
+      "rank": "6.6",
+      "active_stars": 3,
+      "dormant": false
+    }
+  ]
+}

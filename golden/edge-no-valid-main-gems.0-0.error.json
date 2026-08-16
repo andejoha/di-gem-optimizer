@@ -1,0 +1,4 @@
+{
+  "status": 422,
+  "detail": "No valid main gems found in gem_setup. Provide at least one slot with a valid gem_id and target_rank."
+}

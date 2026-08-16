@@ -1,0 +1,142 @@
+{
+  "gem_power": 11667,
+  "gem_setup": {
+    "alt_off_hand": {
+      "gem_id": 1001,
+      "target_rank": "8",
+      "active_stars": 1
+    },
+    "legs": {
+      "gem_id": 2026,
+      "target_rank": "6.3",
+      "active_stars": 2
+    },
+    "shoulders": {
+      "gem_id": 5021,
+      "target_rank": "5.4",
+      "active_stars": 3
+    }
+  },
+  "inventory": [
+    {
+      "gem_id": 5001,
+      "rank": "7.6",
+      "active_stars": 2,
+      "dormant": true
+    },
+    {
+      "gem_id": 5004,
+      "rank": "2",
+      "active_stars": 3,
+      "dormant": false
+    },
+    {
+      "gem_id": 2030,
+      "rank": "9.5",
+      "active_stars": 2,
+      "dormant": false
+    },
+    {
+      "gem_id": 5017,
+      "rank": "8.16",
+      "active_stars": 4,
+      "dormant": false
+    },
+    {
+      "gem_id": 2032,
+      "rank": "4",
+      "active_stars": 2,
+      "dormant": false
+    },
+    {
+      "gem_id": 5015,
+      "rank": "7.6",
+      "active_stars": 4,
+      "dormant": false
+    },
+    {
+      "gem_id": 2017,
+      "rank": "7",
+      "active_stars": 2,
+      "dormant": false
+    },
+    {
+      "gem_id": 2003,
+      "rank": "9.7",
+      "active_stars": 2,
+      "dormant": false
+    },
+    {
+      "gem_id": 5028,
+      "rank": "8.12",
+      "active_stars": 5,
+      "dormant": false
+    },
+    {
+      "gem_id": 5013,
+      "rank": "4.4",
+      "active_stars": 4,
+      "dormant": false
+    },
+    {
+      "gem_id": 1030,
+      "rank": "10",
+      "active_stars": 1,
+      "dormant": false
+    },
+    {
+      "gem_id": 5004,
+      "rank": "8.16",
+      "active_stars": 5,
+      "dormant": false
+    },
+    {
+      "gem_id": 2027,
+      "rank": "9.8",
+      "active_stars": 2,
+      "dormant": false
+    },
+    {
+      "gem_id": 2029,
+      "rank": "7.5",
+      "active_stars": 2,
+      "dormant": true
+    },
+    {
+      "gem_id": 2027,
+      "rank": "5",
+      "active_stars": 2,
+      "dormant": false
+    },
+    {
+      "gem_id": 5015,
+      "rank": "2",
+      "active_stars": 3,
+      "dormant": true
+    },
+    {
+      "gem_id": 5014,
+      "rank": "6.7",
+      "active_stars": 5,
+      "dormant": false
+    },
+    {
+      "gem_id": 2020,
+      "rank": "9.5",
+      "active_stars": 2,
+      "dormant": false
+    },
+    {
+      "gem_id": 1021,
+      "rank": "0",
+      "active_stars": 1,
+      "dormant": false
+    },
+    {
+      "gem_id": 5007,
+      "rank": "5.2",
+      "active_stars": 4,
+      "dormant": false
+    }
+  ]
+}
