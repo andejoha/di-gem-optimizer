@@ -1,11 +1,10 @@
 /**
- * Ported from backend/tests/test_optimizer_monotonicity.py (3 tests) -- the
- * flagship regression against the real 430-gem fixture that originally
- * caught a redistribute-phase budget bug (see git history: "Fix bonus
- * redistribution spending GP the player doesn't have").
+ * Regression tests against a real 430-gem player fixture, checking that
+ * the gem power pool and the reported surplus behave monotonically.
  *
- * The fixture is the exact inventory/setup from that bug report, decoded
- * from a share code (dormant GP already subtracted from gem_power).
+ * The fixture is the exact inventory/setup from the original bug report,
+ * decoded from a share code (dormant gem power already subtracted from
+ * gem_power).
  */
 
 import { readFileSync } from 'node:fs';
@@ -39,9 +38,9 @@ describe('optimizer monotonicity (real 430-gem fixture)', () => {
   });
 
   it(
-    'surplus is non-decreasing as the GP pool is swept upward (bounded to +230 GP -- see note below)',
+    'surplus is non-decreasing as the gem power pool is swept upward (bounded to +230 gem power -- see note below)',
     () => {
-      // NOTE: intentionally bounded to +230 GP, well past the ~51 GP needed
+      // NOTE: intentionally bounded to +230 gem power, well past the ~51 gem power needed
       // to close the reported shortfall. Farther out, the upgrade walk has a
       // separate, PRE-EXISTING, documented source of non-monotonicity: it
       // stops peeling upgrades as soon as netResidual <= availablePowerOrig,
@@ -57,7 +56,7 @@ describe('optimizer monotonicity (real 430-gem fixture)', () => {
         surpluses.push(optimize(baseGp + delta).summary.surplus_or_shortfall);
       }
       for (let i = 1; i < surpluses.length; i++) {
-        expect(surpluses[i], `surplus decreased from ${surpluses[i - 1]} to ${surpluses[i]} after adding more GP`).toBeGreaterThanOrEqual(
+        expect(surpluses[i], `surplus decreased from ${surpluses[i - 1]} to ${surpluses[i]} after adding more gem power`).toBeGreaterThanOrEqual(
           surpluses[i - 1],
         );
       }

@@ -1,14 +1,8 @@
 /**
- * Order-faithful port of Python's `itertools.permutations(iterable)` (full-
- * length permutations only, matching every call site in optimizer.py).
- *
- * optimizer.reorder_for_bonuses keeps the *first* strict-maximum permutation
- * it encounters, so generation order is observable and must match CPython's
- * exactly: lexicographic order of input *positions*, not Heap's algorithm or
- * any other generation scheme. CPython's `permutations` yields the identity
- * permutation first, which is what makes the pre-loop `best_ordering =
- * list(gems)` initialization redundant-but-tie-consistent with the loop
- * itself -- preserve that same "identity wins ties" behavior here.
+ * Generates every full-length permutation of `items`, in lexicographic
+ * order of input position, starting with the identity ordering. Used by
+ * `reorderForBonuses`, which keeps the first strict-maximum permutation it
+ * encounters -- so the identity ordering wins ties.
  */
 export function* permutations<T>(items: readonly T[]): Generator<T[]> {
   const n = items.length;

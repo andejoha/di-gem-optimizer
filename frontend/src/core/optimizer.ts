@@ -1,9 +1,8 @@
 /**
- * Greedy power-assignment and bonus optimization for the gem resonance optimizer.
- *
- * Ported line-for-line from backend/app/core/optimizer.py. This is the
- * highest tie-break-risk module in the port -- see the module-level
- * comments below for the specific Python semantics each function relies on.
+ * Greedy power-assignment and bonus optimization for the gem resonance
+ * optimizer. This is a documented heuristic, not a provably optimal
+ * assignment -- the setups involved are tiny (at most 8 main gems, 5
+ * sockets each), so it converges quickly without needing to be exact.
  *
  * The optimization pipeline has four phases:
  *
@@ -15,15 +14,6 @@
  *    between main gems to activate more resonance bonuses.
  * 4. Intra-gem reordering (reorderForBonuses): Brute-force permutation
  *    within each star-type group to place the right gem in the right socket.
- *
- * NOTE ON DELIBERATE INEFFICIENCY: `totalResidualFor(mainGems, current)` is
- * recomputed inside the innermost candidate loops of redistributeForBonuses,
- * exactly as in the Python source, even though it is loop-invariant within a
- * sweep. This is a known, documented inefficiency in the original -- do not
- * "fix" it here. Hoisting it changes nothing numerically (current is not
- * mutated during candidate generation) so it is a safe follow-up, but it
- * must land as a separate, individually-verified change after the
- * differential harness is green, per the migration plan.
  */
 
 import { MAX_SOCKETS, SOCKET_STAR_TYPE } from './constants';
@@ -31,7 +21,7 @@ import { COST_TABLES } from './data';
 import type { InventoryGem, MainGem, SocketAssignment } from './models';
 import { makeSocketAssignment } from './models';
 import { computeExtractablePower, computeSocketResonanceBonus } from './rules';
-import { cmpTuple } from './util/tupleCompare';
+import { compareTuples } from './util/tupleCompare';
 import { permutations } from './util/permutations';
 
 /** One physical gem copy paired with its unique copy id. */
@@ -63,7 +53,7 @@ export function solveAssignment(
   mainGems: readonly MainGem[],
   inventory: readonly InventoryGem[],
 ): Map<string, CopyEntry[]> {
-  const fiveStarGems = mainGems.filter((mg) => mg.starRating === 5);
+  const fiveStarGems = mainGems.filter((mainGem) => mainGem.starRating === 5);
   if (fiveStarGems.length === 0 || inventory.length === 0) {
     return new Map();
   }
@@ -79,8 +69,8 @@ export function solveAssignment(
     return socketCapacity;
   });
 
-  const residuals = fiveStarGems.map((mg) => mg.requiredPower);
-  const result = new Map<string, CopyEntry[]>(fiveStarGems.map((mg) => [mg.slotName, []]));
+  const residuals = fiveStarGems.map((mainGem) => mainGem.requiredPower);
+  const result = new Map<string, CopyEntry[]>(fiveStarGems.map((mainGem) => [mainGem.slotName, []]));
 
   // All candidate copies, excluding zero-contribution gems. Each copy may be
   // used in at most one socket globally; usedCopyIds tracks assignments
@@ -100,7 +90,7 @@ export function solveAssignment(
         if (residuals[gemIndex] <= 0) continue;
         if ((freeSocketCount[gemIndex].get(starPass) ?? 0) <= 0) continue;
         const key = [residuals[gemIndex], -gemIndex];
-        if (targetKey === null || cmpTuple(key, targetKey) > 0) {
+        if (targetKey === null || compareTuples(key, targetKey) > 0) {
           targetKey = key;
           targetIndex = gemIndex;
         }
@@ -114,7 +104,7 @@ export function solveAssignment(
       for (let copyIndex = 0; copyIndex < availableCopies.length; copyIndex++) {
         const [copyId, gem] = availableCopies[copyIndex];
         const selectionKey = [Math.abs(gem.contribution - residuals[targetIndex]), -gem.contribution, copyId];
-        if (bestSelectionKey === null || cmpTuple(selectionKey, bestSelectionKey) < 0) {
+        if (bestSelectionKey === null || compareTuples(selectionKey, bestSelectionKey) < 0) {
           bestSelectionKey = selectionKey;
           bestCopyIndex = copyIndex;
         }
@@ -234,7 +224,7 @@ export function fillEmptySockets(
     for (const [starType, initialEmptyCount] of emptyCounts) {
       let emptyCount = initialEmptyCount;
       if (emptyCount <= 0) continue;
-      // sorted(..., reverse=True) -- stable descending sort by resonance bonus.
+      // Highest resonance bonus first.
       const compatible = unassigned
         .filter(([, gem]) => gem.starRating === starType)
         .slice()
@@ -263,18 +253,18 @@ export function fillEmptySockets(
  */
 export function totalResidualFor(mainGems: readonly MainGem[], perSlotGems: ReadonlyMap<string, readonly CopyEntry[]>): number {
   let total = 0;
-  for (const mg of mainGems) {
-    const socketed = (perSlotGems.get(mg.slotName) ?? []).reduce((sum, [, gem]) => sum + gem.contribution, 0);
-    if (mg.starRating === 5) {
-      total += Math.max(0, mg.requiredPower - socketed);
+  for (const mainGem of mainGems) {
+    const socketed = (perSlotGems.get(mainGem.slotName) ?? []).reduce((sum, [, gem]) => sum + gem.contribution, 0);
+    if (mainGem.starRating === 5) {
+      total += Math.max(0, mainGem.requiredPower - socketed);
     } else {
-      total += mg.requiredPower;
+      total += mainGem.requiredPower;
     }
   }
   return total;
 }
 
-/** Computes GP recoverable by making every unowned copy in allCopies dormant. */
+/** Computes gem power recoverable by making every unowned copy in allCopies dormant. */
 export function dormantPowerFor(allCopies: readonly CopyEntry[], ownedCopyIds: ReadonlySet<number>): number {
   let total = 0;
   for (const [copyId, gem] of allCopies) {
@@ -326,9 +316,9 @@ export function maxBonusesForOwned(
 }
 
 type Move =
-  | { kind: 'swap'; mgA: MainGem; copyIdA: number; gemA: InventoryGem; mgB: MainGem; copyIdB: number; gemB: InventoryGem }
-  | { kind: 'transfer'; mgA: MainGem; copyIdA: number; gemA: InventoryGem; mgB: MainGem }
-  | { kind: 'unassigned'; mgA: MainGem; copyIdA: number; gemA: InventoryGem; copyIdB: number; gemB: InventoryGem };
+  | { kind: 'swap'; mainGemA: MainGem; copyIdA: number; gemA: InventoryGem; mainGemB: MainGem; copyIdB: number; gemB: InventoryGem }
+  | { kind: 'transfer'; mainGemA: MainGem; copyIdA: number; gemA: InventoryGem; mainGemB: MainGem }
+  | { kind: 'unassigned'; mainGemA: MainGem; copyIdA: number; gemA: InventoryGem; copyIdB: number; gemB: InventoryGem };
 
 /**
  * Swaps gem ownership between main gems to activate more resonance bonuses
@@ -381,7 +371,7 @@ export function redistributeForBonuses(
 
   // Pre-compute per-main-gem bonus counts from current state.
   const bonusCounts = new Map<string, number>(
-    mainGems.map((mg) => [mg.slotName, maxBonusesForOwned(mg, current.get(mg.slotName) ?? [], bonusTable)]),
+    mainGems.map((mainGem) => [mainGem.slotName, maxBonusesForOwned(mainGem, current.get(mainGem.slotName) ?? [], bonusTable)]),
   );
 
   let improved = true;
@@ -389,6 +379,9 @@ export function redistributeForBonuses(
     improved = false;
     let bestKey: readonly (number | string)[] | null = null;
     let bestMove: Move | null = null;
+    // current doesn't change until a move is applied at the end of the
+    // sweep, so this total is the same for every candidate evaluated below.
+    const sweepTotalResidual = totalResidualFor(mainGems, current);
 
     // ------------------------------------------------------------------
     // Candidate A: swaps / transfers between two already-owned gems
@@ -396,17 +389,15 @@ export function redistributeForBonuses(
     for (let i = 0; i < mainGems.length; i++) {
       for (let j = 0; j < mainGems.length; j++) {
         if (j <= i) continue;
-        const mgA = mainGems[i];
-        const mgB = mainGems[j];
-        const slotA = mgA.slotName;
-        const slotB = mgB.slotName;
+        const mainGemA = mainGems[i];
+        const mainGemB = mainGems[j];
+        const slotA = mainGemA.slotName;
+        const slotB = mainGemB.slotName;
 
-        // Star types present in BOTH gems' sockets. Sorted ascending: a
-        // provable no-op vs the Python `set & set` iteration order for the
-        // small int star-type universe {2, 5} used here, and it removes any
-        // dependency on JS Set iteration order matching CPython's.
-        const starTypesA = new Set(socketCapacityByStarType(mgA).keys());
-        const starTypesB = new Set(socketCapacityByStarType(mgB).keys());
+        // Star types present in BOTH gems' sockets, sorted ascending so
+        // move selection is deterministic.
+        const starTypesA = new Set(socketCapacityByStarType(mainGemA).keys());
+        const starTypesB = new Set(socketCapacityByStarType(mainGemB).keys());
         const sharedStarTypes = [...starTypesA].filter((st) => starTypesB.has(st)).sort((a, b) => a - b);
 
         for (const starType of sharedStarTypes) {
@@ -419,47 +410,47 @@ export function redistributeForBonuses(
               if (gemA.gemId === gemB.gemId && gemA.contribution === gemB.contribution) continue;
               const newA: CopyEntry[] = [...(current.get(slotA) ?? []).filter(([id]) => id !== copyIdA), [copyIdB, gemB]];
               const newB: CopyEntry[] = [...(current.get(slotB) ?? []).filter(([id]) => id !== copyIdB), [copyIdA, gemA]];
-              const bonusANew = maxBonusesForOwned(mgA, newA, bonusTable);
-              const bonusBNew = maxBonusesForOwned(mgB, newB, bonusTable);
+              const bonusANew = maxBonusesForOwned(mainGemA, newA, bonusTable);
+              const bonusBNew = maxBonusesForOwned(mainGemB, newB, bonusTable);
               const bonusGain = bonusANew + bonusBNew - ((bonusCounts.get(slotA) ?? 0) + (bonusCounts.get(slotB) ?? 0));
               if (bonusGain <= 0) continue;
-              const oldResA = gemResidual(mgA);
-              const oldResB = gemResidual(mgB);
+              const oldResA = gemResidual(mainGemA);
+              const oldResB = gemResidual(mainGemB);
               const newResA =
-                mgA.starRating === 5 ? Math.max(0, mgA.requiredPower - newA.reduce((s, [, g]) => s + g.contribution, 0)) : mgA.requiredPower;
+                mainGemA.starRating === 5 ? Math.max(0, mainGemA.requiredPower - newA.reduce((s, [, g]) => s + g.contribution, 0)) : mainGemA.requiredPower;
               const newResB =
-                mgB.starRating === 5 ? Math.max(0, mgB.requiredPower - newB.reduce((s, [, g]) => s + g.contribution, 0)) : mgB.requiredPower;
-              const newTotalResidual = totalResidualFor(mainGems, current) - oldResA - oldResB + newResA + newResB;
+                mainGemB.starRating === 5 ? Math.max(0, mainGemB.requiredPower - newB.reduce((s, [, g]) => s + g.contribution, 0)) : mainGemB.requiredPower;
+              const newTotalResidual = sweepTotalResidual - oldResA - oldResB + newResA + newResB;
               const newCost = newTotalResidual - currentDormant;
               if (newCost > costCeiling) continue;
               const key = [bonusGain, -newCost, slotA, copyIdA, slotB, copyIdB];
-              if (bestKey === null || cmpTuple(key, bestKey) > 0) {
+              if (bestKey === null || compareTuples(key, bestKey) > 0) {
                 bestKey = key;
-                bestMove = { kind: 'swap', mgA, copyIdA, gemA, mgB, copyIdB, gemB };
+                bestMove = { kind: 'swap', mainGemA, copyIdA, gemA, mainGemB, copyIdB, gemB };
               }
             }
 
-            // Transfer gemA into a free socket of mgB (no gem returned).
-            if (freeSocketCountOf(mgB, starType) > 0) {
+            // Transfer gemA into a free socket of mainGemB (no gem returned).
+            if (freeSocketCountOf(mainGemB, starType) > 0) {
               const newA: CopyEntry[] = (current.get(slotA) ?? []).filter(([id]) => id !== copyIdA);
               const newB: CopyEntry[] = [...(current.get(slotB) ?? []), [copyIdA, gemA]];
-              const bonusANew = maxBonusesForOwned(mgA, newA, bonusTable);
-              const bonusBNew = maxBonusesForOwned(mgB, newB, bonusTable);
+              const bonusANew = maxBonusesForOwned(mainGemA, newA, bonusTable);
+              const bonusBNew = maxBonusesForOwned(mainGemB, newB, bonusTable);
               const bonusGain = bonusANew + bonusBNew - ((bonusCounts.get(slotA) ?? 0) + (bonusCounts.get(slotB) ?? 0));
               if (bonusGain <= 0) continue;
-              const oldResA = gemResidual(mgA);
-              const oldResB = gemResidual(mgB);
+              const oldResA = gemResidual(mainGemA);
+              const oldResB = gemResidual(mainGemB);
               const newResA =
-                mgA.starRating === 5 ? Math.max(0, mgA.requiredPower - newA.reduce((s, [, g]) => s + g.contribution, 0)) : mgA.requiredPower;
+                mainGemA.starRating === 5 ? Math.max(0, mainGemA.requiredPower - newA.reduce((s, [, g]) => s + g.contribution, 0)) : mainGemA.requiredPower;
               const newResB =
-                mgB.starRating === 5 ? Math.max(0, mgB.requiredPower - newB.reduce((s, [, g]) => s + g.contribution, 0)) : mgB.requiredPower;
-              const newTotalResidual = totalResidualFor(mainGems, current) - oldResA - oldResB + newResA + newResB;
+                mainGemB.starRating === 5 ? Math.max(0, mainGemB.requiredPower - newB.reduce((s, [, g]) => s + g.contribution, 0)) : mainGemB.requiredPower;
+              const newTotalResidual = sweepTotalResidual - oldResA - oldResB + newResA + newResB;
               const newCost = newTotalResidual - currentDormant;
               if (newCost > costCeiling) continue;
               const key = [bonusGain, -newCost, slotA, copyIdA, slotB, -1];
-              if (bestKey === null || cmpTuple(key, bestKey) > 0) {
+              if (bestKey === null || compareTuples(key, bestKey) > 0) {
                 bestKey = key;
-                bestMove = { kind: 'transfer', mgA, copyIdA, gemA, mgB };
+                bestMove = { kind: 'transfer', mainGemA, copyIdA, gemA, mainGemB };
               }
             }
           }
@@ -471,9 +462,9 @@ export function redistributeForBonuses(
     // Candidate B: swap an owned gem with an unassigned inventory copy
     // ------------------------------------------------------------------
     const unassigned = allCopies.filter(([copyId]) => !ownedCopyIds.has(copyId));
-    for (const mgA of mainGems) {
-      const slotA = mgA.slotName;
-      const starTypesA = [...socketCapacityByStarType(mgA).keys()].sort((a, b) => a - b);
+    for (const mainGemA of mainGems) {
+      const slotA = mainGemA.slotName;
+      const starTypesA = [...socketCapacityByStarType(mainGemA).keys()].sort((a, b) => a - b);
       for (const starType of starTypesA) {
         const gemsA = (current.get(slotA) ?? []).filter(([, gem]) => gem.starRating === starType);
         for (const [copyIdA, gemA] of gemsA) {
@@ -481,13 +472,13 @@ export function redistributeForBonuses(
             if (gemB.starRating !== starType) continue;
             if (gemA.gemId === gemB.gemId && gemA.contribution === gemB.contribution) continue;
             const newA: CopyEntry[] = [...(current.get(slotA) ?? []).filter(([id]) => id !== copyIdA), [copyIdB, gemB]];
-            const bonusANew = maxBonusesForOwned(mgA, newA, bonusTable);
+            const bonusANew = maxBonusesForOwned(mainGemA, newA, bonusTable);
             const bonusGain = bonusANew - (bonusCounts.get(slotA) ?? 0);
             if (bonusGain <= 0) continue;
-            const oldResA = gemResidual(mgA);
+            const oldResA = gemResidual(mainGemA);
             const newResA =
-              mgA.starRating === 5 ? Math.max(0, mgA.requiredPower - newA.reduce((s, [, g]) => s + g.contribution, 0)) : mgA.requiredPower;
-            const newTotalResidual = totalResidualFor(mainGems, current) - oldResA + newResA;
+              mainGemA.starRating === 5 ? Math.max(0, mainGemA.requiredPower - newA.reduce((s, [, g]) => s + g.contribution, 0)) : mainGemA.requiredPower;
+            const newTotalResidual = sweepTotalResidual - oldResA + newResA;
             // gemA leaves ownership (becomes dormant-eligible); gemB enters it.
             const newDormant =
               currentDormant +
@@ -496,9 +487,9 @@ export function redistributeForBonuses(
             const newCost = newTotalResidual - newDormant;
             if (newCost > costCeiling) continue;
             const key = [bonusGain, -newCost, slotA, copyIdA, '', copyIdB];
-            if (bestKey === null || cmpTuple(key, bestKey) > 0) {
+            if (bestKey === null || compareTuples(key, bestKey) > 0) {
               bestKey = key;
-              bestMove = { kind: 'unassigned', mgA, copyIdA, gemA, copyIdB, gemB };
+              bestMove = { kind: 'unassigned', mainGemA, copyIdA, gemA, copyIdB, gemB };
             }
           }
         }
@@ -509,27 +500,27 @@ export function redistributeForBonuses(
 
     // Apply the best move found this sweep.
     if (bestMove.kind === 'swap') {
-      const { mgA, copyIdA, gemA, mgB, copyIdB, gemB } = bestMove;
-      current.set(mgA.slotName, [...(current.get(mgA.slotName) ?? []).filter(([id]) => id !== copyIdA), [copyIdB, gemB]]);
-      current.set(mgB.slotName, [...(current.get(mgB.slotName) ?? []).filter(([id]) => id !== copyIdB), [copyIdA, gemA]]);
-      bonusCounts.set(mgA.slotName, maxBonusesForOwned(mgA, current.get(mgA.slotName) ?? [], bonusTable));
-      bonusCounts.set(mgB.slotName, maxBonusesForOwned(mgB, current.get(mgB.slotName) ?? [], bonusTable));
+      const { mainGemA, copyIdA, gemA, mainGemB, copyIdB, gemB } = bestMove;
+      current.set(mainGemA.slotName, [...(current.get(mainGemA.slotName) ?? []).filter(([id]) => id !== copyIdA), [copyIdB, gemB]]);
+      current.set(mainGemB.slotName, [...(current.get(mainGemB.slotName) ?? []).filter(([id]) => id !== copyIdB), [copyIdA, gemA]]);
+      bonusCounts.set(mainGemA.slotName, maxBonusesForOwned(mainGemA, current.get(mainGemA.slotName) ?? [], bonusTable));
+      bonusCounts.set(mainGemB.slotName, maxBonusesForOwned(mainGemB, current.get(mainGemB.slotName) ?? [], bonusTable));
     } else if (bestMove.kind === 'transfer') {
-      const { mgA, copyIdA, gemA, mgB } = bestMove;
-      current.set(mgA.slotName, (current.get(mgA.slotName) ?? []).filter(([id]) => id !== copyIdA));
-      current.set(mgB.slotName, [...(current.get(mgB.slotName) ?? []), [copyIdA, gemA]]);
-      // copyIdA is still owned (now by mgB), so ownedCopyIds is unchanged.
-      bonusCounts.set(mgA.slotName, maxBonusesForOwned(mgA, current.get(mgA.slotName) ?? [], bonusTable));
-      bonusCounts.set(mgB.slotName, maxBonusesForOwned(mgB, current.get(mgB.slotName) ?? [], bonusTable));
+      const { mainGemA, copyIdA, gemA, mainGemB } = bestMove;
+      current.set(mainGemA.slotName, (current.get(mainGemA.slotName) ?? []).filter(([id]) => id !== copyIdA));
+      current.set(mainGemB.slotName, [...(current.get(mainGemB.slotName) ?? []), [copyIdA, gemA]]);
+      // copyIdA is still owned (now by mainGemB), so ownedCopyIds is unchanged.
+      bonusCounts.set(mainGemA.slotName, maxBonusesForOwned(mainGemA, current.get(mainGemA.slotName) ?? [], bonusTable));
+      bonusCounts.set(mainGemB.slotName, maxBonusesForOwned(mainGemB, current.get(mainGemB.slotName) ?? [], bonusTable));
     } else {
-      const { mgA, copyIdA, gemA, copyIdB, gemB } = bestMove;
-      current.set(mgA.slotName, [...(current.get(mgA.slotName) ?? []).filter(([id]) => id !== copyIdA), [copyIdB, gemB]]);
+      const { mainGemA, copyIdA, gemA, copyIdB, gemB } = bestMove;
+      current.set(mainGemA.slotName, [...(current.get(mainGemA.slotName) ?? []).filter(([id]) => id !== copyIdA), [copyIdB, gemB]]);
       ownedCopyIds.delete(copyIdA);
       ownedCopyIds.add(copyIdB);
       currentDormant +=
         computeExtractablePower(gemA.rank, COST_TABLES.get(gemA.starRating)!) -
         computeExtractablePower(gemB.rank, COST_TABLES.get(gemB.starRating)!);
-      bonusCounts.set(mgA.slotName, maxBonusesForOwned(mgA, current.get(mgA.slotName) ?? [], bonusTable));
+      bonusCounts.set(mainGemA.slotName, maxBonusesForOwned(mainGemA, current.get(mainGemA.slotName) ?? [], bonusTable));
     }
 
     improved = true;
@@ -598,9 +589,9 @@ export function reorderForBonuses(
       bestPermutation(socketsByStarType.get(starType) ?? [], gemsByStarType.get(starType) ?? []),
     ]),
   );
-  // Per-star-type stateful cursor, matching Python's iter()/next() usage --
-  // NOT indexable by socket position directly, since sockets of a given star
-  // type may be non-contiguous (see e.g. 5-star sockets 3,4).
+  // One cursor per star type, consumed in order as sockets of that type are
+  // filled below. Not indexable by socket position directly, since sockets
+  // of a given star type may be non-contiguous (e.g. 5-star sockets 3, 4).
   const cursors = new Map<number, { items: CopyEntry[]; i: number }>(
     acceptedStarTypes.map((starType) => [starType, { items: bestOrderingByStarType.get(starType) ?? [], i: 0 }]),
   );

@@ -4,9 +4,7 @@ import Typography from '@mui/material/Typography';
 import type { ProgressEvent } from '../../types/progress';
 
 // Keys match the stage names emitted by core/pipeline.ts and
-// core/api/runOptimization.ts exactly. `redistribute` was previously
-// missing here (it fell through to progress.detail); the other removed
-// keys were never actually emitted by the backend.
+// core/api/runOptimization.ts exactly.
 const STAGE_LABELS: Record<string, string> = {
   assignment: 'Solving gem assignment...',
   fill_empty: 'Filling empty sockets...',

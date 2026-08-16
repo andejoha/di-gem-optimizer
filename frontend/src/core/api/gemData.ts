@@ -1,9 +1,7 @@
 /**
- * Ported from backend/app/api/routes.py `gem_data()`. Returns all known
- * gems with their socket bonus requirements, computed once at module load.
- *
- * Iterates GEMS in GEM_LIST order (5-star, then 2-star, then 1-star) --
- * NOT ascending by id -- matching the Python `GEMS.values()` order exactly.
+ * Returns all known gems with their socket bonus requirements, computed
+ * once at module load in gem-list order (5-star, then 2-star, then
+ * 1-star -- not ascending by id).
  */
 
 import { SOCKET_UNLOCK_RANK } from '../constants';
@@ -12,16 +10,16 @@ import type { BonusSocket, GemInfo } from './types';
 
 function buildGemInfo(): GemInfo[] {
   const gems: GemInfo[] = [];
-  for (const g of GEMS.values()) {
-    const unlockRanks = SOCKET_UNLOCK_RANK[g.starRating];
+  for (const gemDef of GEMS.values()) {
+    const unlockRanks = SOCKET_UNLOCK_RANK[gemDef.starRating];
     const bonusSockets: BonusSocket[] = [];
-    g.bonusGemIds.forEach((reqId, i) => {
-      if (reqId) bonusSockets.push({ unlock_rank: unlockRanks[i], required_gem_id: reqId });
+    gemDef.bonusGemIds.forEach((requiredGemId, socketIndex) => {
+      if (requiredGemId) bonusSockets.push({ unlock_rank: unlockRanks[socketIndex], required_gem_id: requiredGemId });
     });
-    gems.push({ id: g.id, name: g.name, star_rating: g.starRating as 1 | 2 | 5, bonus_gems: bonusSockets });
+    gems.push({ id: gemDef.id, name: gemDef.name, star_rating: gemDef.starRating as 1 | 2 | 5, bonus_gems: bonusSockets });
   }
   return gems;
 }
 
-/** All known gems with their socket bonus requirements, in GEMS order. */
+/** All known gems with their socket bonus requirements, in gem-list order. */
 export const GEM_INFO: GemInfo[] = buildGemInfo();

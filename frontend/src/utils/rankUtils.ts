@@ -1,8 +1,7 @@
 import { COST_2STAR, COST_5STAR } from '../core/data';
 
-// Max sub-rank per star rating and main rank, derived from the real upgrade
-// cost tables at module load (previously a hand-maintained literal
-// "derived from backend upgrade cost tables" -- now derived for real).
+// Max sub-rank per star rating and main rank, derived from the upgrade
+// cost tables at module load.
 function deriveMaxSubRank(costTable: ReadonlyMap<string, unknown>): Partial<Record<number, number>> {
   const result: Partial<Record<number, number>> = {};
   for (const rank of costTable.keys()) {

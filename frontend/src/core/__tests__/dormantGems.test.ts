@@ -1,7 +1,6 @@
 /**
- * Ported from backend/tests/test_dormant_gems.py (4 tests). Tests
- * suppressing "make this dormant" recommendations for gems the player
- * already marked dormant before submitting the request.
+ * Tests suppressing "make this dormant" recommendations for gems the
+ * player already marked dormant before submitting the request.
  *
  * Fixture setup: main gem 5001 (5-star) at target_rank "1" unlocks zero
  * sockets, so every inventory copy is left unassigned regardless of star

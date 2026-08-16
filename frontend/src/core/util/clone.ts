@@ -1,18 +1,11 @@
 import type { InventoryGem } from '../models';
 
 /**
- * Replaces Python's `copy.deepcopy` for InventoryGem lists throughout
- * upgrades.py and routes.py. Every deep-copied value in the Python source is
- * a flat, scalar-only InventoryGem record -- there is no nested mutable
- * structure to worry about -- so a shallow spread is a correct, exact
- * replacement and is 5-10x faster than `structuredClone`. This matters
- * because `materialize_upgrades`/`build_upgrade_chains` snapshot the
- * sub-inventory on every step of the upgrade walk.
- *
- * Invariant this relies on (see upgrades.py comment at the equivalent
- * snapshot site): gems are always replaced wholesale in these lists, never
- * mutated in place after being cloned. If that invariant is ever violated,
- * cloneGem must be revisited.
+ * Copies a gem record. `InventoryGem` is a flat, scalar-only record, so a
+ * shallow copy is sufficient -- there is no nested mutable structure to
+ * worry about. `buildUpgradeChains` and `materializeUpgrades` rely on
+ * gems being replaced wholesale in these lists rather than mutated in
+ * place; if that ever changes, this function needs a matching change.
  */
 export function cloneGem(gem: InventoryGem): InventoryGem {
   return { ...gem };

@@ -9,10 +9,6 @@ import {
   numSocketsUnlocked,
 } from '../rules';
 
-// Expected values below are captured directly from a live run of
-// backend/app/core/rules.py against the same tables (see the command in the
-// Phase 1 commit message / PR description for exact invocations).
-
 describe('numSocketsUnlocked', () => {
   it('5-star: unlocks at ranks 3,4,5,6,7', () => {
     expect([0, 1, 2, 3, 4, 5, 6, 7].map((r) => numSocketsUnlocked(String(r), 5))).toEqual([
@@ -36,7 +32,7 @@ describe('numSocketsUnlocked', () => {
     expect(numSocketsUnlocked('4.9', 5)).toBe(2);
   });
 
-  it('returns 0 for unparseable rank strings (mirrors Python ValueError -> 0)', () => {
+  it('returns 0 for unparseable rank strings', () => {
     expect(numSocketsUnlocked('not-a-rank', 5)).toBe(0);
     expect(numSocketsUnlocked('', 5)).toBe(0);
   });
@@ -55,7 +51,7 @@ describe('computeExtractablePower', () => {
     expect(computeExtractablePower('5', COST_5STAR)).toBe(475);
   });
 
-  it('returns 0 for rank 1 (no GP invested yet)', () => {
+  it('returns 0 for rank 1 (no gem power invested yet)', () => {
     expect(computeExtractablePower('1', COST_1STAR)).toBe(0);
   });
 
@@ -73,7 +69,7 @@ describe('computeContribution', () => {
     expect(computeContribution(2, '6.2', COST_2STAR)).toBe(224);
   });
 
-  it('throws for an unknown rank, matching the Python ValueError message shape', () => {
+  it('throws for an unknown rank, listing valid ranks in the message', () => {
     expect(() => computeContribution(5, '99', COST_5STAR)).toThrow(
       /Rank '99' not found in upgrade cost table\. Available ranks: \[/,
     );

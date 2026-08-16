@@ -1,8 +1,6 @@
 import type { SlotName } from '../types/api';
-// SLOT_ORDER's source of truth is core/constants.ts (it must match the
-// backend's GemSetup field declaration order exactly, and is also depended
-// on by the optimizer core); re-exported here rather than duplicated so
-// this module's existing importers don't need to change.
+// SLOT_ORDER's source of truth is core/constants.ts, which the optimizer
+// core also depends on; re-exported here rather than duplicated.
 import { SLOT_ORDER } from '../core/constants';
 import starFilled from '../assets/images/buttons/star-filled.png';
 import starEmpty from '../assets/images/buttons/star-empty.png';

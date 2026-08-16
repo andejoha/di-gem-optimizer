@@ -1,6 +1,6 @@
 /**
- * Conversion helpers between wire-format API types and core domain objects.
- * Ported from backend/app/api/converters.py.
+ * Conversion helpers between wire-format request/response types and the
+ * internal domain objects the optimizer operates on.
  */
 
 import { MAX_SOCKETS, SLOT_ORDER, SOCKET_STAR_TYPE } from '../constants';
@@ -23,13 +23,13 @@ import type {
 } from './types';
 
 function validRanksMessage(costTable: ReadonlyMap<string, { requiredGems: number; requiredGemPower: number }>): string {
-  const valid = [...costTable.keys()].sort((a, b) => {
-    const ea = costTable.get(a)!;
-    const eb = costTable.get(b)!;
-    if (ea.requiredGems !== eb.requiredGems) return ea.requiredGems - eb.requiredGems;
-    return ea.requiredGemPower - eb.requiredGemPower;
+  const valid = [...costTable.keys()].sort((rankA, rankB) => {
+    const entryA = costTable.get(rankA)!;
+    const entryB = costTable.get(rankB)!;
+    if (entryA.requiredGems !== entryB.requiredGems) return entryA.requiredGems - entryB.requiredGems;
+    return entryA.requiredGemPower - entryB.requiredGemPower;
   });
-  return `[${valid.map((r) => `'${r}'`).join(', ')}]`;
+  return `[${valid.map((rank) => `'${rank}'`).join(', ')}]`;
 }
 
 export interface DomainRequest {
@@ -39,7 +39,7 @@ export interface DomainRequest {
   inventory: InventoryGem[];
 }
 
-/** Converts a validated API request into internal domain objects. Throws ValidationError on invalid input (mirrors HTTP 422). */
+/** Converts a request into internal domain objects, validating gem ids and ranks along the way. Throws ValidationError on invalid input. */
 export function requestToDomain(request: OptimizeRequest): DomainRequest {
   const availablePower = request.gem_power;
   const mainGems: MainGem[] = [];
@@ -80,30 +80,30 @@ export function requestToDomain(request: OptimizeRequest): DomainRequest {
   }
 
   const inventory: InventoryGem[] = [];
-  request.inventory.forEach((invItem, i) => {
-    const gemDef = GEMS.get(invItem.gem_id);
+  request.inventory.forEach((inventoryItem, index) => {
+    const gemDef = GEMS.get(inventoryItem.gem_id);
     if (gemDef === undefined) {
-      throw new ValidationError(`Unknown gem_id ${invItem.gem_id} for inventory item ${i}.`);
+      throw new ValidationError(`Unknown gem_id ${inventoryItem.gem_id} for inventory item ${index}.`);
     }
 
-    const rank = invItem.rank.trim();
+    const rank = inventoryItem.rank.trim();
     const starRating = gemDef.starRating;
     const costTable = COST_TABLES.get(starRating)!;
 
     if (!costTable.has(rank)) {
       throw new ValidationError(
-        `Invalid rank '${rank}' for inventory item ${i} (gem_id=${invItem.gem_id}, star_rating=${starRating}). Valid ${starRating}-star ranks: ${validRanksMessage(costTable)}`,
+        `Invalid rank '${rank}' for inventory item ${index} (gem_id=${inventoryItem.gem_id}, star_rating=${starRating}). Valid ${starRating}-star ranks: ${validRanksMessage(costTable)}`,
       );
     }
 
     const contribution = computeContribution(starRating, rank, costTable);
     inventory.push(
       makeInventoryGem({
-        gemId: invItem.gem_id,
+        gemId: inventoryItem.gem_id,
         starRating,
         rank,
         quantity: 1,
-        activeStars: invItem.active_stars,
+        activeStars: inventoryItem.active_stars,
         contribution,
       }),
     );
@@ -114,17 +114,17 @@ export function requestToDomain(request: OptimizeRequest): DomainRequest {
 
 /**
  * Counts inventory copies the player already marked dormant before
- * submitting. Keyed by (gemId, starRating, rank, activeStars) -- the same
- * identity domainToResponse uses for dormant_gems -- via a 4-part string
- * key so it survives as a Map (Counter semantics: missing key -> 0).
+ * submitting, keyed by (gemId, starRating, rank, activeStars) -- the same
+ * identity `domainToResponse` uses for `dormant_gems`. A missing key means
+ * a count of 0.
  */
 export function alreadyDormantCounter(request: OptimizeRequest): Map<string, number> {
   const counter = new Map<string, number>();
-  for (const invItem of request.inventory) {
-    if (!invItem.dormant) continue;
-    const gemDef = GEMS.get(invItem.gem_id);
+  for (const inventoryItem of request.inventory) {
+    if (!inventoryItem.dormant) continue;
+    const gemDef = GEMS.get(inventoryItem.gem_id);
     if (gemDef === undefined) continue;
-    const key = dormantKey(invItem.gem_id, gemDef.starRating, invItem.rank.trim(), invItem.active_stars);
+    const key = dormantKey(inventoryItem.gem_id, gemDef.starRating, inventoryItem.rank.trim(), inventoryItem.active_stars);
     counter.set(key, (counter.get(key) ?? 0) + 1);
   }
   return counter;
@@ -147,24 +147,24 @@ export function domainToResponse(
   const slotMap = new Map<string, SlotResponse>();
   const bonusTable = result.bonusTable;
 
-  const mgStarMap = new Map(result.mainGems.map((mg) => [mg.slotName, mg.starRating]));
-  const mgActiveStarsMap = new Map(result.mainGems.map((mg) => [mg.slotName, mg.activeStars]));
+  const mainGemStarRatingBySlot = new Map(result.mainGems.map((mainGem) => [mainGem.slotName, mainGem.starRating]));
+  const mainGemActiveStarsBySlot = new Map(result.mainGems.map((mainGem) => [mainGem.slotName, mainGem.activeStars]));
 
-  for (const gr of result.gemResults) {
-    const bonusReqs = bonusTable.get(gr.gemId) ?? [];
-    const assignments = result.gemAssignments.get(gr.slotName) ?? [];
-    const gemStarRating = mgStarMap.get(gr.slotName) ?? 5;
-    const gemActiveStars = mgActiveStarsMap.get(gr.slotName) ?? gemStarRating;
+  for (const gemResult of result.gemResults) {
+    const bonusRequirements = bonusTable.get(gemResult.gemId) ?? [];
+    const assignments = result.gemAssignments.get(gemResult.slotName) ?? [];
+    const gemStarRating = mainGemStarRatingBySlot.get(gemResult.slotName) ?? 5;
+    const gemActiveStars = mainGemActiveStarsBySlot.get(gemResult.slotName) ?? gemStarRating;
     const socketTypeMap = SOCKET_STAR_TYPE[gemStarRating];
 
     const sockets: SocketResponse[] = [];
-    for (let s = 0; s < MAX_SOCKETS[gemStarRating]; s++) {
-      const bonusGemId = s < bonusReqs.length ? bonusReqs[s] : null;
-      const starType = socketTypeMap[s];
+    for (let socketIndex = 0; socketIndex < MAX_SOCKETS[gemStarRating]; socketIndex++) {
+      const bonusGemId = socketIndex < bonusRequirements.length ? bonusRequirements[socketIndex] : null;
+      const starType = socketTypeMap[socketIndex];
 
-      if (s >= gr.socketsUnlocked) {
+      if (socketIndex >= gemResult.socketsUnlocked) {
         sockets.push({
-          socket_index: s + 1,
+          socket_index: socketIndex + 1,
           socket_star_type: starType,
           status: 'locked',
           assigned_gem_id: null,
@@ -179,10 +179,10 @@ export function domainToResponse(
         continue;
       }
 
-      const assignment = assignments.find((a) => a.socketIndex === s) ?? null;
+      const assignment = assignments.find((candidate) => candidate.socketIndex === socketIndex) ?? null;
       if (assignment === null || assignment.gem === null) {
         sockets.push({
-          socket_index: s + 1,
+          socket_index: socketIndex + 1,
           socket_star_type: starType,
           status: 'empty',
           assigned_gem_id: null,
@@ -196,9 +196,9 @@ export function domainToResponse(
         });
       } else {
         const gem = assignment.gem;
-        const sockRes = computeSocketResonanceBonus(gem.starRating, gem.activeStars, gem.rank);
+        const socketResonance = computeSocketResonanceBonus(gem.starRating, gem.activeStars, gem.rank);
         sockets.push({
-          socket_index: s + 1,
+          socket_index: socketIndex + 1,
           socket_star_type: starType,
           status: 'assigned',
           assigned_gem_id: gem.gemId,
@@ -208,25 +208,25 @@ export function domainToResponse(
           contribution: assignment.contribution,
           bonus_gem_required_id: bonusGemId,
           bonus_activated: assignment.bonusActivated,
-          socket_resonance: sockRes,
+          socket_resonance: socketResonance,
         });
       }
     }
 
-    slotMap.set(gr.slotName, {
-      gem_id: gr.gemId,
+    slotMap.set(gemResult.slotName, {
+      gem_id: gemResult.gemId,
       star_rating: gemStarRating,
       active_stars: gemActiveStars,
-      target_rank: gr.targetRank,
-      sockets_unlocked: gr.socketsUnlocked,
-      required_power: gr.requiredPower,
-      total_socketed_power: gr.totalSocketedPower,
-      residual_cost: gr.residualCost,
-      bonuses_activated: gr.bonusesActivated,
-      bonuses_possible: gr.bonusesPossible,
-      base_resonance: gr.baseResonance,
-      socket_resonance_bonus: gr.socketResonanceBonus,
-      total_resonance: gr.totalResonance,
+      target_rank: gemResult.targetRank,
+      sockets_unlocked: gemResult.socketsUnlocked,
+      required_power: gemResult.requiredPower,
+      total_socketed_power: gemResult.totalSocketedPower,
+      residual_cost: gemResult.residualCost,
+      bonuses_activated: gemResult.bonusesActivated,
+      bonuses_possible: gemResult.bonusesPossible,
+      base_resonance: gemResult.baseResonance,
+      socket_resonance_bonus: gemResult.socketResonanceBonus,
+      total_resonance: gemResult.totalResonance,
       sockets,
     });
   }
@@ -244,33 +244,33 @@ export function domainToResponse(
 
   let upgradesResponse: UpgradesResponse | null = null;
   if (upgradeResult !== null) {
-    const bl = upgradeResult.baseline;
-    const blResidual = bl.totalResidualCost;
-    const blD = bl.totalDormantPower;
-    const blEffectiveAvailable = bl.availablePower + blD;
-    const blFeasible = blResidual <= blEffectiveAvailable;
+    const baseline = upgradeResult.baseline;
+    const baselineResidual = baseline.totalResidualCost;
+    const baselineDormantPower = baseline.totalDormantPower;
+    const baselineEffectiveAvailable = baseline.availablePower + baselineDormantPower;
+    const baselineFeasible = baselineResidual <= baselineEffectiveAvailable;
     const baselineSummary: SummaryResponse = {
-      total_socketed_power: bl.totalSocketedPower,
-      total_required_power: bl.totalRequiredPower,
-      total_residual_cost: blResidual,
-      available_power: bl.availablePower,
-      status: blFeasible ? 'feasible' : 'shortfall',
-      surplus_or_shortfall: blEffectiveAvailable - blResidual,
-      skipped_slots: bl.skippedSlots,
-      total_resonance: bl.totalResonance,
-      dormant_gem_power: blD,
-      newly_dormant_gem_power: blD,
+      total_socketed_power: baseline.totalSocketedPower,
+      total_required_power: baseline.totalRequiredPower,
+      total_residual_cost: baselineResidual,
+      available_power: baseline.availablePower,
+      status: baselineFeasible ? 'feasible' : 'shortfall',
+      surplus_or_shortfall: baselineEffectiveAvailable - baselineResidual,
+      skipped_slots: baseline.skippedSlots,
+      total_resonance: baseline.totalResonance,
+      dormant_gem_power: baselineDormantPower,
+      newly_dormant_gem_power: baselineDormantPower,
     };
-    const upgradesApplied: UpgradeItem[] = upgradeResult.upgradesApplied.map((d) => ({
-      upgrade_type: d.upgradeType,
-      gem_id: d.gemId,
-      star_rating: d.starRating,
-      current_rank: d.currentRank,
-      target_rank: d.targetRank,
-      gem_power_cost: d.additionalGemPower,
-      socketed_power_gain: d.additionalSocketPower,
-      net_gain: d.netGain,
-      copies_sacrificed: d.copiesSacrificed,
+    const upgradesApplied: UpgradeItem[] = upgradeResult.upgradesApplied.map((delta) => ({
+      upgrade_type: delta.upgradeType,
+      gem_id: delta.gemId,
+      star_rating: delta.starRating,
+      current_rank: delta.currentRank,
+      target_rank: delta.targetRank,
+      gem_power_cost: delta.additionalGemPower,
+      socketed_power_gain: delta.additionalSocketPower,
+      net_gain: delta.netGain,
+      copies_sacrificed: delta.copiesSacrificed,
     }));
     upgradesResponse = {
       upgrades_applied: upgradesApplied,
@@ -282,21 +282,22 @@ export function domainToResponse(
   }
 
   // Compute remaining inventory and dormant gems in a single pass over the
-  // unassigned copies (inventory index == copy_id here, since converters
-  // always builds InventoryGem with quantity=1 -- one entry per copy).
+  // unassigned copies (inventory index equals copy id here, since
+  // requestToDomain always builds one InventoryGem entry per copy).
   const assignedIds = new Set<number>();
   for (const assignments of result.gemAssignments.values()) {
-    for (const a of assignments) {
-      if (a.copyId >= 0) assignedIds.add(a.copyId);
+    for (const assignment of assignments) {
+      if (assignment.copyId >= 0) assignedIds.add(assignment.copyId);
     }
   }
   const remainingInventory: RemainingInventoryItem[] = [];
-  // (gemId, star, rank, active) -> [gp per copy]. Map, not object, since
-  // dormant_gems array order is directly observable in the response.
-  const dormantMap = new Map<string, number[]>();
+  // Maps (gemId, star, rank, active) -> gem power per unassigned copy. A
+  // Map, not a plain object, since dormant_gems array order is directly
+  // observable in the response.
+  const dormantPowerByGem = new Map<string, number[]>();
   const dormantIdentity = new Map<string, { gemId: number; starRating: number; rank: string; activeStars: number }>();
-  inventory.forEach((gem, i) => {
-    if (assignedIds.has(i)) return;
+  inventory.forEach((gem, index) => {
+    if (assignedIds.has(index)) return;
     remainingInventory.push({
       gem_id: gem.gemId,
       star_rating: gem.starRating,
@@ -304,45 +305,44 @@ export function domainToResponse(
       active_stars: gem.activeStars,
       contribution: gem.contribution,
     });
-    const gp = computeExtractablePower(gem.rank, COST_TABLES.get(gem.starRating)!);
-    if (gp > 0) {
+    const extractablePower = computeExtractablePower(gem.rank, COST_TABLES.get(gem.starRating)!);
+    if (extractablePower > 0) {
       const key = dormantKey(gem.gemId, gem.starRating, gem.rank, gem.activeStars);
-      const list = dormantMap.get(key);
-      if (list) list.push(gp);
+      const powerList = dormantPowerByGem.get(key);
+      if (powerList) powerList.push(extractablePower);
       else {
-        dormantMap.set(key, [gp]);
+        dormantPowerByGem.set(key, [extractablePower]);
         dormantIdentity.set(key, { gemId: gem.gemId, starRating: gem.starRating, rank: gem.rank, activeStars: gem.activeStars });
       }
     }
   });
 
   let totalDormantPower = 0;
-  for (const gplist of dormantMap.values()) for (const gp of gplist) totalDormantPower += gp;
+  for (const powerList of dormantPowerByGem.values()) for (const power of powerList) totalDormantPower += power;
 
   // Split each key's unassigned copies into "already dormant on input" and
-  // "newly" dormant, consuming already-dormant highest-GP-first.
+  // "newly" dormant, consuming already-dormant copies highest-power-first.
   const dormantGems: DormantGemItem[] = [];
   let totalNewlyDormantPower = 0;
-  for (const [key, gplist] of dormantMap) {
+  for (const [key, powerList] of dormantPowerByGem) {
     const identity = dormantIdentity.get(key)!;
-    const gplistSorted = [...gplist].sort((a, b) => b - a);
-    const alreadyCount = Math.min(alreadyDormant.get(key) ?? 0, gplistSorted.length);
-    const newlyGp = gplistSorted.slice(alreadyCount);
-    const newlySum = newlyGp.reduce((s, gp) => s + gp, 0);
-    totalNewlyDormantPower += newlySum;
+    const sortedPower = [...powerList].sort((a, b) => b - a);
+    const alreadyCount = Math.min(alreadyDormant.get(key) ?? 0, sortedPower.length);
+    const newlyDormantPower = sortedPower.slice(alreadyCount);
+    const newlyDormantSum = newlyDormantPower.reduce((sum, power) => sum + power, 0);
+    totalNewlyDormantPower += newlyDormantSum;
     dormantGems.push({
       gem_id: identity.gemId,
       star_rating: identity.starRating,
       rank: identity.rank,
       active_stars: identity.activeStars,
-      quantity: newlyGp.length,
-      gem_power_gained: newlySum,
+      quantity: newlyDormantPower.length,
+      gem_power_gained: newlyDormantSum,
       already_dormant_quantity: alreadyCount,
     });
   }
 
-  const D = totalDormantPower;
-  const effectiveAvailable = result.availablePower + D;
+  const effectiveAvailable = result.availablePower + totalDormantPower;
   const feasible = summaryResidual <= effectiveAvailable;
   const summary: SummaryResponse = {
     total_socketed_power: result.totalSocketedPower,
@@ -353,7 +353,7 @@ export function domainToResponse(
     surplus_or_shortfall: effectiveAvailable - summaryResidual,
     skipped_slots: result.skippedSlots,
     total_resonance: result.totalResonance,
-    dormant_gem_power: D,
+    dormant_gem_power: totalDormantPower,
     newly_dormant_gem_power: totalNewlyDormantPower,
   };
 

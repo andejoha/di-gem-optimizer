@@ -3,9 +3,7 @@
 # file under /etc/nginx/conf.d/*.conf automatically. The base image's
 # entrypoint runs envsubst over this file (matching ${PORT} against the
 # container's environment) before nginx starts, so no custom start script
-# or gettext-base install is needed (contrast with the old start.sh, which
-# existed only to run this step and to supervise the now-deleted Python
-# process alongside nginx).
+# is needed.
 server {
     listen ${PORT};
     server_name _;

@@ -149,13 +149,13 @@ export default function HomePage() {
           (evt) => setProgress(evt),
         );
       } catch {
-        // Fall back to plain POST if streaming fails.
+        // Fall back to running the optimizer on the main thread if the worker fails.
         setProgress(null);
         optimizeResponse = await optimize(request, enableUpgrades, convert1Star);
       }
       navigate('/results', { state: { optimizeResponse } });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Optimization failed. Is the backend running?');
+      setError(err instanceof Error ? err.message : 'Optimization failed.');
       setOptimizing(false);
       setProgress(null);
     }

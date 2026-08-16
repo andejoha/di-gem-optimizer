@@ -1,7 +1,7 @@
 /**
- * Ported from backend/tests/test_upgrade_search.py (29 tests). Covers
- * computeSocketableStarRatings, buildUpgradeChains, materializeUpgrades,
- * filterUpgradesToSocketed, and an integration check against runPipeline.
+ * Tests computeSocketableStarRatings, buildUpgradeChains,
+ * materializeUpgrades, and filterUpgradesToSocketed, plus an integration
+ * check against runPipeline.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -368,7 +368,7 @@ describe('integration: pipeline + upgrade walk (never worse than baseline)', () 
     const { chains, leftover } = buildUpgradeChains(inventory, socketCounts);
 
     if (chains.every((c) => c.steps.length === 0)) {
-      // Mirrors pytest.skip -- no upgrade steps available for this inventory.
+      // No upgrade steps available for this inventory -- nothing to assert.
       return;
     }
 

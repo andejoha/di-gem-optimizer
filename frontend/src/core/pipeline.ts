@@ -1,11 +1,11 @@
 /**
  * Core optimization pipeline for the gem resonance optimizer.
  *
- * Ported from backend/app/core/pipeline.py. Provides runPipeline: the
- * in-memory orchestration function that runs all four optimization phases
- * (greedy assignment, empty socket fill, cross-gem bonus redistribution,
- * intra-gem socket reordering) on pre-parsed data structures. No dependency
- * on any UI/worker/IO layer.
+ * Provides `runPipeline`: the in-memory orchestration function that runs
+ * all four optimization phases (greedy assignment, empty socket fill,
+ * cross-gem bonus redistribution, intra-gem socket reordering) on
+ * pre-parsed data structures. Has no dependency on the UI, the worker, or
+ * any input/output layer.
  */
 
 import { SOCKET_STAR_TYPE } from './constants';
@@ -34,7 +34,7 @@ export interface RunPipelineOptions {
    */
   skipBonusPhases?: boolean;
   /**
-   * GP already committed elsewhere (e.g. an applied upgrade plan) and
+   * gem power already committed elsewhere (e.g. an applied upgrade plan) and
    * therefore unavailable to redistributeForBonuses. Subtracted from
    * availablePower before that phase; no effect when skipBonusPhases is set.
    */
@@ -71,7 +71,7 @@ export function runPipeline(
 
   const bonusTable = new Map<number, number[]>(GEM_LIST.map((gemDef) => [gemDef.id, gemDef.bonusGemIds]));
 
-  const fiveStarGems = mainGems.filter((mg) => mg.starRating === 5);
+  const fiveStarGems = mainGems.filter((mainGem) => mainGem.starRating === 5);
   const allCopies = expandInventory(inventory);
 
   progress.report(`${stagePrefix}assignment`, 'running', { detail: 'Solving gem assignment...' });
@@ -79,7 +79,7 @@ export function runPipeline(
 
   // 5-star slots are populated by the greedy result; 1/2-star slots start
   // empty and are filled by fillEmptySockets.
-  let perSlotGems = new Map<string, CopyEntry[]>(mainGems.map((mg) => [mg.slotName, []]));
+  let perSlotGems = new Map<string, CopyEntry[]>(mainGems.map((mainGem) => [mainGem.slotName, []]));
   for (const [slot, copies] of rawAssignments) {
     perSlotGems.get(slot)!.push(...copies);
   }
@@ -101,7 +101,7 @@ export function runPipeline(
         if (list) list.push([copyId, gem]);
         else gemsByStar.set(gem.starRating, [[copyId, gem]]);
       }
-      // Per-star-type stateful cursors, matching Python's iter()/next().
+      // One cursor per star type, consumed in order as sockets fill below.
       const cursors = new Map<number, { items: CopyEntry[]; i: number }>(
         [...gemsByStar].map(([st, copies]) => [st, { items: copies, i: 0 }]),
       );
@@ -129,11 +129,12 @@ export function runPipeline(
     }
   }
 
-  // Compute dormant GP: GP recovered by making every unsocketed inventory
-  // copy dormant. "Unsocketed" means not assigned to ANY main gem socket.
+  // Dormant gem power: the power recoverable by making every unsocketed
+  // inventory copy dormant. "Unsocketed" means not assigned to any main
+  // gem socket.
   const assignedCopyIds = new Set<number>();
-  for (const asgns of gemAssignments.values()) {
-    for (const a of asgns) {
+  for (const assignments of gemAssignments.values()) {
+    for (const a of assignments) {
       if (a.copyId >= 0) assignedCopyIds.add(a.copyId);
     }
   }

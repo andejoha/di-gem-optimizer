@@ -1,14 +1,12 @@
 /**
  * Domain constants for the Diablo Immortal gem resonance optimizer.
+ * All game-rule constants live here; import from this module rather than
+ * hard-coding magic numbers elsewhere in core/.
  *
- * Ported from backend/app/core/config.py. All game-rule constants live
- * here; import from this module rather than hard-coding magic numbers
- * elsewhere in core/.
- *
- * These small dicts are keyed by star rating (1, 2, 5) and are only ever
- * looked up by key, never iterated to produce ordered output -- plain
- * Records are safe here (contrast with core/data.ts, where iteration
- * order of GEMS/cost tables IS observable and Map is required).
+ * These lookup tables are keyed by star rating (1, 2, 5) and are only
+ * ever looked up by key, never iterated to produce ordered output (unlike
+ * core/data.ts, where iteration order of the gem list and cost tables is
+ * observable and a Map is required).
  */
 
 /**
@@ -19,9 +17,9 @@
  * gem-power economy per star tier.
  *
  * Keys:
- *   1: Base power per 1-star gem copy (1 GP).
- *   2: Base power per 2-star gem copy (4 GP).
- *   5: Base power per 5-star gem copy (32 GP).
+ *   1: Base power per 1-star gem copy (1 gem power).
+ *   2: Base power per 2-star gem copy (4 gem power).
+ *   5: Base power per 5-star gem copy (32 gem power).
  */
 export const BASE_POWER: Record<number, number> = { 1: 1, 2: 4, 5: 32 };
 
@@ -57,13 +55,9 @@ export const SOCKET_UNLOCK_RANK: Record<number, Record<number, number>> = {
 export const MAX_SOCKETS: Record<number, number> = { 1: 2, 2: 3, 5: 5 };
 
 /**
- * Gem-setup slot order, matching backend `GemSetup` field declaration order
- * (app/api/schemas.py) exactly -- this is the order `converters.request_to_domain`
- * iterates via `GemSetup.model_fields`, and it determines `skipped_slots` order
- * and the key order of `gem_results` in every response.
- *
- * Verified identical to the pre-existing frontend/src/utils/gearAssets.ts
- * SLOT_ORDER; that module re-exports this constant rather than duplicating it.
+ * Equipment slot order used throughout the app: gear setup, requests, and
+ * response ordering all follow this sequence. `utils/gearAssets.ts`
+ * re-exports this constant rather than duplicating it.
  */
 export const SLOT_ORDER = [
   'head',

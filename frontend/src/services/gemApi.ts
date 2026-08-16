@@ -30,37 +30,37 @@ export async function optimizeWithProgress(
   onProgress: (event: ProgressEvent) => void,
 ): Promise<OptimizeResponse> {
   const id = nextRequestId++;
-  const w = getWorker();
+  const activeWorker = getWorker();
 
   return new Promise<OptimizeResponse>((resolve, reject) => {
     const handleMessage = (event: MessageEvent<WorkerResponse>) => {
       if (event.data.id !== id) return; // stale reply from a superseded request
-      const msg = event.data;
-      if (msg.type === 'progress') {
-        onProgress({ stage: msg.stage, status: msg.status, iteration: msg.iteration, detail: msg.detail });
+      const message = event.data;
+      if (message.type === 'progress') {
+        onProgress({ stage: message.stage, status: message.status, iteration: message.iteration, detail: message.detail });
         return;
       }
-      w.removeEventListener('message', handleMessage);
-      w.removeEventListener('error', handleError);
-      if (msg.type === 'result') {
-        resolve(msg.data);
+      activeWorker.removeEventListener('message', handleMessage);
+      activeWorker.removeEventListener('error', handleError);
+      if (message.type === 'result') {
+        resolve(message.data);
       } else {
         resetWorker();
-        reject(new Error(msg.detail));
+        reject(new Error(message.detail));
       }
     };
     const handleError = (event: ErrorEvent) => {
-      w.removeEventListener('message', handleMessage);
-      w.removeEventListener('error', handleError);
+      activeWorker.removeEventListener('message', handleMessage);
+      activeWorker.removeEventListener('error', handleError);
       resetWorker();
       reject(new Error(event.message || 'Worker error during optimization'));
     };
 
-    w.addEventListener('message', handleMessage);
-    w.addEventListener('error', handleError);
+    activeWorker.addEventListener('message', handleMessage);
+    activeWorker.addEventListener('error', handleError);
 
     const payload: WorkerRequest = { id, request, enableUpgrades, convert1Star };
-    w.postMessage(payload);
+    activeWorker.postMessage(payload);
   });
 }
 

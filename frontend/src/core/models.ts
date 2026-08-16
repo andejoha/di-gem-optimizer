@@ -1,15 +1,7 @@
 /**
- * Domain data models for the gem resonance optimizer.
- *
- * Ported from backend/app/core/models.py. Python's @dataclass fields with
- * defaults become optional TS interface fields plus a `make*()` factory that
- * supplies the same defaults -- this keeps call sites that only set a few
- * fields (as the Python tests and pipeline code do) just as terse.
- *
- * NOT ported: MaterialPreparationStep, DirectUpgradePlan -- dead code left
- * over from the pre-chain-based upgrade algorithm (see git history:
- * "Redesign upgrade algorithm: chain-based walk replacing ILP-tuned greedy
- * search"). Nothing outside models.py ever imports them.
+ * Domain data models for the gem resonance optimizer. Each interface with
+ * defaulted fields has a matching `make*()` factory that supplies those
+ * defaults, so call sites that only care about a few fields can stay terse.
  */
 
 /** Static definition of a gem from the game data. */
@@ -129,7 +121,7 @@ export interface UpgradeDelta {
    * direct whole-rank jump, "preparation" for a partial-rank upgrade
    * performed solely to prepare a material gem for a subsequent direct
    * upgrade, or "free" for a zero-net-gain upgrade applied to a gem already
-   * in a 5-star main gem socket (GP cost == additional socket power).
+   * in a 5-star main gem socket (gem power cost == additional socket power).
    */
   upgradeType: string;
   /** Copies consumed during this upgrade step. */

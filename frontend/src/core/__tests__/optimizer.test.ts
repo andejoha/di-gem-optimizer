@@ -1,10 +1,9 @@
 /**
- * Ported from backend/tests/test_optimizer_redistribute.py (20 tests).
  * Tests redistributeForBonuses and its helpers (totalResidualFor,
  * maxBonusesForOwned) in core/optimizer.ts directly, with no dependency on
  * any worker/UI layer.
  *
- * Known reference values (same as the Python source):
+ * Known reference values:
  *   5-star rank "1"  contribution = 32
  *   5-star rank "3"  contribution = 189
  *   5-star rank "5"  contribution = 731
@@ -81,7 +80,7 @@ describe('totalResidualFor', () => {
 });
 
 describe('dormantPowerFor', () => {
-  it('only copies absent from ownedCopyIds contribute extractable GP', () => {
+  it('only copies absent from ownedCopyIds contribute extractable gem power', () => {
     const owned = inv(5002, 5, '1'); // requiredGemPower=0 -> extractable 0
     const unownedA = inv(9999, 5, '5'); // requiredGemPower=475
     const unownedB = inv(9998, 5, '6'); // requiredGemPower=850
@@ -202,7 +201,7 @@ describe('redistributeForBonuses -- swap blocked by feasibility', () => {
     expect(ownedIds.has(5002)).toBe(false);
   });
 
-  it('allows the swap when outgoing dormant GP covers the net-cost gap', () => {
+  it('allows the swap when outgoing dormant gem power covers the net-cost gap', () => {
     const mgA = main('head', 5001, 5, '7'); // requiredPower=1575, 5 sockets
 
     const invOwned = inv(9999, 5, '6'); // non-bonus, contribution=1298

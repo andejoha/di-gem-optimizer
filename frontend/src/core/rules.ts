@@ -1,9 +1,7 @@
 /**
- * Domain rules for the gem resonance optimizer.
- *
- * Ported from backend/app/core/rules.py. Pure functions encoding game
- * mechanics: gem power contribution formulas, socket unlock schedules, and
- * resonance calculations.
+ * Domain rules for the gem resonance optimizer: pure functions encoding
+ * game mechanics such as gem power contribution formulas, socket unlock
+ * schedules, and resonance calculations.
  */
 
 import { BASE_POWER, SOCKET_UNLOCK_RANK } from './constants';
@@ -12,15 +10,9 @@ import type { MainGem, SocketAssignment, UpgradeCostEntry } from './models';
 
 /**
  * Returns how many awakening sockets are unlocked at the given target rank.
- *
  * Sub-rank decimals (e.g. "4.3") are truncated to their major rank because
- * sub-ranks do not unlock additional sockets. Mirrors Python's
- * `int(float(rank_str))`, including its "unparseable -> 0" fallback (Python
- * catches ValueError/TypeError; here `Number.parseFloat` returns NaN, which
- * we check for explicitly since NaN comparisons are always false in JS,
- * making every socket appear locked -- the same net effect Python's `0`
- * return produces via `major >= unlock_rank` never being true, but made
- * explicit here since the loop below never actually runs for NaN).
+ * sub-ranks do not unlock additional sockets. Returns 0 for an unparseable
+ * rank string.
  */
 export function numSocketsUnlocked(rankStr: string, starRating: number = 5): number {
   const parsed = Number.parseFloat(rankStr);
@@ -40,9 +32,9 @@ export function isSocketUnlocked(socketIdx: number, rankStr: string, starRating:
 }
 
 /**
- * Returns the GP recovered when a gem at `rank` is made dormant: the
- * cumulative gem power spent upgrading it (`requiredGemPower`), not the gem
- * copies consumed as fodder. Rank-1 gems have `requiredGemPower === 0`.
+ * Returns the gem power recovered when a gem at `rank` is made dormant:
+ * the cumulative gem power spent upgrading it (`requiredGemPower`), not
+ * the gem copies consumed as fodder. Rank-1 gems have `requiredGemPower === 0`.
  */
 export function computeExtractablePower(rank: string, costTable: ReadonlyMap<string, UpgradeCostEntry>): number {
   return costTable.get(rank)?.requiredGemPower ?? 0;
@@ -52,8 +44,8 @@ export function computeExtractablePower(rank: string, costTable: ReadonlyMap<str
  * Computes the total gem power a socketed gem contributes:
  *   contribution = requiredGems * BASE_POWER[starRating] + requiredGemPower
  *
- * Throws if `rank` is not found in `costTable` (mirrors Python's ValueError,
- * including the same sorted-valid-ranks message used in the 422 detail).
+ * Throws if `rank` is not found in `costTable`, listing the valid ranks
+ * for that cost table in the error message.
  */
 export function computeContribution(
   starRating: number,

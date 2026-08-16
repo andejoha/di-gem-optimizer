@@ -1,18 +1,14 @@
 /**
- * Upgrade optimization for the gem resonance optimizer.
+ * Upgrade optimization for the gem resonance optimizer. Discovers
+ * profitable gem upgrades, applies them in-memory, and lets the caller
+ * re-run the optimizer to determine whether the upgraded configuration
+ * reduces the player's overall gem-power cost.
  *
- * Ported from backend/app/core/upgrades.py. Discovers profitable gem
- * upgrades, applies them in-memory, and lets the caller re-run the
- * optimizer to determine whether the upgraded configuration reduces the
- * player's overall gem-power cost.
- *
- * CRITICAL ORDERING NOTE: `groups` in buildUpgradeChains (keyed by
- * (gemId, starRating)) is the single highest-severity ordering hazard in
- * this port. Its iteration order determines the order of the returned
- * `chains` array, which in turn determines which chain the caller's
- * downgrade walk peels first. It is built here as a Map, populated in
- * inventory-scan order (first-seen-wins insertion), exactly mirroring
- * Python's defaultdict(list) -- never as a plain object.
+ * In `buildUpgradeChains`, `groups` (keyed by gem id and star rating) is a
+ * Map populated in inventory-scan order. That order determines the order
+ * of the returned `chains` array, which in turn determines which chain the
+ * caller's downgrade walk peels first -- so it must stay a Map, not a
+ * plain object, to preserve insertion order.
  */
 
 import { SOCKET_STAR_TYPE } from './constants';
@@ -20,9 +16,9 @@ import { COST_1STAR, COST_2STAR, COST_5STAR } from './data';
 import type { InventoryGem, MainGem, SocketAssignment, UpgradeCostEntry, UpgradeDelta } from './models';
 import { makeInventoryGem, makeUpgradeDelta } from './models';
 import { computeContribution } from './rules';
-import { cloneGem, cloneGems } from './util/clone';
+import { cloneGems } from './util/clone';
 import { countOf, gemRankKey, gemTypeKey, increment } from './util/keys';
-import { cmpTuple } from './util/tupleCompare';
+import { compareTuples } from './util/tupleCompare';
 
 function costTable(starRating: number): ReadonlyMap<string, UpgradeCostEntry> {
   if (starRating === 1) return COST_1STAR;
@@ -40,7 +36,7 @@ export function getSortedRanks(starRating: number): string[] {
     throw new Error(`Unknown star_rating: ${starRating}. Must be 1, 2, or 5.`);
   }
   const table = costTable(starRating);
-  return [...table.keys()].sort((a, b) => cmpTuple([table.get(a)!.requiredGems, table.get(a)!.requiredGemPower], [table.get(b)!.requiredGems, table.get(b)!.requiredGemPower]));
+  return [...table.keys()].sort((a, b) => compareTuples([table.get(a)!.requiredGems, table.get(a)!.requiredGemPower], [table.get(b)!.requiredGems, table.get(b)!.requiredGemPower]));
 }
 
 /** Computes the incremental cost and benefit of upgrading a gem one rank step. */
@@ -189,7 +185,7 @@ export function buildUpgradeChains(
       const maxContribB = Math.max(...gB.map((g) => g.contribution));
       const idA = groupIdentity.get(a)!.gemId;
       const idB = groupIdentity.get(b)!.gemId;
-      return cmpTuple([-maxContribA, -gA.length, idA], [-maxContribB, -gB.length, idB]);
+      return compareTuples([-maxContribA, -gA.length, idA], [-maxContribB, -gB.length, idB]);
     });
     for (const key of candidateTypes.slice(0, slotCount)) selectedTypes.add(key);
   }
@@ -204,10 +200,9 @@ export function buildUpgradeChains(
     }
 
     // Highest-contribution copy is the target; rest are fodder.
-    // sorted(..., reverse=True) -- stable descending sort.
     const copiesSorted = copies
       .slice()
-      .sort((a, b) => -cmpTuple([a.contribution, a.gemId], [b.contribution, b.gemId]));
+      .sort((a, b) => -compareTuples([a.contribution, a.gemId], [b.contribution, b.gemId]));
     const baseSubInventory = cloneGems(copiesSorted);
 
     // Working sub-inventory: index 0 is always the upgrade target. Shallow
@@ -254,7 +249,7 @@ export function buildUpgradeChains(
         contribution: newContribution,
       });
       const sacrificedGems = sacrificeIndices.map((index) => workingSub[index]);
-      // sorted(reverse=True): remove highest indices first so earlier indices stay valid.
+      // Remove highest indices first so earlier indices stay valid.
       for (const sacrificeIndex of [...sacrificeIndices].sort((a, b) => b - a)) {
         workingSub.splice(sacrificeIndex, 1);
       }
@@ -398,7 +393,3 @@ export function filterUpgradesToSocketed(
 
   return { filtered, droppedOps, gemsToRestore };
 }
-
-// Re-export for callers that need direct gem cloning semantics consistent
-// with this module (e.g. runOptimization.ts's display-inventory handling).
-export { cloneGem };

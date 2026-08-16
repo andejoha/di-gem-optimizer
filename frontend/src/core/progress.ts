@@ -1,12 +1,7 @@
 /**
- * Progress reporting for the optimization pipeline.
- *
- * Ported from backend/app/core/progress.py. The Python QueueReporter's
- * throttle (max 1 event/sec unless force=True) is NOT ported: every call
- * site in pipeline.ts/runOptimization.ts always passes force=true, so the
- * throttle never actually fired in the original -- see the Phase 2 design
- * review notes. CallbackReporter here posts every event unconditionally,
- * which is the worker's job to relay via postMessage in Phase 4.
+ * Progress reporting for the optimization pipeline. `makeCallbackReporter`
+ * posts every progress event unconditionally to the given callback, which
+ * the Web Worker uses to relay progress to the main thread.
  */
 
 export interface ProgressEvent {

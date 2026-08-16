@@ -1,14 +1,10 @@
 /**
- * Wire-format request/response types for the gem optimizer, ported from
- * backend/app/api/schemas.py.
- *
- * These deliberately use snake_case field names matching the JSON contract
- * exactly (the differential golden corpus compares `JSON.stringify` output
- * byte-for-byte against Python's `model_dump_json`), in contrast to the
- * camelCase internal domain types in core/models.ts. Optional fields that
- * Pydantic serializes as explicit `null` must be set to `null` here, never
- * left `undefined` -- `JSON.stringify` omits `undefined` keys entirely,
- * which is the single largest source of false diffs against the corpus.
+ * Wire-format request/response types for the gem optimizer: the shapes
+ * that cross into and out of `runOptimization`. These use snake_case field
+ * names matching the JSON contract exactly, in contrast to the camelCase
+ * internal domain types in core/models.ts. Optional fields must be set to
+ * explicit `null` here, never left `undefined` -- `JSON.stringify` omits
+ * `undefined` keys entirely, which would silently change the response shape.
  */
 
 // ---------------------------------------------------------------------------

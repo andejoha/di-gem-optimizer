@@ -1,19 +1,11 @@
 /**
- * Web Worker running the optimizer off the main thread so the ~700ms
- * worst-case (upgrades + convert_1star, ~430-gem inventory) can't freeze
- * the UI.
+ * Web Worker that runs the optimizer off the main thread, so the heaviest
+ * upgrade-search runs on a large inventory can't freeze the UI.
  *
- * Message shape is deliberately isomorphic to the backend's old SSE event
- * shape, so components/progress/OptimizationProgress.tsx and its
- * STAGE_LABELS map need no changes:
  *   in:  { id, request, enableUpgrades, convert1Star }
  *   out: { id, type: 'progress', stage, status, iteration, detail }
  *      | { id, type: 'result', data: OptimizeResponse }
  *      | { id, type: 'error', detail: string }
- *
- * Plain postMessage, not Comlink: there is exactly one RPC method plus a
- * progress stream, which doesn't justify the extra dependency and proxy
- * layer.
  */
 
 import { runOptimization } from '../core/api/runOptimization';

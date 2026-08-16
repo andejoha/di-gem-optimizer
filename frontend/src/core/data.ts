@@ -1,23 +1,13 @@
 /**
- * Static game data for the Diablo Immortal gem resonance optimizer.
+ * Static game data for the Diablo Immortal gem resonance optimizer: gem
+ * definitions, upgrade cost tables, and resonance tables.
  *
- * Ported from backend/app/core/data.py. Table literals below were generated
- * programmatically from the live Python module (not hand-transcribed) to
- * eliminate transcription risk across ~350 entries; see the differential
- * golden corpus (golden/) for the end-to-end verification this enables.
- *
- * NOT ported: DIRECT_COST_2STAR/5STAR, get_direct_incremental_materials,
- * GEM_BY_NAME -- confirmed dead code, imported nowhere outside data.py.
- *
- * CRITICAL ORDERING NOTE: GEMS is NOT in ascending numeric-ID order in the
- * source -- it is inserted 5-star (5001...) first, then 2-star (2xxx), then
- * 1-star (1xxx). This order is observable: it drives the iteration order of
- * GEM_INFO (the /api/gem-data equivalent) and any other GEMS.values()-style
- * traversal. A plain JS object literal would silently re-sort integer-like
- * keys to ascending order and change this -- GEMS is therefore built as an
- * ordered array (GEM_LIST) with a derived Map, never an object literal.
- * Same reasoning applies to the cost and resonance tables (Map, not Record),
- * even though their keys are non-integer-like rank strings today.
+ * Gems are listed in tier order -- 5-star, then 2-star, then 1-star -- not
+ * ascending by id. That order is observable: it drives the iteration order
+ * of `GEMS` and `GEM_INFO`. `GEMS` is therefore built as an ordered array
+ * (`GEM_LIST`) with a derived Map, never a plain object literal, since a
+ * plain object would silently re-sort integer-like keys to ascending order.
+ * The cost and resonance tables are Maps for the same reason.
  */
 
 import type { GemDef, UpgradeCostEntry } from './models';
@@ -411,11 +401,11 @@ export const COST_TABLES: ReadonlyMap<number, ReadonlyMap<string, UpgradeCostEnt
 ]);
 
 /**
- * All gem definitions keyed by stable integer ID, in the SAME order as the
- * Python source (5-star, then 2-star, then 1-star -- NOT ascending by ID).
- * See the module-level ordering note above.
+ * All gem definitions keyed by stable integer ID, in gem-list order
+ * (5-star, then 2-star, then 1-star -- not ascending by id). See the
+ * module-level ordering note above.
  */
-export const GEMS: ReadonlyMap<number, GemDef> = new Map(GEM_LIST.map((g) => [g.id, g]));
+export const GEMS: ReadonlyMap<number, GemDef> = new Map(GEM_LIST.map((gem) => [gem.id, gem]));
 
 export { GEM_LIST };
 
