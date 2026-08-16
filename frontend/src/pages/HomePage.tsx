@@ -27,7 +27,7 @@ import InventorySection from '../components/inventory/InventorySection';
 import { optimize, optimizeWithProgress } from '../services/gemApi';
 import OptimizationProgress from '../components/progress/OptimizationProgress';
 import type { ProgressEvent } from '../types/progress';
-import { useGemData } from '../contexts/GemDataContext';
+import { useGemData } from '../contexts/useGemData';
 import { encodeSetup } from '../utils/setupCodec';
 import type { CodecState } from '../utils/setupCodec';
 
@@ -75,9 +75,7 @@ export default function HomePage() {
   const [gemSetup, setGemSetup] = useState<GemSetup>(() => loadState()?.gemSetup ?? {});
   const [gemPower, setGemPower] = useState<number>(() => loadState()?.gemPower ?? 0);
   const [stacks, setStacks] = useState<InventoryGemStack[]>(() => loadState()?.stacks ?? []);
-  const [welcomeOpen, setWelcomeOpen] = useState<boolean>(
-    () => localStorage.getItem(TUTORIAL_SEEN_KEY) !== 'true',
-  );
+  const [welcomeOpen, setWelcomeOpen] = useState<boolean>(() => localStorage.getItem(TUTORIAL_SEEN_KEY) !== 'true');
   const [tutorialOpen, setTutorialOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [optimizing, setOptimizing] = useState(false);
@@ -96,10 +94,7 @@ export default function HomePage() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ gemSetup, gemPower, stacks, enableUpgrades, convert1Star }));
   }, [gemSetup, gemPower, stacks, enableUpgrades, convert1Star]);
 
-  const isEmpty =
-    Object.values(gemSetup).every((v) => !v) &&
-    stacks.length === 0 &&
-    gemPower === 0;
+  const isEmpty = Object.values(gemSetup).every((v) => !v) && stacks.length === 0 && gemPower === 0;
 
   function handleWelcomeClose() {
     localStorage.setItem(TUTORIAL_SEEN_KEY, 'true');
@@ -144,10 +139,7 @@ export default function HomePage() {
       };
       let optimizeResponse;
       try {
-        optimizeResponse = await optimizeWithProgress(
-          request, enableUpgrades, convert1Star,
-          (evt) => setProgress(evt),
-        );
+        optimizeResponse = await optimizeWithProgress(request, enableUpgrades, convert1Star, (evt) => setProgress(evt));
       } catch {
         // Fall back to running the optimizer on the main thread if the worker fails.
         setProgress(null);
@@ -163,56 +155,65 @@ export default function HomePage() {
 
   return (
     <Box sx={{ width: PAGE_MAX_WIDTH, maxWidth: '100%', mx: 'auto' }}>
-      <Box sx={{ position: 'sticky', top: 0, zIndex: 10, bgcolor: 'background.default', display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: 'center', gap: 1, py: 0.5, mb: 1 }}>
+      <Box
+        sx={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 10,
+          bgcolor: 'background.default',
+          display: 'flex',
+          flexDirection: { xs: 'column', md: 'row' },
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 1,
+          py: 0.5,
+          mb: 1,
+        }}
+      >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Box component="img" src="/logo.png" sx={{ height: 66, width: 'auto' }} />
-          <Typography variant="h5" sx={{ fontWeight: 'bold', lineHeight: 1 }}>Gem Optimizer</Typography>
+          <Typography variant="h5" sx={{ fontWeight: 'bold', lineHeight: 1 }}>
+            Gem Optimizer
+          </Typography>
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
-        <IconButton size="xxs" variant="secondary" icon="question-mark" onClick={() => setTutorialOpen(true)} />
-        <SettingsPopover
-          enableUpgrades={enableUpgrades}
-          onEnableUpgradesChange={() => setEnableUpgrades(!enableUpgrades)}
-          convert1Star={convert1Star}
-          onConvert1StarChange={() => setConvert1Star(!convert1Star)}
-          isEmpty={isEmpty}
-          disabled={optimizing}
-          onResetClick={() => setConfirmOpen(true)}
-          onImportClick={() => setImportExportMode('import')}
-          onExportClick={() => setImportExportMode('export')}
-        />
-        <TextButton size={isSmallScreen ? 's' : 'm'} disabled={isEmpty || optimizing} onClick={handleOptimize}>
-          {optimizing ? 'Optimizing…' : 'Optimize'}
-        </TextButton>
+          <IconButton size="xxs" variant="secondary" icon="question-mark" onClick={() => setTutorialOpen(true)} />
+          <SettingsPopover
+            enableUpgrades={enableUpgrades}
+            onEnableUpgradesChange={() => setEnableUpgrades(!enableUpgrades)}
+            convert1Star={convert1Star}
+            onConvert1StarChange={() => setConvert1Star(!convert1Star)}
+            isEmpty={isEmpty}
+            disabled={optimizing}
+            onResetClick={() => setConfirmOpen(true)}
+            onImportClick={() => setImportExportMode('import')}
+            onExportClick={() => setImportExportMode('export')}
+          />
+          <TextButton size={isSmallScreen ? 's' : 'm'} disabled={isEmpty || optimizing} onClick={handleOptimize}>
+            {optimizing ? 'Optimizing…' : 'Optimize'}
+          </TextButton>
         </Box>
       </Box>
       <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 3 }}>
         <GearGrid gemSetup={gemSetup} onGemSetupChange={setGemSetup} />
-        <InventorySection
-          gemPower={gemPower}
-          onGemPowerChange={setGemPower}
-          stacks={stacks}
-          onStacksChange={setStacks}
-        />
+        <InventorySection gemPower={gemPower} onGemPowerChange={setGemPower} stacks={stacks} onStacksChange={setStacks} />
       </Box>
 
-      <WelcomeDialog
-        open={welcomeOpen}
-        onOpenTutorial={handleWelcomeOpenTutorial}
-        onClose={handleWelcomeClose}
-      />
+      <WelcomeDialog open={welcomeOpen} onOpenTutorial={handleWelcomeOpenTutorial} onClose={handleWelcomeClose} />
       <TutorialDialog open={tutorialOpen} onClose={() => setTutorialOpen(false)} />
 
       <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)} maxWidth="xs" fullWidth>
         <DialogTitle>Reset All</DialogTitle>
         <DialogContent>
-          <DialogContentText>
-            This will clear all gear slots and inventory. Are you sure?
-          </DialogContentText>
+          <DialogContentText>This will clear all gear slots and inventory. Are you sure?</DialogContentText>
         </DialogContent>
         <DialogActions>
-          <TextButton size="xs" variant="secondary" onClick={() => setConfirmOpen(false)}>Cancel</TextButton>
-          <TextButton size="xs" onClick={handleConfirmReset}>Reset</TextButton>
+          <TextButton size="xs" variant="secondary" onClick={() => setConfirmOpen(false)}>
+            Cancel
+          </TextButton>
+          <TextButton size="xs" onClick={handleConfirmReset}>
+            Reset
+          </TextButton>
         </DialogActions>
       </Dialog>
 

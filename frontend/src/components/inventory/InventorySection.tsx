@@ -4,7 +4,7 @@ import Box from '@mui/material/Box';
 import Snackbar from '@mui/material/Snackbar';
 import Stack from '@mui/material/Stack';
 import IconButton from '../buttons/IconButton';
-import { useGemData } from '../../contexts/GemDataContext';
+import { useGemData } from '../../contexts/useGemData';
 import type { InventoryGemStack } from '../../types/inventory';
 import { inventoryStackKey } from '../../types/inventory';
 import { generateId } from '../../utils/setupCodec';
@@ -20,12 +20,7 @@ interface InventorySectionProps {
   onStacksChange: (stacks: InventoryGemStack[]) => void;
 }
 
-export default function InventorySection({
-  gemPower,
-  onGemPowerChange,
-  stacks,
-  onStacksChange,
-}: InventorySectionProps) {
+export default function InventorySection({ gemPower, onGemPowerChange, stacks, onStacksChange }: InventorySectionProps) {
   const { gems } = useGemData();
   const gemOrder = useMemo(() => new Map(gems.map((g, i) => [g.id, i])), [gems]);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -52,16 +47,12 @@ export default function InventorySection({
 
     // GP delta applies only when editing an existing stack (not when adding a new gem).
     const prev = editingId ? (stacks.find((s) => s.id === editingId) ?? null) : null;
-    const gpDelta = prev !== null
-      ? dormantContribution(data) - dormantContribution(prev)
-      : 0;
+    const gpDelta = prev !== null ? dormantContribution(data) - dormantContribution(prev) : 0;
 
     if (editingId === null) {
       const existing = stacks.find((s) => inventoryStackKey(s) === key);
       if (existing) {
-        onStacksChange(stacks.map((s) =>
-          s.id === existing.id ? { ...s, quantity: s.quantity + data.quantity } : s
-        ));
+        onStacksChange(stacks.map((s) => (s.id === existing.id ? { ...s, quantity: s.quantity + data.quantity } : s)));
       } else {
         onStacksChange([...stacks, { ...data, id: generateId() }]);
       }
@@ -69,12 +60,10 @@ export default function InventorySection({
       const collision = stacks.find((s) => s.id !== editingId && inventoryStackKey(s) === key);
       if (collision) {
         onStacksChange(
-          stacks
-            .filter((s) => s.id !== editingId)
-            .map((s) => s.id === collision.id ? { ...s, quantity: s.quantity + data.quantity } : s)
+          stacks.filter((s) => s.id !== editingId).map((s) => (s.id === collision.id ? { ...s, quantity: s.quantity + data.quantity } : s)),
         );
       } else {
-        onStacksChange(stacks.map((s) => s.id === editingId ? { ...s, ...data } : s));
+        onStacksChange(stacks.map((s) => (s.id === editingId ? { ...s, ...data } : s)));
       }
     }
 

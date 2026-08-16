@@ -71,16 +71,10 @@ export default function SummaryCard({ summary }: Props) {
             </Row>
           )}
           <Row label={surplus >= 0 ? 'Surplus' : 'Shortfall'}>
-            <IconValue
-              icon={gemPowerIcon}
-              value={Math.abs(surplus)}
-              color={surplus >= 0 ? 'success.main' : 'error.main'}
-            />
+            <IconValue icon={gemPowerIcon} value={Math.abs(surplus)} color={surplus >= 0 ? 'success.main' : 'error.main'} />
           </Row>
           <Row label="Skipped Slots">
-            <Typography variant="body1">
-              {summary.skipped_slots.length > 0 ? summary.skipped_slots.join(', ') : 'None'}
-            </Typography>
+            <Typography variant="body1">{summary.skipped_slots.length > 0 ? summary.skipped_slots.join(', ') : 'None'}</Typography>
           </Row>
         </Box>
       </CardContent>

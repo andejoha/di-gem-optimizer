@@ -26,21 +26,11 @@ interface GearSlotDialogProps {
   onClose: () => void;
 }
 
-export default function GearSlotDialog({
-  open,
-  slotName,
-  currentItem,
-  gems,
-  onSave,
-  onClear,
-  onClose,
-}: GearSlotDialogProps) {
+export default function GearSlotDialog({ open, slotName, currentItem, gems, onSave, onClear, onClose }: GearSlotDialogProps) {
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
 
-  const initialGem = currentItem
-    ? (gems.find((g) => g.id === currentItem.gem_id) ?? null)
-    : null;
+  const initialGem = currentItem ? (gems.find((g) => g.id === currentItem.gem_id) ?? null) : null;
   const [initialMain, initialProg] = currentItem ? parseRank(currentItem.target_rank) : [1, 0];
 
   const [selectedGem, setSelectedGem] = useState<GemInfo | null>(initialGem);
@@ -50,8 +40,7 @@ export default function GearSlotDialog({
 
   const effectiveMainRank = mainRank || 1;
 
-  const showSubRank =
-    selectedGem !== null && selectedGem.star_rating !== 1 && effectiveMainRank >= 4 && effectiveMainRank < 10;
+  const showSubRank = selectedGem !== null && selectedGem.star_rating !== 1 && effectiveMainRank >= 4 && effectiveMainRank < 10;
 
   function handleGemChange(gem: GemInfo | null) {
     setSelectedGem(gem);
@@ -81,9 +70,7 @@ export default function GearSlotDialog({
 
   function handleSave() {
     if (!selectedGem) return;
-    const targetRank = showSubRank && subRank > 0
-      ? `${effectiveMainRank}.${subRank}`
-      : `${effectiveMainRank}`;
+    const targetRank = showSubRank && subRank > 0 ? `${effectiveMainRank}.${subRank}` : `${effectiveMainRank}`;
     onSave({ gem_id: selectedGem.id, target_rank: targetRank, active_stars: activeStars });
   }
 
@@ -102,74 +89,67 @@ export default function GearSlotDialog({
       <DialogContent>
         <Stack spacing={3} sx={{ mt: 1 }}>
           <Autocomplete
-              sx={{ flex: 1 }}
-              options={gems}
-              groupBy={(option) => `${option.star_rating}-Star`}
-              getOptionLabel={(option) => option.name}
-              isOptionEqualToValue={(option, value) => option.name === value.name}
-              value={selectedGem}
-              onChange={(_, value) => handleGemChange(value)}
-              renderInput={(params) => <TextField {...params} label="Gem" />}
-              renderOption={(props, option) => {
-                const { key, ...liProps } = props as typeof props & { key: React.Key };
-                return (
-                  <Box key={key} component="li" {...liProps} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Box
-                      component="img"
-                      src={getGemImageUrl(option.id)}
-                      sx={{ width: 28, height: 28, flexShrink: 0 }}
-                    />
-                    {option.name}
-                  </Box>
-                );
-              }}
-            />
+            sx={{ flex: 1 }}
+            options={gems}
+            groupBy={(option) => `${option.star_rating}-Star`}
+            getOptionLabel={(option) => option.name}
+            isOptionEqualToValue={(option, value) => option.name === value.name}
+            value={selectedGem}
+            onChange={(_, value) => handleGemChange(value)}
+            renderInput={(params) => <TextField {...params} label="Gem" />}
+            renderOption={(props, option) => {
+              const { key, ...liProps } = props as typeof props & { key: React.Key };
+              return (
+                <Box key={key} component="li" {...liProps} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box component="img" src={getGemImageUrl(option.id)} sx={{ width: 28, height: 28, flexShrink: 0 }} />
+                  {option.name}
+                </Box>
+              );
+            }}
+          />
 
           {selectedGem && (
             <Box>
               <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
                 Active Stars
               </Typography>
-              <StarRatingSelector
-                starRating={selectedGem.star_rating}
-                activeStars={activeStars}
-                onChange={setActiveStars}
-              />
+              <StarRatingSelector starRating={selectedGem.star_rating} activeStars={activeStars} onChange={setActiveStars} />
             </Box>
           )}
 
-          {selectedGem && <Stack direction="row" spacing={2}>
-            <Autocomplete
-              sx={{ flex: 1 }}
-              options={[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]}
-              getOptionLabel={(o) => String(o)}
-              value={mainRank === '' ? null : mainRank}
-              onChange={(_, value) => handleMainRankChange(value === null ? '' : String(value))}
-              renderInput={(params) => <TextField {...params} label="Rank" />}
-            />
-            {showSubRank && (() => {
-              const maxSub = getMaxSubRank(selectedGem!.star_rating, effectiveMainRank);
-              const step = Math.round(100 / (maxSub + 1));
-              const options = Array.from({ length: maxSub + 1 }, (_, i) => i * step);
-              return (
-                <Autocomplete
-                  sx={{ flex: 1 }}
-                  options={options}
-                  getOptionLabel={(o) => `${o}%`}
-                  value={subRank * step}
-                  onChange={(_, value) => handleSubRankPctChange(value ?? 0)}
-                  disableClearable
-                  renderInput={(params) => <TextField {...params} label="Progress" />}
-                />
-              );
-            })()}
-          </Stack>}
+          {selectedGem && (
+            <Stack direction="row" spacing={2}>
+              <Autocomplete
+                sx={{ flex: 1 }}
+                options={[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]}
+                getOptionLabel={(o) => String(o)}
+                value={mainRank === '' ? null : mainRank}
+                onChange={(_, value) => handleMainRankChange(value === null ? '' : String(value))}
+                renderInput={(params) => <TextField {...params} label="Rank" />}
+              />
+              {showSubRank &&
+                (() => {
+                  const maxSub = getMaxSubRank(selectedGem!.star_rating, effectiveMainRank);
+                  const step = Math.round(100 / (maxSub + 1));
+                  const options = Array.from({ length: maxSub + 1 }, (_, i) => i * step);
+                  return (
+                    <Autocomplete
+                      sx={{ flex: 1 }}
+                      options={options}
+                      getOptionLabel={(o) => `${o}%`}
+                      value={subRank * step}
+                      onChange={(_, value) => handleSubRankPctChange(value ?? 0)}
+                      disableClearable
+                      renderInput={(params) => <TextField {...params} label="Progress" />}
+                    />
+                  );
+                })()}
+            </Stack>
+          )}
         </Stack>
       </DialogContent>
       <DialogActions>
-        {currentItem && (
-          <IconButton size="xxs" variant="secondary" icon="delete" onClick={onClear} />
-        )}
+        {currentItem && <IconButton size="xxs" variant="secondary" icon="delete" onClick={onClear} />}
         <Box sx={{ flex: 1 }} />
         <IconButton size="xxs" variant="secondary" icon="close" onClick={onClose} />
         <IconButton size="xxs" icon="check" onClick={handleSave} disabled={!selectedGem} />

@@ -22,7 +22,7 @@ export function stacksToInventoryItems(stacks: InventoryGemStack[]): InventoryIt
         gem_id: stack.gem_id,
         rank: stack.rank,
         active_stars: stack.active_stars,
-      }))
+      })),
     );
 }
 
@@ -36,7 +36,7 @@ export function allStacksToInventoryItems(stacks: InventoryGemStack[]): Inventor
       rank: stack.rank,
       active_stars: stack.active_stars,
       dormant: !!stack.dormant,
-    }))
+    })),
   );
 }
 

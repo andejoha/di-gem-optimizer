@@ -64,7 +64,7 @@ function toBase64Url(bytes: Uint8Array): string {
 
 function fromBase64Url(str: string): Uint8Array {
   const base64 = str.replace(/-/g, '+').replace(/_/g, '/');
-  const padded = base64 + '=='.slice(0, (4 - base64.length % 4) % 4);
+  const padded = base64 + '=='.slice(0, (4 - (base64.length % 4)) % 4);
   const binary = atob(padded);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) {
@@ -74,32 +74,33 @@ function fromBase64Url(str: string): Uint8Array {
 }
 
 export function encodeSetup(state: CodecState): string {
-  const slots = SLOT_ORDER
-    .map((slotName, idx) => ({ slotName, slotIdx: idx, item: state.gemSetup[slotName] }))
-    .filter(({ item }) => item != null && item != undefined);
+  const slots = SLOT_ORDER.map((slotName, idx) => ({ slotName, slotIdx: idx, item: state.gemSetup[slotName] })).filter(
+    ({ item }) => item != null && item != undefined,
+  );
 
   const totalBytes = 1 + 2 + 1 + slots.length * 5 + 1 + state.stacks.length * 5;
   const buf = new Uint8Array(totalBytes);
   let pos = 0;
 
   buf[pos++] = VERSION;
-  const gp = Math.min(state.gemPower, 0xFFFF);
-  buf[pos++] = (gp >> 8) & 0xFF;
-  buf[pos++] = gp & 0xFF;
+  const gp = Math.min(state.gemPower, 0xffff);
+  buf[pos++] = (gp >> 8) & 0xff;
+  buf[pos++] = gp & 0xff;
 
   buf[pos++] = slots.length;
   for (const { slotIdx, item } of slots) {
     const gem = item!;
     buf[pos++] = slotIdx;
-    buf[pos++] = (gem.gem_id >> 8) & 0xFF;
-    buf[pos++] = gem.gem_id & 0xFF;
+    buf[pos++] = (gem.gem_id >> 8) & 0xff;
+    buf[pos++] = gem.gem_id & 0xff;
     buf[pos++] = encodeRank(gem.target_rank);
     buf[pos++] = gem.active_stars;
   }
 
   const sortedStacks = [...state.stacks].sort((a, b) => {
     if (a.gem_id !== b.gem_id) return a.gem_id - b.gem_id;
-    const ra = encodeRank(a.rank), rb = encodeRank(b.rank);
+    const ra = encodeRank(a.rank),
+      rb = encodeRank(b.rank);
     if (ra !== rb) return ra - rb;
     if (a.active_stars !== b.active_stars) return a.active_stars - b.active_stars;
     return (a.dormant ? 1 : 0) - (b.dormant ? 1 : 0);
@@ -107,8 +108,8 @@ export function encodeSetup(state: CodecState): string {
 
   buf[pos++] = sortedStacks.length;
   for (const stack of sortedStacks) {
-    buf[pos++] = (stack.gem_id >> 8) & 0xFF;
-    buf[pos++] = stack.gem_id & 0xFF;
+    buf[pos++] = (stack.gem_id >> 8) & 0xff;
+    buf[pos++] = stack.gem_id & 0xff;
     buf[pos++] = encodeRank(stack.rank);
     buf[pos++] = stack.active_stars | (stack.dormant ? 0x80 : 0);
     buf[pos++] = Math.min(stack.quantity, 255);
@@ -169,7 +170,7 @@ export function decodeSetup(encoded: string, gemById: Map<number, GemInfo>): Cod
     const quantity = bytes[pos++];
 
     const dormant = (activeStarsByte & 0x80) !== 0;
-    const activeStars = activeStarsByte & 0x7F;
+    const activeStars = activeStarsByte & 0x7f;
 
     if (!gemById.has(gemId)) continue;
     if (activeStars < 1 || activeStars > 5) throw new Error(`Invalid active_stars value: ${activeStars}`);

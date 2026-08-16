@@ -13,7 +13,8 @@ const MIN_ROWS = 5;
 function sortStacks(stacks: InventoryGemStack[], gemOrder: Map<number, number>): InventoryGemStack[] {
   return [...stacks].sort((a, b) => {
     // Dormant gems sort before active gems (priority #1).
-    const ad = a.dormant ? 1 : 0, bd = b.dormant ? 1 : 0;
+    const ad = a.dormant ? 1 : 0,
+      bd = b.dormant ? 1 : 0;
     if (ad !== bd) return bd - ad;
     if (b.star_rating !== a.star_rating) return b.star_rating - a.star_rating;
     const [aMain, aSub] = parseRank(a.rank);
@@ -54,12 +55,7 @@ export default function InventoryGrid({ stacks, gemOrder, onTileClick, onEmptyCl
       }}
     >
       {sorted.map((stack) => (
-        <InventoryTile
-          key={stack.id}
-          stack={stack}
-          onTileClick={onTileClick}
-          onEmptyClick={onEmptyClick}
-        />
+        <InventoryTile key={stack.id} stack={stack} onTileClick={onTileClick} onEmptyClick={onEmptyClick} />
       ))}
       {Array.from({ length: emptyCount }, (_, i) => (
         <InventoryTile key={`empty-${i}`} stack={null} onTileClick={onTileClick} onEmptyClick={onEmptyClick} />

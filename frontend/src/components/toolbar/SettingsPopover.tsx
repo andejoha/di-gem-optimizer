@@ -24,9 +24,7 @@ interface Props {
 
 const convert1StarLabel: ReactNode = (
   <>
-    Convert R1{' '}
-    <Box component="img" src={starFilledIcon} sx={{ width: 13, height: 13, verticalAlign: 'middle' }} />{' '}
-    gems
+    Convert R1 <Box component="img" src={starFilledIcon} sx={{ width: 13, height: 13, verticalAlign: 'middle' }} /> gems
   </>
 );
 
@@ -78,7 +76,11 @@ export default function SettingsPopover({
         slotProps={{ paper: { sx: { mt: 0.5 } } }}
       >
         <Box sx={{ p: 1.5, minWidth: 220 }}>
-          <Typography variant="body2" color="text.secondary" sx={{ display: 'block', mb: 1, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ display: 'block', mb: 1, textTransform: 'uppercase', letterSpacing: '0.08em' }}
+          >
             Settings
           </Typography>
           <Divider sx={{ mb: 1.5 }} />
@@ -100,17 +102,14 @@ export default function SettingsPopover({
           </Stack>
           <Divider sx={{ my: 1.5 }} />
           <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
-            <TextButton size="s" variant="secondary" scale={0.6} onClick={handleImportClick}>Import</TextButton>
-            <TextButton size="s" variant="secondary" scale={0.6} onClick={handleExportClick}>Export</TextButton>
+            <TextButton size="s" variant="secondary" scale={0.6} onClick={handleImportClick}>
+              Import
+            </TextButton>
+            <TextButton size="s" variant="secondary" scale={0.6} onClick={handleExportClick}>
+              Export
+            </TextButton>
           </Stack>
-          <IconButton
-            size="xxs"
-            variant="secondary"
-            icon="delete"
-            scale={0.6}
-            disabled={isEmpty}
-            onClick={handleResetClick}
-          />
+          <IconButton size="xxs" variant="secondary" icon="delete" scale={0.6} disabled={isEmpty} onClick={handleResetClick} />
         </Box>
       </Popover>
     </>

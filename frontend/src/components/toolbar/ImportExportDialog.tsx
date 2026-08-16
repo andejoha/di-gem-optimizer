@@ -68,27 +68,42 @@ export default function ImportExportDialog({ open, mode, exportCode, gemById, on
           <Box sx={{ mt: 1 }}>
             <TextField
               value={importText}
-              onChange={(e) => { setImportText(e.target.value); setError(null); }}
+              onChange={(e) => {
+                setImportText(e.target.value);
+                setError(null);
+              }}
               fullWidth
               multiline
               minRows={3}
               placeholder="Paste import code here…"
               inputProps={{ style: { fontFamily: 'monospace', fontSize: '0.75rem' } }}
             />
-            {error && <Alert severity="error" sx={{ mt: 1 }}>{error}</Alert>}
+            {error && (
+              <Alert severity="error" sx={{ mt: 1 }}>
+                {error}
+              </Alert>
+            )}
           </Box>
         )}
       </DialogContent>
       <DialogActions sx={{ gap: 1, px: 3, pb: 2 }}>
         {mode === 'export' ? (
           <>
-            <TextButton size="xs" variant="secondary" scale={0.7} onClick={handleClose}>Close</TextButton>
-            <TextButton size="xs" scale={0.7} onClick={handleCopy}>{copied ? 'Copied!' : 'Copy'}</TextButton>
+            <TextButton size="xs" variant="secondary" scale={0.7} onClick={handleClose}>
+              Close
+            </TextButton>
+            <TextButton size="xs" scale={0.7} onClick={handleCopy}>
+              {copied ? 'Copied!' : 'Copy'}
+            </TextButton>
           </>
         ) : (
           <>
-            <TextButton size="xs" variant="secondary" scale={0.7} onClick={handleClose}>Cancel</TextButton>
-            <TextButton size="xs" scale={0.7} disabled={!importText.trim()} onClick={handleImport}>Import</TextButton>
+            <TextButton size="xs" variant="secondary" scale={0.7} onClick={handleClose}>
+              Cancel
+            </TextButton>
+            <TextButton size="xs" scale={0.7} disabled={!importText.trim()} onClick={handleImport}>
+              Import
+            </TextButton>
           </>
         )}
       </DialogActions>

@@ -59,15 +59,6 @@ export const MAX_SOCKETS: Record<number, number> = { 1: 2, 2: 3, 5: 5 };
  * response ordering all follow this sequence. `utils/gearAssets.ts`
  * re-exports this constant rather than duplicating it.
  */
-export const SLOT_ORDER = [
-  'head',
-  'chest',
-  'shoulders',
-  'legs',
-  'main_hand',
-  'off_hand',
-  'alt_main_hand',
-  'alt_off_hand',
-] as const;
+export const SLOT_ORDER = ['head', 'chest', 'shoulders', 'legs', 'main_hand', 'off_hand', 'alt_main_hand', 'alt_off_hand'] as const;
 
 export type SlotName = (typeof SLOT_ORDER)[number];

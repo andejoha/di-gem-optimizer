@@ -2,7 +2,7 @@ import Box from '@mui/material/Box';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import type { SocketResponse } from '../../types/api';
-import { useGemData } from '../../contexts/GemDataContext';
+import { useGemData } from '../../contexts/useGemData';
 import { getGemImageUrl, starFilled } from '../../utils/gearAssets';
 import { formatRank } from '../../utils/rankUtils';
 import checkCircleIcon from '../../assets/images/buttons/check-circle.png';
@@ -21,8 +21,12 @@ export default function SocketDetail({ socket }: Props) {
   const { gemById } = useGemData();
   const isLocked = socket.status === 'locked';
   const isEmpty = socket.status === 'empty';
-  const assignedGemName = socket.assigned_gem_id != null ? (gemById.get(socket.assigned_gem_id)?.name ?? String(socket.assigned_gem_id)) : undefined;
-  const bonusGemName = socket.bonus_gem_required_id != null ? (gemById.get(socket.bonus_gem_required_id)?.name ?? String(socket.bonus_gem_required_id)) : undefined;
+  const assignedGemName =
+    socket.assigned_gem_id != null ? (gemById.get(socket.assigned_gem_id)?.name ?? String(socket.assigned_gem_id)) : undefined;
+  const bonusGemName =
+    socket.bonus_gem_required_id != null
+      ? (gemById.get(socket.bonus_gem_required_id)?.name ?? String(socket.bonus_gem_required_id))
+      : undefined;
 
   return (
     <Box
@@ -57,14 +61,18 @@ export default function SocketDetail({ socket }: Props) {
             {/* Contribution */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
               <Box component="img" src={gemPowerIcon} sx={{ width: 16, height: 16 }} />
-              <Typography variant="body2" sx={{ fontVariantNumeric: 'tabular-nums', minWidth: '4ch' }}>{socket.contribution ?? 0}</Typography>
+              <Typography variant="body2" sx={{ fontVariantNumeric: 'tabular-nums', minWidth: '4ch' }}>
+                {socket.contribution ?? 0}
+              </Typography>
             </Box>
 
             {/* Socket resonance */}
             {socket.socket_resonance != null && socket.socket_resonance > 0 && (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
                 <Box component="img" src={resonanceIcon} sx={{ width: 16, height: 16 }} />
-                <Typography variant="body2" sx={{ fontVariantNumeric: 'tabular-nums', minWidth: '3ch' }}>{socket.socket_resonance}</Typography>
+                <Typography variant="body2" sx={{ fontVariantNumeric: 'tabular-nums', minWidth: '3ch' }}>
+                  {socket.socket_resonance}
+                </Typography>
               </Box>
             )}
 
@@ -72,16 +80,8 @@ export default function SocketDetail({ socket }: Props) {
             {socket.bonus_gem_required_id != null ? (
               <Tooltip title={`Bonus: ${bonusGemName}`}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  <Box
-                    component="img"
-                    src={socket.bonus_activated ? checkCircleIcon : closeCircleIcon}
-                    sx={{ width: 18, height: 18 }}
-                  />
-                  <Box
-                    component="img"
-                    src={getGemImageUrl(socket.bonus_gem_required_id)}
-                    sx={{ width: 20, height: 20 }}
-                  />
+                  <Box component="img" src={socket.bonus_activated ? checkCircleIcon : closeCircleIcon} sx={{ width: 18, height: 18 }} />
+                  <Box component="img" src={getGemImageUrl(socket.bonus_gem_required_id)} sx={{ width: 20, height: 20 }} />
                 </Box>
               </Tooltip>
             ) : null}
@@ -93,11 +93,7 @@ export default function SocketDetail({ socket }: Props) {
           <Tooltip title={`Bonus: ${bonusGemName}`}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
               <Box component="img" src={closeCircleIcon} sx={{ width: 18, height: 18 }} />
-              <Box
-                component="img"
-                src={getGemImageUrl(socket.bonus_gem_required_id)}
-                sx={{ width: 20, height: 20 }}
-              />
+              <Box component="img" src={getGemImageUrl(socket.bonus_gem_required_id)} sx={{ width: 20, height: 20 }} />
             </Box>
           </Tooltip>
         )}
@@ -111,19 +107,21 @@ export default function SocketDetail({ socket }: Props) {
             <Box component="img" src={lockedIcon} sx={{ width: 24, height: 24 }} />
           </Box>
         )}
-        {isEmpty && (
-          <Box sx={{ width: ICON_SIZE, height: ICON_SIZE, flexShrink: 0, opacity: 0.3 }} />
-        )}
+        {isEmpty && <Box sx={{ width: ICON_SIZE, height: ICON_SIZE, flexShrink: 0, opacity: 0.3 }} />}
         {socket.status === 'assigned' && socket.assigned_gem_id != null && (
           <Box component="img" src={getGemImageUrl(socket.assigned_gem_id)} sx={{ width: ICON_SIZE, height: ICON_SIZE, flexShrink: 0 }} />
         )}
 
         {/* Text */}
         {isLocked && (
-          <Typography variant="body2" color="text.disabled">Locked</Typography>
+          <Typography variant="body2" color="text.disabled">
+            Locked
+          </Typography>
         )}
         {isEmpty && (
-          <Typography variant="body2" color="text.disabled">Empty</Typography>
+          <Typography variant="body2" color="text.disabled">
+            Empty
+          </Typography>
         )}
         {socket.status === 'assigned' && socket.assigned_gem_id != null && (
           <Box sx={{ minWidth: 0 }}>

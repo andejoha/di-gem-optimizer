@@ -19,9 +19,7 @@ export function requiredGemPower(starRating: number, rank: string): number {
  * Returns the total gem power a stack contributes to the pool when dormant.
  * Equals 0 for active stacks.
  */
-export function dormantContribution(
-  stack: Pick<InventoryGemStack, 'dormant' | 'quantity' | 'star_rating' | 'rank'>,
-): number {
+export function dormantContribution(stack: Pick<InventoryGemStack, 'dormant' | 'quantity' | 'star_rating' | 'rank'>): number {
   if (!stack.dormant) return 0;
   return stack.quantity * requiredGemPower(stack.star_rating, stack.rank);
 }

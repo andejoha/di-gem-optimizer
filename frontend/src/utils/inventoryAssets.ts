@@ -4,10 +4,7 @@ import addGemIconSrc from '../assets/images/buttons/add-gem.png';
 export { gemPowerIconSrc as gemPowerIcon };
 export { addGemIconSrc as addGemIcon };
 
-const inventoryImages = import.meta.glob<{ default: string }>(
-  '../assets/images/inventory/*.png',
-  { eager: true },
-);
+const inventoryImages = import.meta.glob<{ default: string }>('../assets/images/inventory/*.png', { eager: true });
 
 function getInventoryImageUrl(filename: string): string {
   const key = `../assets/images/inventory/${filename}`;

@@ -13,33 +13,26 @@ interface SlotMeta {
 }
 
 export const SLOT_META: Record<SlotName, SlotMeta> = {
-  head:          { label: 'Head',          iconFile: 'head.png' },
-  chest:         { label: 'Chest',         iconFile: 'chest.png' },
-  shoulders:     { label: 'Shoulders',     iconFile: 'shoulders.png' },
-  legs:          { label: 'Legs',          iconFile: 'legs.png' },
-  main_hand:     { label: 'Main\u00A0Hand',               iconFile: 'main-hand.png' },
-  off_hand:      { label: 'Off\u2011Hand',                iconFile: 'off-hand.png' },
-  alt_main_hand: { label: 'Alternate Main\u00A0Hand',     iconFile: 'main-hand.png' },
-  alt_off_hand:  { label: 'Alternate Off\u2011Hand',      iconFile: 'off-hand.png' },
+  head: { label: 'Head', iconFile: 'head.png' },
+  chest: { label: 'Chest', iconFile: 'chest.png' },
+  shoulders: { label: 'Shoulders', iconFile: 'shoulders.png' },
+  legs: { label: 'Legs', iconFile: 'legs.png' },
+  main_hand: { label: 'Main\u00A0Hand', iconFile: 'main-hand.png' },
+  off_hand: { label: 'Off\u2011Hand', iconFile: 'off-hand.png' },
+  alt_main_hand: { label: 'Alternate Main\u00A0Hand', iconFile: 'main-hand.png' },
+  alt_off_hand: { label: 'Alternate Off\u2011Hand', iconFile: 'off-hand.png' },
 };
 
-const gearImages = import.meta.glob<{ default: string }>(
-  '../assets/images/gear/*.png',
-  { eager: true },
-);
+const gearImages = import.meta.glob<{ default: string }>('../assets/images/gear/*.png', { eager: true });
 
-const gemImages = import.meta.glob<{ default: string }>(
-  '../assets/images/gems/*.png',
-  { eager: true },
-);
+const gemImages = import.meta.glob<{ default: string }>('../assets/images/gems/*.png', { eager: true });
 
 export function getGearImageUrl(filename: string): string {
   const key = `../assets/images/gear/${filename}`;
   return gearImages[key]?.default ?? '';
 }
 
-export const defaultGemImage: string =
-  gemImages['../assets/images/gems/default.png']?.default ?? '';
+export const defaultGemImage: string = gemImages['../assets/images/gems/default.png']?.default ?? '';
 
 export function getGemImageUrl(gemId: number): string {
   const key = `../assets/images/gems/${gemId}.png`;

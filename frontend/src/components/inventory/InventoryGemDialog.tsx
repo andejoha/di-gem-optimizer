@@ -32,15 +32,7 @@ interface InventoryGemDialogProps {
   onClose: () => void;
 }
 
-export default function InventoryGemDialog({
-  open,
-  currentStack,
-  gems,
-  gemPower,
-  onSave,
-  onRemove,
-  onClose,
-}: InventoryGemDialogProps) {
+export default function InventoryGemDialog({ open, currentStack, gems, gemPower, onSave, onRemove, onClose }: InventoryGemDialogProps) {
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
 
@@ -56,23 +48,21 @@ export default function InventoryGemDialog({
 
   const effectiveMainRank = mainRank || 1;
 
-  const showSubRank =
-    selectedGem !== null && selectedGem.star_rating !== 1 && effectiveMainRank >= 4 && effectiveMainRank < 10;
+  const showSubRank = selectedGem !== null && selectedGem.star_rating !== 1 && effectiveMainRank >= 4 && effectiveMainRank < 10;
 
-  const effectiveRank = showSubRank && subRank > 0
-    ? `${effectiveMainRank}.${subRank}`
-    : `${effectiveMainRank}`;
+  const effectiveRank = showSubRank && subRank > 0 ? `${effectiveMainRank}.${subRank}` : `${effectiveMainRank}`;
 
   // Compute GP delta for dormant toggle (only meaningful when editing an existing stack).
   const isEditing = currentStack !== null;
-  const gpDelta = isEditing && selectedGem
-    ? dormantContribution({
-        dormant,
-        quantity: Math.max(1, parseInt(quantityStr, 10) || 1),
-        star_rating: selectedGem.star_rating,
-        rank: effectiveRank,
-      }) - dormantContribution(currentStack)
-    : 0;
+  const gpDelta =
+    isEditing && selectedGem
+      ? dormantContribution({
+          dormant,
+          quantity: Math.max(1, parseInt(quantityStr, 10) || 1),
+          star_rating: selectedGem.star_rating,
+          rank: effectiveRank,
+        }) - dormantContribution(currentStack)
+      : 0;
   const gpInsufficient = gpDelta < 0 && gemPower + gpDelta < 0;
 
   function handleGemChange(gem: GemInfo | null) {
@@ -145,11 +135,7 @@ export default function InventoryGemDialog({
               const { key, ...liProps } = props as typeof props & { key: React.Key };
               return (
                 <Box key={key} component="li" {...liProps} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Box
-                    component="img"
-                    src={getGemImageUrl(option.id)}
-                    sx={{ width: 28, height: 28, flexShrink: 0 }}
-                  />
+                  <Box component="img" src={getGemImageUrl(option.id)} sx={{ width: 28, height: 28, flexShrink: 0 }} />
                   {option.name}
                 </Box>
               );
@@ -163,11 +149,7 @@ export default function InventoryGemDialog({
                   <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
                     Active Stars
                   </Typography>
-                  <StarRatingSelector
-                    starRating={selectedGem.star_rating}
-                    activeStars={activeStars}
-                    onChange={setActiveStars}
-                  />
+                  <StarRatingSelector starRating={selectedGem.star_rating} activeStars={activeStars} onChange={setActiveStars} />
                 </Box>
                 {effectiveMainRank > 1 && (
                   <Tooltip title={`Dormant: ${dormant ? 'on' : 'off'}`}>
@@ -201,22 +183,23 @@ export default function InventoryGemDialog({
                 onChange={(_, value) => handleMainRankChange(value === null ? '' : String(value))}
                 renderInput={(params) => <TextField {...params} label="Rank" />}
               />
-              {showSubRank && (() => {
-                const maxSub = getMaxSubRank(selectedGem!.star_rating, effectiveMainRank);
-                const step = Math.round(100 / (maxSub + 1));
-                const options = Array.from({ length: maxSub + 1 }, (_, i) => i * step);
-                return (
-                  <Autocomplete
-                    sx={{ flex: 1 }}
-                    options={options}
-                    getOptionLabel={(o) => `${o}%`}
-                    value={subRank * step}
-                    onChange={(_, value) => handleSubRankPctChange(value ?? 0)}
-                    disableClearable
-                    renderInput={(params) => <TextField {...params} label="Progress" />}
-                  />
-                );
-              })()}
+              {showSubRank &&
+                (() => {
+                  const maxSub = getMaxSubRank(selectedGem!.star_rating, effectiveMainRank);
+                  const step = Math.round(100 / (maxSub + 1));
+                  const options = Array.from({ length: maxSub + 1 }, (_, i) => i * step);
+                  return (
+                    <Autocomplete
+                      sx={{ flex: 1 }}
+                      options={options}
+                      getOptionLabel={(o) => `${o}%`}
+                      value={subRank * step}
+                      onChange={(_, value) => handleSubRankPctChange(value ?? 0)}
+                      disableClearable
+                      renderInput={(params) => <TextField {...params} label="Progress" />}
+                    />
+                  );
+                })()}
             </Stack>
           )}
 
@@ -233,9 +216,7 @@ export default function InventoryGemDialog({
         </Stack>
       </DialogContent>
       <DialogActions>
-        {isEditing && (
-          <IconButton size="xxs" variant="secondary" icon="delete" onClick={onRemove} />
-        )}
+        {isEditing && <IconButton size="xxs" variant="secondary" icon="delete" onClick={onRemove} />}
         <Box sx={{ flex: 1 }} />
         <IconButton size="xxs" variant="secondary" icon="close" onClick={onClose} />
         <IconButton size="xxs" icon="check" onClick={handleSave} disabled={!selectedGem || gpInsufficient} />

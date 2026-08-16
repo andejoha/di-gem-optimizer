@@ -41,11 +41,7 @@ export default memo(function GearCard({ slotName, gemSetupItem, onSlotClick }: G
       }}
     >
       {/* Layer 1: gear background — defines the card's natural shape */}
-      <Box
-        component="img"
-        src={gearBackground}
-        sx={{ display: 'block', width: '100%', height: 'auto' }}
-      />
+      <Box component="img" src={gearBackground} sx={{ display: 'block', width: '100%', height: 'auto' }} />
       {/* Layer 2: gear type icon (watermark) */}
       <Box
         component="img"
@@ -95,26 +91,24 @@ export default memo(function GearCard({ slotName, gemSetupItem, onSlotClick }: G
         >
           {(() => {
             const starRating = Math.floor(gemSetupItem.gem_id / 1000);
-            return <>
-              <Typography sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.9)', lineHeight: 1 }}>
-                {formatRank(gemSetupItem.target_rank, starRating)}
-              </Typography>
-              <Box
-                component="img"
-                src={getGemImageUrl(gemSetupItem.gem_id)}
-                sx={{ width: '75%', objectFit: 'contain' }}
-              />
-              <Box sx={{ display: 'flex', gap: '2px' }}>
-                {Array.from({ length: starRating }, (_, i) => (
-                  <Box
-                    key={i}
-                    component="img"
-                    src={i < gemSetupItem.active_stars ? starFilled : starEmpty}
-                    sx={{ width: 12, height: 12 }}
-                  />
-                ))}
-              </Box>
-            </>;
+            return (
+              <>
+                <Typography sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.9)', lineHeight: 1 }}>
+                  {formatRank(gemSetupItem.target_rank, starRating)}
+                </Typography>
+                <Box component="img" src={getGemImageUrl(gemSetupItem.gem_id)} sx={{ width: '75%', objectFit: 'contain' }} />
+                <Box sx={{ display: 'flex', gap: '2px' }}>
+                  {Array.from({ length: starRating }, (_, i) => (
+                    <Box
+                      key={i}
+                      component="img"
+                      src={i < gemSetupItem.active_stars ? starFilled : starEmpty}
+                      sx={{ width: 12, height: 12 }}
+                    />
+                  ))}
+                </Box>
+              </>
+            );
           })()}
         </Box>
       )}

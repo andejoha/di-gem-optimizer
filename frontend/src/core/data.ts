@@ -410,9 +410,7 @@ export const GEMS: ReadonlyMap<number, GemDef> = new Map(GEM_LIST.map((gem) => [
 export { GEM_LIST };
 
 /** Base resonance for 5-star gems by rank and active star count (2-5). */
-export const RESONANCE_5STAR: ReadonlyMap<string, Readonly<Record<number, number>>> = new Map(
-  RESONANCE_5STAR_ENTRIES,
-);
+export const RESONANCE_5STAR: ReadonlyMap<string, Readonly<Record<number, number>>> = new Map(RESONANCE_5STAR_ENTRIES);
 
 /** Base resonance for 1-star gems by rank. */
 export const RESONANCE_1STAR: ReadonlyMap<string, number> = new Map(RESONANCE_1STAR_ENTRIES);

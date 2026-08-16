@@ -71,7 +71,11 @@ export async function optimizeWithProgress(
  * bundle chunk -- that code is only needed inside the worker, or here, on
  * this rarely-taken path.
  */
-export async function optimize(request: OptimizeRequest, enableUpgrades: boolean = false, convert1Star: boolean = false): Promise<OptimizeResponse> {
+export async function optimize(
+  request: OptimizeRequest,
+  enableUpgrades: boolean = false,
+  convert1Star: boolean = false,
+): Promise<OptimizeResponse> {
   const { runOptimization } = await import('../core/api/runOptimization');
   return runOptimization(request, enableUpgrades, convert1Star);
 }

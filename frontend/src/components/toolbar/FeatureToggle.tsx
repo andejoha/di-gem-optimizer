@@ -22,11 +22,7 @@ export default function FeatureToggle({ label, tooltipLabel, checked, onChange, 
         disabled={disabled}
         sx={{ borderRadius: 1, opacity: disabled ? 0.5 : 1, display: 'flex', alignItems: 'center', gap: 0.75 }}
       >
-        <Box
-          component="img"
-          src={checked ? checkedIcon : uncheckedIcon}
-          sx={{ width: 40, height: 40 }}
-        />
+        <Box component="img" src={checked ? checkedIcon : uncheckedIcon} sx={{ width: 40, height: 40 }} />
         <Typography variant="body1" color="text.secondary" sx={{ userSelect: 'none', display: 'flex', alignItems: 'center', gap: 0.4 }}>
           {label}
         </Typography>

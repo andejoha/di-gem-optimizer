@@ -19,7 +19,13 @@ const FLAG_COMBOS: Array<[key: string, enableUpgrades: boolean, convert1Star: bo
   ['1-1', true, true],
 ];
 
-const caseNames = [...new Set(readdirSync(GOLDEN_DIR).filter((f) => f.endsWith('.request.json')).map((f) => f.replace('.request.json', '')))].sort();
+const caseNames = [
+  ...new Set(
+    readdirSync(GOLDEN_DIR)
+      .filter((f) => f.endsWith('.request.json'))
+      .map((f) => f.replace('.request.json', '')),
+  ),
+].sort();
 
 // Sanity check the corpus itself loaded -- if this is 0, the path resolution
 // above is wrong and every other test below would trivially "pass" by not

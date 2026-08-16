@@ -36,11 +36,22 @@ export function getSortedRanks(starRating: number): string[] {
     throw new Error(`Unknown star_rating: ${starRating}. Must be 1, 2, or 5.`);
   }
   const table = costTable(starRating);
-  return [...table.keys()].sort((a, b) => compareTuples([table.get(a)!.requiredGems, table.get(a)!.requiredGemPower], [table.get(b)!.requiredGems, table.get(b)!.requiredGemPower]));
+  return [...table.keys()].sort((a, b) =>
+    compareTuples(
+      [table.get(a)!.requiredGems, table.get(a)!.requiredGemPower],
+      [table.get(b)!.requiredGems, table.get(b)!.requiredGemPower],
+    ),
+  );
 }
 
 /** Computes the incremental cost and benefit of upgrading a gem one rank step. */
-export function computeUpgradeDelta(starRating: number, fromRank: string, toRank: string, inventoryIndex: number, gemId: number): UpgradeDelta {
+export function computeUpgradeDelta(
+  starRating: number,
+  fromRank: string,
+  toRank: string,
+  inventoryIndex: number,
+  gemId: number,
+): UpgradeDelta {
   const table = costTable(starRating);
   const fromEntry = table.get(fromRank);
   const toEntry = table.get(toRank);
@@ -200,9 +211,7 @@ export function buildUpgradeChains(
     }
 
     // Highest-contribution copy is the target; rest are fodder.
-    const copiesSorted = copies
-      .slice()
-      .sort((a, b) => -compareTuples([a.contribution, a.gemId], [b.contribution, b.gemId]));
+    const copiesSorted = copies.slice().sort((a, b) => -compareTuples([a.contribution, a.gemId], [b.contribution, b.gemId]));
     const baseSubInventory = cloneGems(copiesSorted);
 
     // Working sub-inventory: index 0 is always the upgrade target. Shallow

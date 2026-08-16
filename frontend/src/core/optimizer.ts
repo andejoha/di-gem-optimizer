@@ -49,10 +49,7 @@ export function expandInventory(inventory: readonly InventoryGem[]): CopyEntry[]
  * heuristic. Two sequential passes -- 5-star inventory gems first, then
  * 2-star. Only 5-star main gems participate.
  */
-export function solveAssignment(
-  mainGems: readonly MainGem[],
-  inventory: readonly InventoryGem[],
-): Map<string, CopyEntry[]> {
+export function solveAssignment(mainGems: readonly MainGem[], inventory: readonly InventoryGem[]): Map<string, CopyEntry[]> {
   const fiveStarGems = mainGems.filter((mainGem) => mainGem.starRating === 5);
   if (fiveStarGems.length === 0 || inventory.length === 0) {
     return new Map();
@@ -291,11 +288,7 @@ export function maxBonusesForOwned(
   for (const starType of acceptedStarTypes) {
     const requirements: number[] = [];
     for (let socketIndex = 0; socketIndex < mainGem.numSockets; socketIndex++) {
-      if (
-        socketTypeMap[socketIndex] === starType &&
-        socketIndex < bonusRequirements.length &&
-        bonusRequirements[socketIndex]
-      ) {
+      if (socketTypeMap[socketIndex] === starType && socketIndex < bonusRequirements.length && bonusRequirements[socketIndex]) {
         requirements.push(bonusRequirements[socketIndex]);
       }
     }
@@ -417,9 +410,13 @@ export function redistributeForBonuses(
               const oldResA = gemResidual(mainGemA);
               const oldResB = gemResidual(mainGemB);
               const newResA =
-                mainGemA.starRating === 5 ? Math.max(0, mainGemA.requiredPower - newA.reduce((s, [, g]) => s + g.contribution, 0)) : mainGemA.requiredPower;
+                mainGemA.starRating === 5
+                  ? Math.max(0, mainGemA.requiredPower - newA.reduce((s, [, g]) => s + g.contribution, 0))
+                  : mainGemA.requiredPower;
               const newResB =
-                mainGemB.starRating === 5 ? Math.max(0, mainGemB.requiredPower - newB.reduce((s, [, g]) => s + g.contribution, 0)) : mainGemB.requiredPower;
+                mainGemB.starRating === 5
+                  ? Math.max(0, mainGemB.requiredPower - newB.reduce((s, [, g]) => s + g.contribution, 0))
+                  : mainGemB.requiredPower;
               const newTotalResidual = sweepTotalResidual - oldResA - oldResB + newResA + newResB;
               const newCost = newTotalResidual - currentDormant;
               if (newCost > costCeiling) continue;
@@ -441,9 +438,13 @@ export function redistributeForBonuses(
               const oldResA = gemResidual(mainGemA);
               const oldResB = gemResidual(mainGemB);
               const newResA =
-                mainGemA.starRating === 5 ? Math.max(0, mainGemA.requiredPower - newA.reduce((s, [, g]) => s + g.contribution, 0)) : mainGemA.requiredPower;
+                mainGemA.starRating === 5
+                  ? Math.max(0, mainGemA.requiredPower - newA.reduce((s, [, g]) => s + g.contribution, 0))
+                  : mainGemA.requiredPower;
               const newResB =
-                mainGemB.starRating === 5 ? Math.max(0, mainGemB.requiredPower - newB.reduce((s, [, g]) => s + g.contribution, 0)) : mainGemB.requiredPower;
+                mainGemB.starRating === 5
+                  ? Math.max(0, mainGemB.requiredPower - newB.reduce((s, [, g]) => s + g.contribution, 0))
+                  : mainGemB.requiredPower;
               const newTotalResidual = sweepTotalResidual - oldResA - oldResB + newResA + newResB;
               const newCost = newTotalResidual - currentDormant;
               if (newCost > costCeiling) continue;
@@ -477,7 +478,9 @@ export function redistributeForBonuses(
             if (bonusGain <= 0) continue;
             const oldResA = gemResidual(mainGemA);
             const newResA =
-              mainGemA.starRating === 5 ? Math.max(0, mainGemA.requiredPower - newA.reduce((s, [, g]) => s + g.contribution, 0)) : mainGemA.requiredPower;
+              mainGemA.starRating === 5
+                ? Math.max(0, mainGemA.requiredPower - newA.reduce((s, [, g]) => s + g.contribution, 0))
+                : mainGemA.requiredPower;
             const newTotalResidual = sweepTotalResidual - oldResA + newResA;
             // gemA leaves ownership (becomes dormant-eligible); gemB enters it.
             const newDormant =
@@ -507,7 +510,10 @@ export function redistributeForBonuses(
       bonusCounts.set(mainGemB.slotName, maxBonusesForOwned(mainGemB, current.get(mainGemB.slotName) ?? [], bonusTable));
     } else if (bestMove.kind === 'transfer') {
       const { mainGemA, copyIdA, gemA, mainGemB } = bestMove;
-      current.set(mainGemA.slotName, (current.get(mainGemA.slotName) ?? []).filter(([id]) => id !== copyIdA));
+      current.set(
+        mainGemA.slotName,
+        (current.get(mainGemA.slotName) ?? []).filter(([id]) => id !== copyIdA),
+      );
       current.set(mainGemB.slotName, [...(current.get(mainGemB.slotName) ?? []), [copyIdA, gemA]]);
       // copyIdA is still owned (now by mainGemB), so ownedCopyIds is unchanged.
       bonusCounts.set(mainGemA.slotName, maxBonusesForOwned(mainGemA, current.get(mainGemA.slotName) ?? [], bonusTable));

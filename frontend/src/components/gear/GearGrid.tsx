@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import Box from '@mui/material/Box';
 import type { GemSetup, GemSetupItem, SlotName } from '../../types/api';
-import { useGemData } from '../../contexts/GemDataContext';
+import { useGemData } from '../../contexts/useGemData';
 import { SLOT_ORDER } from '../../utils/gearAssets';
 import GearCard from './GearCard';
 import GearSlotDialog from './GearSlotDialog';
@@ -39,12 +39,7 @@ export default function GearGrid({ gemSetup, onGemSetupChange }: GearGridProps) 
         }}
       >
         {SLOT_ORDER.map((slotName) => (
-          <GearCard
-            key={slotName}
-            slotName={slotName}
-            gemSetupItem={gemSetup[slotName] ?? null}
-            onSlotClick={handleSlotClick}
-          />
+          <GearCard key={slotName} slotName={slotName} gemSetupItem={gemSetup[slotName] ?? null} onSlotClick={handleSlotClick} />
         ))}
       </Box>
 

@@ -12,11 +12,7 @@ export interface ProgressEvent {
 }
 
 export interface ProgressReporter {
-  report(
-    stage: string,
-    status: string,
-    opts?: { iteration?: number | null; detail?: string | null },
-  ): void;
+  report(stage: string, status: string, opts?: { iteration?: number | null; detail?: string | null }): void;
 }
 
 /** No-op reporter used by all non-streaming call paths. */

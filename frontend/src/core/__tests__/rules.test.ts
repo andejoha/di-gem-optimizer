@@ -11,21 +11,15 @@ import {
 
 describe('numSocketsUnlocked', () => {
   it('5-star: unlocks at ranks 3,4,5,6,7', () => {
-    expect([0, 1, 2, 3, 4, 5, 6, 7].map((r) => numSocketsUnlocked(String(r), 5))).toEqual([
-      0, 0, 0, 1, 2, 3, 4, 5,
-    ]);
+    expect([0, 1, 2, 3, 4, 5, 6, 7].map((r) => numSocketsUnlocked(String(r), 5))).toEqual([0, 0, 0, 1, 2, 3, 4, 5]);
   });
 
   it('2-star: unlocks at ranks 3,5,7', () => {
-    expect([0, 1, 2, 3, 4, 5, 6, 7].map((r) => numSocketsUnlocked(String(r), 2))).toEqual([
-      0, 0, 0, 1, 1, 2, 2, 3,
-    ]);
+    expect([0, 1, 2, 3, 4, 5, 6, 7].map((r) => numSocketsUnlocked(String(r), 2))).toEqual([0, 0, 0, 1, 1, 2, 2, 3]);
   });
 
   it('1-star: unlocks at ranks 3,7', () => {
-    expect([0, 1, 2, 3, 4, 5, 6, 7].map((r) => numSocketsUnlocked(String(r), 1))).toEqual([
-      0, 0, 0, 1, 1, 1, 1, 2,
-    ]);
+    expect([0, 1, 2, 3, 4, 5, 6, 7].map((r) => numSocketsUnlocked(String(r), 1))).toEqual([0, 0, 0, 1, 1, 1, 1, 2]);
   });
 
   it('truncates sub-ranks to the major rank', () => {
@@ -70,9 +64,7 @@ describe('computeContribution', () => {
   });
 
   it('throws for an unknown rank, listing valid ranks in the message', () => {
-    expect(() => computeContribution(5, '99', COST_5STAR)).toThrow(
-      /Rank '99' not found in upgrade cost table\. Available ranks: \[/,
-    );
+    expect(() => computeContribution(5, '99', COST_5STAR)).toThrow(/Rank '99' not found in upgrade cost table\. Available ranks: \[/);
   });
 });
 

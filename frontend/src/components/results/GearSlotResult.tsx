@@ -6,7 +6,7 @@ import Divider from '@mui/material/Divider';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import type { SlotName, SlotResponse } from '../../types/api';
-import { useGemData } from '../../contexts/GemDataContext';
+import { useGemData } from '../../contexts/useGemData';
 import { getGearImageUrl, getGemImageUrl, SLOT_META, starFilled, starEmpty } from '../../utils/gearAssets';
 import { gemPowerIcon } from '../../utils/inventoryAssets';
 import resonanceIcon from '../../assets/images/resonance.png';
@@ -62,15 +62,12 @@ export default function GearSlotResult({ slotName, slotResult }: Props) {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
               <Box component="img" src={getGemImageUrl(slotResult.gem_id)} sx={{ width: 40, height: 40 }} />
               <Box>
-                <Typography variant="body1" fontWeight={600}>{gemName}</Typography>
+                <Typography variant="body1" fontWeight={600}>
+                  {gemName}
+                </Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
                   {Array.from({ length: totalStars }).map((_, i) => (
-                    <Box
-                      key={i}
-                      component="img"
-                      src={i < activeStars ? starFilled : starEmpty}
-                      sx={{ width: 14, height: 14 }}
-                    />
+                    <Box key={i} component="img" src={i < activeStars ? starFilled : starEmpty} sx={{ width: 14, height: 14 }} />
                   ))}
                   <Typography variant="body2" color="text.secondary" sx={{ ml: 0.5 }}>
                     Rank {slotResult.target_rank}
@@ -85,10 +82,18 @@ export default function GearSlotResult({ slotName, slotResult }: Props) {
             <Box sx={{ mb: 1 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
                 <Box component="img" src={gemPowerIcon} sx={{ width: 18, height: 18 }} />
-                <Typography variant="body1" fontWeight={600}>{slotResult.required_power.toLocaleString()}</Typography>
-                <Typography variant="body1" color="text.secondary">−</Typography>
-                <Typography variant="body1" color="text.secondary">{slotResult.total_socketed_power.toLocaleString()}</Typography>
-                <Typography variant="body1" color="text.secondary">=</Typography>
+                <Typography variant="body1" fontWeight={600}>
+                  {slotResult.required_power.toLocaleString()}
+                </Typography>
+                <Typography variant="body1" color="text.secondary">
+                  −
+                </Typography>
+                <Typography variant="body1" color="text.secondary">
+                  {slotResult.total_socketed_power.toLocaleString()}
+                </Typography>
+                <Typography variant="body1" color="text.secondary">
+                  =
+                </Typography>
                 <Tooltip title="Residual: the gem power drawn from your pool after socketed gems offset the awakening cost">
                   <Typography
                     variant="body1"
@@ -105,7 +110,9 @@ export default function GearSlotResult({ slotName, slotResult }: Props) {
             {/* Resonance */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
               <Box component="img" src={resonanceIcon} sx={{ width: 18, height: 18 }} />
-              <Typography variant="body1" fontWeight={600}>{slotResult.total_resonance}</Typography>
+              <Typography variant="body1" fontWeight={600}>
+                {slotResult.total_resonance}
+              </Typography>
               <Typography variant="body2" color="text.secondary">
                 ({slotResult.base_resonance} + {slotResult.socket_resonance_bonus})
               </Typography>

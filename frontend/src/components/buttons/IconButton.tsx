@@ -37,11 +37,7 @@ export default function IconButton({ size, variant = 'primary', icon, scale = 1,
       }}
     >
       <Box sx={{ position: 'relative', display: 'inline-block', maxWidth: '100%' }}>
-        <Box
-          component="img"
-          src={backgroundUrl}
-          sx={{ display: 'block', maxWidth: '100%', height: 'auto' }}
-        />
+        <Box component="img" src={backgroundUrl} sx={{ display: 'block', maxWidth: '100%', height: 'auto' }} />
         <Box
           component="img"
           src={iconUrl}

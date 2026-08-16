@@ -47,11 +47,7 @@ export function computeExtractablePower(rank: string, costTable: ReadonlyMap<str
  * Throws if `rank` is not found in `costTable`, listing the valid ranks
  * for that cost table in the error message.
  */
-export function computeContribution(
-  starRating: number,
-  rank: string,
-  costTable: ReadonlyMap<string, UpgradeCostEntry>,
-): number {
+export function computeContribution(starRating: number, rank: string, costTable: ReadonlyMap<string, UpgradeCostEntry>): number {
   const entry = costTable.get(rank);
   if (entry === undefined) {
     const valid = [...costTable.keys()].sort();

@@ -36,9 +36,9 @@ export default function WelcomeDialog({ open, onOpenTutorial, onClose }: Welcome
           Gem Optimizer
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Optimize your Diablo Immortal legendary gem setup. This tool is designed to maximize the
-          gem power benefit from the awakening system. Configure your gear slots and inventory, then
-          let the optimizer find the best gem arrangement for maximum gem power utilization.
+          Optimize your Diablo Immortal legendary gem setup. This tool is designed to maximize the gem power benefit from the awakening
+          system. Configure your gear slots and inventory, then let the optimizer find the best gem arrangement for maximum gem power
+          utilization.
         </Typography>
       </DialogContent>
       <DialogActions sx={{ justifyContent: 'center', gap: 1, pt: 0, pb: 3 }}>

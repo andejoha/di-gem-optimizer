@@ -7,11 +7,11 @@ import { getButtonBackgroundUrl } from '../../utils/buttonAssets';
 
 const FONT_SIZE_MAP: Record<TextButtonSize, string> = {
   xxs: '0.5rem',
-  xs:  '0.85rem',
-  s:   '1.15rem',
-  m:   '1.5rem',
-  l:   '1.8rem',
-  xl:  '2.1rem',
+  xs: '0.85rem',
+  s: '1.15rem',
+  m: '1.5rem',
+  l: '1.8rem',
+  xl: '2.1rem',
   xxl: '2.35rem',
 };
 
@@ -44,11 +44,7 @@ export default function TextButton({ size, variant = 'primary', scale = 1, child
       }}
     >
       <Box sx={{ position: 'relative', display: 'inline-block', maxWidth: '100%' }}>
-        <Box
-          component="img"
-          src={backgroundUrl}
-          sx={{ display: 'block', maxWidth: '100%', height: 'auto' }}
-        />
+        <Box component="img" src={backgroundUrl} sx={{ display: 'block', maxWidth: '100%', height: 'auto' }} />
         <Typography
           variant="body2"
           sx={{

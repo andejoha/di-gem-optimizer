@@ -10,7 +10,7 @@ import ImportExportDialog from '../components/toolbar/ImportExportDialog';
 import type { GemSetup, OptimizeResponse } from '../types/api';
 import { inventoryStackKey, remainingItemsToStacks } from '../types/inventory';
 import type { InventoryGemStack } from '../types/inventory';
-import { useGemData } from '../contexts/GemDataContext';
+import { useGemData } from '../contexts/useGemData';
 import type { CodecState } from '../utils/setupCodec';
 import { encodeSetup } from '../utils/setupCodec';
 import { SLOT_ORDER } from '../utils/gearAssets';
@@ -26,11 +26,7 @@ interface LocationState {
 }
 
 function isValidState(state: unknown): state is LocationState {
-  return (
-    state !== null &&
-    typeof state === 'object' &&
-    'optimizeResponse' in (state as object)
-  );
+  return state !== null && typeof state === 'object' && 'optimizeResponse' in (state as object);
 }
 
 function buildResultCodecState(response: OptimizeResponse): CodecState {
@@ -51,9 +47,7 @@ function buildResultCodecState(response: OptimizeResponse): CodecState {
   // Build a set of dormant keys so we can mark remaining stacks as dormant.
   // Key: "gem_id|rank|active_stars" (without dormant flag) — matches the
   // identity used by DormantGemItem.
-  const dormantKeySet = new Set(
-    (dormant_gems ?? []).map((d) => `${d.gem_id}|${d.rank}|${d.active_stars}`)
-  );
+  const dormantKeySet = new Set((dormant_gems ?? []).map((d) => `${d.gem_id}|${d.rank}|${d.active_stars}`));
 
   // Merge remaining inventory and socketed gems into stacks.
   // Dormant gems are marked so the codec round-trips their GP contribution.
@@ -72,7 +66,8 @@ function buildResultCodecState(response: OptimizeResponse): CodecState {
         socket.assigned_gem_id == null ||
         socket.assigned_gem_star_rating == null ||
         socket.assigned_gem_rank == null
-      ) continue;
+      )
+        continue;
 
       const activeStars = socket.assigned_gem_active_stars ?? socket.assigned_gem_star_rating;
       const key = inventoryStackKey({
@@ -112,16 +107,18 @@ export default function ResultsPage() {
   const { gemById } = useGemData();
   const [exportOpen, setExportOpen] = useState(false);
 
-  if (!isValidState(location.state)) {
+  const state = isValidState(location.state) ? location.state : null;
+
+  const exportCode = useMemo(
+    () => (exportOpen && state ? encodeSetup(buildResultCodecState(state.optimizeResponse)) : ''),
+    [exportOpen, state],
+  );
+
+  if (!state) {
     return <Navigate to="/" replace />;
   }
 
-  const { summary, gem_results, upgrades, remaining_inventory, converted_gems, dormant_gems } = location.state.optimizeResponse;
-
-  const exportCode = useMemo(
-    () => exportOpen ? encodeSetup(buildResultCodecState(location.state.optimizeResponse)) : '',
-    [exportOpen, location.state.optimizeResponse],
-  );
+  const { summary, gem_results, upgrades, remaining_inventory, converted_gems, dormant_gems } = state.optimizeResponse;
 
   return (
     <Box sx={{ width: PAGE_MAX_WIDTH, maxWidth: '100%', mx: 'auto' }}>
@@ -129,11 +126,15 @@ export default function ResultsPage() {
       <Box sx={{ display: { xs: 'flex', md: 'none' }, flexDirection: 'column', alignItems: 'center', gap: 1.5, mb: 3 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Box component="img" src="/logo.png" onClick={() => navigate('/')} sx={{ height: 66, width: 'auto', cursor: 'pointer' }} />
-          <Typography variant="h5" sx={{ fontWeight: 'bold', lineHeight: 1 }}>Optimization Results</Typography>
+          <Typography variant="h5" sx={{ fontWeight: 'bold', lineHeight: 1 }}>
+            Optimization Results
+          </Typography>
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
           <IconButton size="xxs" variant="secondary" icon="return" onClick={() => navigate('/')} />
-          <TextButton size="s" variant="secondary" scale={0.7} onClick={() => setExportOpen(true)}>Export</TextButton>
+          <TextButton size="s" variant="secondary" scale={0.7} onClick={() => setExportOpen(true)}>
+            Export
+          </TextButton>
         </Box>
       </Box>
 
@@ -141,27 +142,25 @@ export default function ResultsPage() {
       <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', justifyContent: 'space-between', gap: 1.5, mb: 3 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <IconButton size="xxs" variant="secondary" icon="return" onClick={() => navigate('/')} />
-          <Typography variant="h5" sx={{ fontWeight: 'bold', lineHeight: 1 }}>Optimization Results</Typography>
+          <Typography variant="h5" sx={{ fontWeight: 'bold', lineHeight: 1 }}>
+            Optimization Results
+          </Typography>
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <TextButton size="s" variant="secondary" scale={0.7} onClick={() => setExportOpen(true)}>Export</TextButton>
+          <TextButton size="s" variant="secondary" scale={0.7} onClick={() => setExportOpen(true)}>
+            Export
+          </TextButton>
           <Box component="img" src="/logo.png" onClick={() => navigate('/')} sx={{ height: 66, width: 'auto', cursor: 'pointer' }} />
         </Box>
       </Box>
       <Stack spacing={3}>
         <SummaryCard summary={summary} />
 
-        {converted_gems && converted_gems.length > 0 && (
-          <ConvertedGemsSection convertedGems={converted_gems} />
-        )}
+        {converted_gems && converted_gems.length > 0 && <ConvertedGemsSection convertedGems={converted_gems} />}
 
-        {dormant_gems && dormant_gems.some((d) => d.quantity > 0) && (
-          <DormantGemsSection dormantGems={dormant_gems} />
-        )}
+        {dormant_gems && dormant_gems.some((d) => d.quantity > 0) && <DormantGemsSection dormantGems={dormant_gems} />}
 
-        {upgrades && upgrades.upgrades_applied.length > 0 && (
-          <UpgradesSection upgrades={upgrades} />
-        )}
+        {upgrades && upgrades.upgrades_applied.length > 0 && <UpgradesSection upgrades={upgrades} />}
 
         <Box>
           <Typography variant="h6" gutterBottom>

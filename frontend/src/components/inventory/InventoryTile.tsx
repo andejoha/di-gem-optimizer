@@ -16,9 +16,7 @@ interface InventoryTileProps {
 export default memo(function InventoryTile({ stack, onTileClick, onEmptyClick }: InventoryTileProps) {
   const [mainRank, subRank] = stack ? parseRank(stack.rank) : [0, 0];
   const rankLabel = stack ? `R${mainRank}` : '';
-  const pctLabel = stack && subRank > 0
-    ? `${subRankToPercent(subRank, getMaxSubRank(stack.star_rating, mainRank))}%`
-    : '';
+  const pctLabel = stack && subRank > 0 ? `${subRankToPercent(subRank, getMaxSubRank(stack.star_rating, mainRank))}%` : '';
 
   function handleClick() {
     if (stack) onTileClick(stack.id);

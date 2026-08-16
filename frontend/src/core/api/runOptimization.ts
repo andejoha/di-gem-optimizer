@@ -8,13 +8,7 @@
 import type { InventoryGem, SocketAssignment, UpgradeOptimizationResult } from '../models';
 import { runPipeline } from '../pipeline';
 import { nullReporter, type ProgressReporter } from '../progress';
-import {
-  buildUpgradeChains,
-  computeSocketCounts,
-  filterUpgradesToSocketed,
-  materializeUpgrades,
-  type GemUpgradeChain,
-} from '../upgrades';
+import { buildUpgradeChains, computeSocketCounts, filterUpgradesToSocketed, materializeUpgrades, type GemUpgradeChain } from '../upgrades';
 import { alreadyDormantCounter, domainToResponse, requestToDomain } from './converters';
 import type { ConvertedGemItem, OptimizeRequest, OptimizeResponse, RemainingInventoryItem } from './types';
 import { ValidationError } from './validate';
@@ -26,7 +20,11 @@ import { ValidationError } from './validate';
  * determines how many were actually needed, reports them as converted,
  * and returns the rest to the remaining inventory.
  */
-function finalizeRankOneConversion(response: OptimizeResponse, originalAvailablePower: number, rankOneGems: readonly InventoryGem[]): OptimizeResponse {
+function finalizeRankOneConversion(
+  response: OptimizeResponse,
+  originalAvailablePower: number,
+  rankOneGems: readonly InventoryGem[],
+): OptimizeResponse {
   if (rankOneGems.length === 0) return response;
 
   const totalResidual = response.summary.total_residual_cost;
@@ -313,10 +311,11 @@ export function runOptimization(
   // sockets. The bonus-phase re-run above can place gems differently, so
   // re-check the kept upgrades against the full socket assignment and
   // drop any whose target ends up unsocketed entirely.
-  const { filtered: filteredUpgrades, droppedOps: droppedOpsFromRerun, gemsToRestore: gemsToRestoreFromRerun } = filterUpgradesToSocketed(
-    chosen.filtered,
-    chosenResult.gemAssignments,
-  );
+  const {
+    filtered: filteredUpgrades,
+    droppedOps: droppedOpsFromRerun,
+    gemsToRestore: gemsToRestoreFromRerun,
+  } = filterUpgradesToSocketed(chosen.filtered, chosenResult.gemAssignments);
   // droppedOpsFromRerun happened earlier in the walk than the search's own
   // dropped ops, so it's ordered first -- reverting in reverse then
   // unwinds multi-step chains highest-rank-first.

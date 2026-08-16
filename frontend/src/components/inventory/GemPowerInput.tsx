@@ -25,11 +25,7 @@ export default function GemPowerInput({ value, onChange }: GemPowerInputProps) {
 
   return (
     <Stack direction="row" spacing={1.5} alignItems="center">
-      <Box
-        component="img"
-        src={gemPowerIcon}
-        sx={{ width: 66, height: 66, objectFit: 'contain', flexShrink: 0 }}
-      />
+      <Box component="img" src={gemPowerIcon} sx={{ width: 66, height: 66, objectFit: 'contain', flexShrink: 0 }} />
       <TextField
         label="Gem Power"
         type="number"

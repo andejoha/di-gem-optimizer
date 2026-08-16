@@ -19,9 +19,7 @@ interface Props {
 }
 
 export default function OptimizationProgress({ progress }: Props) {
-  const stageLabel = progress
-    ? (STAGE_LABELS[progress.stage] ?? progress.detail ?? 'Optimizing...')
-    : 'Optimizing...';
+  const stageLabel = progress ? (STAGE_LABELS[progress.stage] ?? progress.detail ?? 'Optimizing...') : 'Optimizing...';
 
   return (
     <Box

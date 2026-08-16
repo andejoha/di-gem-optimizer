@@ -1,7 +1,17 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { COST_1STAR, COST_2STAR, COST_5STAR, COST_TABLES, GEM_LIST, GEMS, RESONANCE_1STAR, RESONANCE_2STAR, RESONANCE_5STAR } from '../data';
+import {
+  COST_1STAR,
+  COST_2STAR,
+  COST_5STAR,
+  COST_TABLES,
+  GEM_LIST,
+  GEMS,
+  RESONANCE_1STAR,
+  RESONANCE_2STAR,
+  RESONANCE_5STAR,
+} from '../data';
 
 const GOLDEN_DIR = fileURLToPath(new URL('../../../../golden', import.meta.url));
 

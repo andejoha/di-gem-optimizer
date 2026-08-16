@@ -86,9 +86,7 @@ export function generateExampleSetups(gems: GemInfo[]): { random: string; max: s
   }
 
   // Fill remaining 1-star gems at R1 until we have at least 20 total R1 1-star copies
-  let r1Total = stacks
-    .filter((s) => s.star_rating === 1 && s.rank === '1')
-    .reduce((sum, s) => sum + s.quantity, 0);
+  let r1Total = stacks.filter((s) => s.star_rating === 1 && s.rank === '1').reduce((sum, s) => sum + s.quantity, 0);
 
   const invOneStarIds = new Set(invOneStars.map((g) => g.id));
   for (const gem of shuffled1.filter((g) => !invOneStarIds.has(g.id))) {

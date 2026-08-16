@@ -3,7 +3,7 @@ import CardContent from '@mui/material/CardContent';
 import Typography from '@mui/material/Typography';
 import type { DormantGemItem, RemainingInventoryItem } from '../../types/api';
 import { remainingItemsToStacks } from '../../types/inventory';
-import { useGemData } from '../../contexts/GemDataContext';
+import { useGemData } from '../../contexts/useGemData';
 import InventoryGrid from '../inventory/InventoryGrid';
 
 interface Props {
@@ -17,9 +17,7 @@ export default function RemainingInventory({ items, dormantGems = [] }: Props) {
 
   // Build a set of "gem_id|rank|active_stars" keys for dormant gems so we can
   // mark matching stacks as dormant (renders greyscale in InventoryGrid).
-  const dormantKeySet = new Set(
-    dormantGems.map((d) => `${d.gem_id}|${d.rank}|${d.active_stars}`)
-  );
+  const dormantKeySet = new Set(dormantGems.map((d) => `${d.gem_id}|${d.rank}|${d.active_stars}`));
   const stacks = remainingItemsToStacks(items).map((stack) => {
     const key = `${stack.gem_id}|${stack.rank}|${stack.active_stars}`;
     return dormantKeySet.has(key) ? { ...stack, dormant: true } : stack;
@@ -36,12 +34,7 @@ export default function RemainingInventory({ items, dormantGems = [] }: Props) {
             No remaining inventory — all gems were assigned.
           </Typography>
         ) : (
-          <InventoryGrid
-            stacks={stacks}
-            gemOrder={gemOrder}
-            onTileClick={() => {}}
-            onEmptyClick={() => {}}
-          />
+          <InventoryGrid stacks={stacks} gemOrder={gemOrder} onTileClick={() => {}} onEmptyClick={() => {}} />
         )}
       </CardContent>
     </Card>

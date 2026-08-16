@@ -12,14 +12,7 @@ import { SOCKET_STAR_TYPE } from './constants';
 import { COST_TABLES, GEM_LIST } from './data';
 import type { InventoryGem, MainGem, OptimizationResult, SocketAssignment } from './models';
 import { makeGemResult, makeOptimizationResult, makeSocketAssignment } from './models';
-import {
-  type CopyEntry,
-  expandInventory,
-  fillEmptySockets,
-  redistributeForBonuses,
-  reorderForBonuses,
-  solveAssignment,
-} from './optimizer';
+import { type CopyEntry, expandInventory, fillEmptySockets, redistributeForBonuses, reorderForBonuses, solveAssignment } from './optimizer';
 import { nullReporter, type ProgressReporter } from './progress';
 import { computeExtractablePower, computeSlotResonance } from './rules';
 
