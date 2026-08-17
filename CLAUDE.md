@@ -16,8 +16,9 @@ change is about _what the app should do_, not just how the current code does it.
 
 ## Commit titles
 
-Start every commit title with `feature` (new functionality) or `hotfix` (a fix) unless the change
-should not trigger a release — see Deployment below for how these prefixes drive `pages.yml`.
+Start a commit title with `feature` (new functionality) or `hotfix` (a fix) only when it changes the
+application itself. Commits that don't — docs, tests, CI/workflow config, tooling, chores — should
+not use either prefix. See Deployment below for how these prefixes drive `pages.yml`.
 
 ## Commands
 
