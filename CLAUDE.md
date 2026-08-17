@@ -35,7 +35,7 @@ npm run test:watch      # vitest watch mode
 Run a single test file: `npx vitest run test/core/optimizer.test.ts`. CI (`.github/workflows/ci.yml`)
 runs lint, format:check, build, then test, in that order — match that order locally before pushing.
 `ci.yml` is a reusable workflow (`pull_request` + `workflow_call`): PRs run it directly, and
-`.github/workflows/pages.yml` calls it on every push to `main` with `vite_base: /di-gem-optimizer/`
+`.github/workflows/pages.yml` calls it on every push to `main` with `vite_base: /macs-gem-optimizer/`
 and `upload_pages_artifact: true` before deploying — see Deployment below.
 
 There are two separate TS project configs: `tsconfig.app.json` (src/, DOM types) and
@@ -138,7 +138,7 @@ title skips the workflow. `workflow_dispatch` bumps `major`, `minor`, or `patch`
 defaulting there) and is the only way to cut a major release. Four jobs run in sequence: `version`
 computes the next `vX.Y.Z` tag from the highest existing tag (`v0.0.0` if none exist) and short-circuits
 the rest of the workflow when the commit title doesn't match; `ci` calls the reusable `ci.yml` with
-`vite_base: /di-gem-optimizer/` and `upload_pages_artifact: true`; `deploy` publishes the artifact via
+`vite_base: /macs-gem-optimizer/` and `upload_pages_artifact: true`; `deploy` publishes the artifact via
 `actions/deploy-pages@v5`; `release` publishes a GitHub Release for the computed tag, marked latest,
 with auto-generated notes and a `dist.zip` asset. `ci.yml` copies `dist/index.html` to `dist/404.html`
 when uploading the Pages artifact — GitHub Pages has no server-side rewrite, so that copy is the SPA

@@ -19,8 +19,8 @@ correctly.
 
 ## GitHub Pages
 
-Live at [andejoha.github.io/di-gem-optimizer](https://andejoha.github.io/di-gem-optimizer/), deployed
-by `.github/workflows/pages.yml`, which builds with `VITE_BASE=/di-gem-optimizer/` and publishes
+Live at [andejoha.github.io/macs-gem-optimizer](https://andejoha.github.io/macs-gem-optimizer/), deployed
+by `.github/workflows/pages.yml`, which builds with `VITE_BASE=/macs-gem-optimizer/` and publishes
 `dist/` via the GitHub Pages Actions integration (repo Settings → Pages → Source: GitHub Actions).
 
 ### Releases
@@ -79,7 +79,7 @@ docker run -p 8080:8080 gem-optimizer
 _Using Docker_
 
 ```bash
-docker buildx build --platform linux/arm64,linux/amd64 -t di-gem-optimizer:latest .
+docker buildx build --platform linux/arm64,linux/amd64 -t macs-gem-optimizer:latest .
 ```
 
 _Using Docker Compose_
@@ -91,7 +91,7 @@ docker compose build
 _Using Podman_
 
 ```bash
-podman build --platform linux/arm64,linux/amd64 --manifest di-gem-optimizer:latest .
+podman build --platform linux/arm64,linux/amd64 --manifest macs-gem-optimizer:latest .
 ```
 
 **Push to Docker Hub**
@@ -103,7 +103,7 @@ docker login
 ```
 
 ```bash
-docker buildx build --platform linux/arm64,linux/amd64 --push -t docker.io/andejoha/di-gem-optimizer:latest .
+docker buildx build --platform linux/arm64,linux/amd64 --push -t docker.io/andejoha/macs-gem-optimizer:latest .
 ```
 
 _Using Podman_ — log in first:
@@ -113,7 +113,7 @@ podman login docker.io
 ```
 
 ```bash
-podman manifest push di-gem-optimizer:latest docker://docker.io/andejoha/di-gem-optimizer:latest
+podman manifest push macs-gem-optimizer:latest docker://docker.io/andejoha/macs-gem-optimizer:latest
 ```
 
 **Azure App Service**
