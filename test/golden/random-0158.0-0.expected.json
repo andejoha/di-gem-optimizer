@@ -2,10 +2,10 @@
   "summary": {
     "total_socketed_power": 15095,
     "total_required_power": 14305,
-    "total_residual_cost": 4655,
+    "total_residual_cost": 2914,
     "available_power": 9987,
     "status": "feasible",
-    "surplus_or_shortfall": 5332,
+    "surplus_or_shortfall": 7073,
     "skipped_slots": [
       "chest",
       "legs",
@@ -106,13 +106,13 @@
       "target_rank": "8.13",
       "sockets_unlocked": 5,
       "required_power": 3080,
-      "total_socketed_power": 5410,
-      "residual_cost": 0,
+      "total_socketed_power": 1705,
+      "residual_cost": 1375,
       "bonuses_activated": 0,
       "bonuses_possible": 5,
       "base_resonance": 705,
-      "socket_resonance_bonus": 98,
-      "total_resonance": 803,
+      "socket_resonance_bonus": 73,
+      "total_resonance": 778,
       "sockets": [
         {
           "socket_index": 1,
@@ -157,14 +157,14 @@
           "socket_index": 4,
           "socket_star_type": 5,
           "status": "assigned",
-          "assigned_gem_id": 5010,
+          "assigned_gem_id": 5004,
           "assigned_gem_star_rating": 5,
-          "assigned_gem_rank": "8.14",
-          "assigned_gem_active_stars": 4,
-          "contribution": 4804,
+          "assigned_gem_rank": "5.4",
+          "assigned_gem_active_stars": 5,
+          "contribution": 1099,
           "bonus_gem_required_id": 5006,
           "bonus_activated": false,
-          "socket_resonance": 80
+          "socket_resonance": 55
         },
         {
           "socket_index": 5,
@@ -354,13 +354,13 @@
       "target_rank": "9.14",
       "sockets_unlocked": 5,
       "required_power": 4215,
-      "total_socketed_power": 1099,
-      "residual_cost": 3116,
+      "total_socketed_power": 4804,
+      "residual_cost": 0,
       "bonuses_activated": 0,
       "bonuses_possible": 5,
       "base_resonance": 800,
-      "socket_resonance_bonus": 55,
-      "total_resonance": 855,
+      "socket_resonance_bonus": 80,
+      "total_resonance": 880,
       "sockets": [
         {
           "socket_index": 1,
@@ -405,14 +405,14 @@
           "socket_index": 4,
           "socket_star_type": 5,
           "status": "assigned",
-          "assigned_gem_id": 5004,
+          "assigned_gem_id": 5010,
           "assigned_gem_star_rating": 5,
-          "assigned_gem_rank": "5.4",
-          "assigned_gem_active_stars": 5,
-          "contribution": 1099,
+          "assigned_gem_rank": "8.14",
+          "assigned_gem_active_stars": 4,
+          "contribution": 4804,
           "bonus_gem_required_id": 5007,
           "bonus_activated": false,
-          "socket_resonance": 55
+          "socket_resonance": 80
         },
         {
           "socket_index": 5,

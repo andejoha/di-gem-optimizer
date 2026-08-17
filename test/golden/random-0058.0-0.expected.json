@@ -523,27 +523,27 @@
           "socket_index": 1,
           "socket_star_type": 1,
           "status": "assigned",
-          "assigned_gem_id": 1029,
-          "assigned_gem_star_rating": 1,
-          "assigned_gem_rank": "10",
-          "assigned_gem_active_stars": 1,
-          "contribution": 202,
-          "bonus_gem_required_id": 1001,
-          "bonus_activated": false,
-          "socket_resonance": 10
-        },
-        {
-          "socket_index": 2,
-          "socket_star_type": 1,
-          "status": "assigned",
           "assigned_gem_id": 1016,
           "assigned_gem_star_rating": 1,
           "assigned_gem_rank": "5",
           "assigned_gem_active_stars": 1,
           "contribution": 32,
-          "bonus_gem_required_id": 1002,
+          "bonus_gem_required_id": 1001,
           "bonus_activated": false,
           "socket_resonance": 5
+        },
+        {
+          "socket_index": 2,
+          "socket_star_type": 1,
+          "status": "assigned",
+          "assigned_gem_id": 1029,
+          "assigned_gem_star_rating": 1,
+          "assigned_gem_rank": "10",
+          "assigned_gem_active_stars": 1,
+          "contribution": 202,
+          "bonus_gem_required_id": 1002,
+          "bonus_activated": false,
+          "socket_resonance": 10
         }
       ]
     },

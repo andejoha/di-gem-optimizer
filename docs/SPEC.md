@@ -1,6 +1,6 @@
 # Gem Resonance Rules Spec
 
-This document is the source of truth for the *game rules* the optimizer is meant to model — how
+This document is the source of truth for the _game rules_ the optimizer is meant to model — how
 gem power, sockets, bonuses, and resonance should work in Diablo Immortal. It describes intended
 behavior, independent of whatever `src/core/` currently does. When code and this document disagree,
 that's a bug in one of the two: fix the code to match the rule, or update this document and explain
@@ -56,7 +56,7 @@ per-copy base value for the socketed gem's tier: 1 for 1-star, 4 for 2-star, 32 
 ### Only 5-star main gems get an offset
 
 **This is the central rule of the whole system**: socketed gem power reduces the awakening cost
-*only* for a 5-star main gem. For a 1-star or 2-star main gem, the full required power is always
+_only_ for a 5-star main gem. For a 1-star or 2-star main gem, the full required power is always
 due regardless of what's socketed — the residual cost for a 1/2-star main gem never drops below
 `requiredPower`, and socketing gems into it does not spend the player's power pool at all (its
 sockets exist only for the resonance bonuses described below).
@@ -78,14 +78,24 @@ table — not the copies consumed to get there, and not anything for a rank-1 ge
 0 gem power). This recoverable amount is available as extra power toward the overall plan even
 though it's never socketed.
 
-### Rank-1 1-star conversion (`convert1Star`)
+### Gem conversion
 
-A rank-1 1-star gem is worthless both as a socketed gem (near-zero contribution) and, on its own,
-as upgrade fodder unless paired with more copies. The player may instead choose to cash each one in
-directly for 1 unit of gem power, added straight to the available pool before optimization runs.
-This is a player choice (an optional input flag), not something that happens automatically — the
-optimizer must also report how many of those converted gems were actually needed, and return the
-rest to the display inventory untouched.
+Instead of socketing or upgrading a spare gem copy, the player may choose to cash it in directly for
+gem power, added straight to the available pool before optimization runs. This is a player choice
+(an optional input flag per conversion kind), not something that happens automatically. Conversion
+is a general mechanic — any gem, of any star rating and rank, is eligible in principle, recovering
+the same amount as dormant power above (the cumulative gem power spent upgrading it to its current
+rank) since a converted gem is never socketed either. Whichever conversions the player enables, the
+optimizer must report how many of the eligible gems were actually needed, and return the rest to the
+display inventory untouched.
+
+#### Rank-1 1-star conversion (`convert1Star`)
+
+The one conversion currently exposed to the player targets rank-1 1-star gems specifically. On their
+own, these are worthless both as a socketed gem (near-zero contribution) and as upgrade fodder
+unless paired with more copies, and — since rank 1 costs 0 gem power — they would otherwise recover
+nothing as dormant power either. The optimizer instead cashes each one in for a flat 1 unit of gem
+power, as a special case of the general conversion mechanic above.
 
 ## 3. Resonance
 
@@ -100,7 +110,7 @@ The base resonance of an equipped gem depends on its own star tier, rank, and (f
 how many stars are currently active on it:
 
 - 1-star and 2-star gems: base resonance is a function of rank alone.
-- 5-star gems: base resonance is a function of rank *and* active star count (2 through 5 stars).
+- 5-star gems: base resonance is a function of rank _and_ active star count (2 through 5 stars).
 
 ### Socket resonance bonus
 
@@ -108,12 +118,12 @@ Each socketed gem contributes a resonance bonus to its host main gem, scaled by 
 own integer rank (sub-rank decimals are truncated — a rank `"5.4"` gem counts as rank 5 for this
 purpose):
 
-| Socketed gem tier                       | Bonus per socket           |
-| ---------------------------------------- | --------------------------- |
-| 1-star                                   | `1 × integerRank`           |
-| 2-star                                   | `2 × integerRank`           |
-| 5-star, 2/3/4 active stars               | `10 × integerRank`          |
-| 5-star, 5 active stars (fully awakened)  | `11 × integerRank`          |
+| Socketed gem tier                       | Bonus per socket   |
+| --------------------------------------- | ------------------ |
+| 1-star                                  | `1 × integerRank`  |
+| 2-star                                  | `2 × integerRank`  |
+| 5-star, 2/3/4 active stars              | `10 × integerRank` |
+| 5-star, 5 active stars (fully awakened) | `11 × integerRank` |
 
 A main gem's total resonance is `baseResonance + sum(socketResonanceBonus for each occupied socket)`.
 
@@ -123,18 +133,30 @@ Independent of the resonance-per-rank formula above, each main gem also defines 
 identity per socket index** — a specific gem the player is meant to place in that exact socket to
 activate a bonus. This is per main-gem-type and per-socket-position, not a shared/global
 requirement: main gem A's socket 0 may require gem X while main gem B's socket 0 requires gem Y, and
-a main gem's own 5 requirements generally reference 5 *different* gems (3 two-star + 2 five-star,
-matching that main gem's socket tiers).
+a main gem's own 5 requirements generally reference 5 _different_ gems (3 two-star + 2 five-star,
+matching that main gem's socket tiers). In the shipped catalog every socket of every gem defines a
+requirement (none are absent), and a requirement's tier always matches its socket's tier.
 
 A socket's bonus is activated if and only if the gem copy placed there has the exact gem ID required
-for that socket index on that main gem — matching gem tier and rank are *not* sufficient; it must be
+for that socket index on that main gem — matching gem tier and rank are _not_ sufficient; it must be
 the specific gem the requirement names. An empty socket, or a socket holding a gem other than the
 one required for its position, does not activate a bonus.
 
-The optimizer should prefer orderings of correctly-typed gems across a main gem's sockets that
-maximize the count of activated bonuses, without changing *which* gems are assigned to that main gem
-overall — i.e. bonus activation should be resolved by socket ordering (permutation) alone, on top of
-whatever assignment/redistribution already decided.
+Bonus activation is a _tie-break_, never an objective. The optimizer chooses which gem copy to
+socket by the criteria above (gem-power cost) and the resonance rules above alone; it never trades
+gem power or resonance for a bonus. When two or more candidate copies are **numerically
+indistinguishable** for a socket — identical contribution, identical resonance bonus, identical
+recoverable dormant power — the optimizer must prefer, in order: one whose gem id the target main
+gem still requires; then one that no _other_ main gem still requires as a bonus gem, so a scarce
+bonus gem is conserved for the main gem that can activate it. Numeric equality is exact; no
+tolerance applies. Because a socketed gem's contribution and resonance depend only on its tier,
+rank and active star count and never on its identity, such ties are common, and this rule activates
+most bonuses that are activatable at no cost.
+
+Which socket _within_ a main gem's group of same-tier sockets a copy occupies is free — it affects
+no cost or resonance — so the optimizer must distribute an already-chosen set of copies across
+those sockets to maximize that main gem's activated bonuses. It must **not** change _which_ copies a
+main gem holds, nor move copies between main gems, in pursuit of bonuses.
 
 ## 4. Upgrading gems
 
@@ -149,7 +171,7 @@ Conceptually, an upgrade step can be one of four kinds (see `UpgradeDelta.upgrad
   rank-1 copies of itself.
 - **`direct`** — a whole-rank jump performed in a single step rather than as a sequence of
   sub-rank steps.
-- **`preparation`** — a partial-rank upgrade applied to a *different* gem solely so that gem can
+- **`preparation`** — a partial-rank upgrade applied to a _different_ gem solely so that gem can
   then be sacrificed as fodder for a subsequent direct upgrade (i.e. the prep step's own resulting
   rank, not its original rank, is what's needed as material).
 - **`free`** — an upgrade with zero net gain (gem power cost equals the additional socket power it
@@ -170,5 +192,5 @@ upgrade potential should be preserved as long as possible before falling back to
 
 A plan is **feasible** when the total residual cost across all main gems (§2) is covered by the sum
 of the player's available power pool and total dormant power (§2), after accounting for any upgrade
-cost incurred (§4) and any rank-1 conversion applied (§2). Otherwise it is a **shortfall**, reported
+cost incurred (§4) and any gem conversion applied (§2). Otherwise it is a **shortfall**, reported
 as the (negative) difference.

@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { MAX_SOCKETS, SOCKET_STAR_TYPE } from '../../src/core/constants';
 import {
   COST_1STAR,
   COST_2STAR,
@@ -51,6 +52,48 @@ describe('GEMS ordering (critical hazard: GEMS is NOT in ascending ID order)', (
       expect(gem.name).toBe(expected!.name);
       expect(gem.starRating).toBe(expected!.star_rating);
       expect(gem.bonusGemIds).toEqual((expected!.bonus_gems as Array<{ required_gem_id: number }>).map((b) => b.required_gem_id));
+    }
+  });
+});
+
+describe('bonusGemIds catalog invariants (premise for optimizer.ts assignSockets)', () => {
+  it('every gem def has exactly one requirement per socket, none absent', () => {
+    for (const gem of GEM_LIST) {
+      expect(gem.bonusGemIds.length, `gem ${gem.id}`).toBe(MAX_SOCKETS[gem.starRating]);
+      expect(
+        gem.bonusGemIds.every((id) => id !== 0),
+        `gem ${gem.id} has an absent requirement`,
+      ).toBe(true);
+    }
+  });
+
+  it('every requirement names a known gem whose tier matches its socket tier', () => {
+    const byId = new Map(GEM_LIST.map((g) => [g.id, g]));
+    for (const gem of GEM_LIST) {
+      const socketTypeMap = SOCKET_STAR_TYPE[gem.starRating];
+      gem.bonusGemIds.forEach((requiredId, socketIndex) => {
+        const required = byId.get(requiredId);
+        expect(required, `gem ${gem.id} socket ${socketIndex} requires unknown gem ${requiredId}`).toBeDefined();
+        expect(required!.starRating, `gem ${gem.id} socket ${socketIndex}`).toBe(socketTypeMap[socketIndex]);
+      });
+    }
+  });
+
+  it('no two sockets of the same star-type group on one main gem require the same gem', () => {
+    // This is the premise that makes assignSockets' greedy matching optimal:
+    // each copy can satisfy at most one socket's requirement per group.
+    for (const gem of GEM_LIST) {
+      const socketTypeMap = SOCKET_STAR_TYPE[gem.starRating];
+      const byStarType = new Map<number, number[]>();
+      gem.bonusGemIds.forEach((requiredId, socketIndex) => {
+        const starType = socketTypeMap[socketIndex];
+        const list = byStarType.get(starType);
+        if (list) list.push(requiredId);
+        else byStarType.set(starType, [requiredId]);
+      });
+      for (const [starType, requirements] of byStarType) {
+        expect(new Set(requirements).size, `gem ${gem.id} star-type group ${starType}`).toBe(requirements.length);
+      }
     }
   });
 });

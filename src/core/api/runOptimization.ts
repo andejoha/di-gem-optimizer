@@ -241,7 +241,6 @@ export function runOptimization(
       }
       const result = runPipeline(availablePower, mainGems, skippedSlots, working, {
         progress: firstPipelineRun ? progress : nullReporter,
-        skipBonusPhases: true,
       });
       firstPipelineRun = false;
       const relevant = fiveStarAssignments(result.gemAssignments);
@@ -299,30 +298,16 @@ export function runOptimization(
     // twoStarDepths will be reset to maximum at the top of the outer loop
   }
 
-  // Re-run the full pipeline (with bonus phases) on the winning inventory
-  // so the display result has correct bonus activations and resonance --
-  // the search above ran with skipBonusPhases, so it only tracked the
-  // residual-relevant data needed to pick a winner.
+  // The search already ran the full pipeline on the winning inventory, so
+  // its result is display-correct as-is.
   const chosen = bestCandidate!;
   const chosenWorking = chosen.working;
-  const chosenResult = runPipeline(availablePower, mainGems, skippedSlots, chosenWorking, { committedCost: chosen.upgradeCost });
-
-  // The search only tracked whether upgrade targets landed in five-star
-  // sockets. The bonus-phase re-run above can place gems differently, so
-  // re-check the kept upgrades against the full socket assignment and
-  // drop any whose target ends up unsocketed entirely.
-  const {
-    filtered: filteredUpgrades,
-    droppedOps: droppedOpsFromRerun,
-    gemsToRestore: gemsToRestoreFromRerun,
-  } = filterUpgradesToSocketed(chosen.filtered, chosenResult.gemAssignments);
-  // droppedOpsFromRerun happened earlier in the walk than the search's own
-  // dropped ops, so it's ordered first -- reverting in reverse then
-  // unwinds multi-step chains highest-rank-first.
-  const droppedOps = [...droppedOpsFromRerun, ...chosen.dropped];
-  const gemsToRestore = [...gemsToRestoreFromRerun, ...chosen.restore];
-  const upgradeCost = filteredUpgrades.reduce((sum, delta) => sum + delta.additionalGemPower, 0);
-  const effectiveResidual = chosenResult.totalResidualCost + upgradeCost;
+  const chosenResult = chosen.result;
+  const filteredUpgrades = chosen.filtered;
+  const droppedOps = chosen.dropped;
+  const gemsToRestore = chosen.restore;
+  const upgradeCost = chosen.upgradeCost;
+  const effectiveResidual = chosen.effectiveResidual;
   const improvement = baseline.totalResidualCost - effectiveResidual;
 
   const upgradeResult: UpgradeOptimizationResult = {

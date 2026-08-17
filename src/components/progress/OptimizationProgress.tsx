@@ -8,8 +8,6 @@ import type { ProgressEvent } from '../../types/progress';
 const STAGE_LABELS: Record<string, string> = {
   assignment: 'Solving gem assignment...',
   fill_empty: 'Filling empty sockets...',
-  redistribute: 'Redistributing for bonuses...',
-  reorder: 'Reordering sockets...',
   upgrades: 'Evaluating upgrades...',
   upgrades_rerun: 'Re-optimizing with upgrades...',
 };

@@ -12,7 +12,7 @@ plain TypeScript, importable and testable directly.
 
 The game rules the optimizer is meant to encode (gem power, sockets, resonance, bonus activation,
 upgrades) are specified independently of the implementation in `docs/SPEC.md` — consult it when a
-change is about *what the app should do*, not just how the current code does it.
+change is about _what the app should do_, not just how the current code does it.
 
 ## Commands
 
@@ -44,29 +44,33 @@ cost-effective set of gem upgrades before producing the response. It's called fr
 fallback (`src/services/gemApi.ts`'s `optimize()`, dynamically imported so the optimizer's dependency
 graph doesn't land in the main bundle chunk).
 
-`runPipeline` (`src/core/pipeline.ts`) runs four phases per invocation, in order:
+`runPipeline` (`src/core/pipeline.ts`) runs three phases per invocation, in order:
+
 1. **Greedy assignment** (`solveAssignment` in `optimizer.ts`) — closest-fit heuristic assigning
    each inventory gem copy to the 5-star main gem socket whose remaining cost it best matches.
 2. **Empty socket fill** (`fillEmptySockets`) — fills any sockets the greedy pass left empty
-   (including all 1/2-star main gem sockets, which start empty).
-3. **Cross-gem bonus redistribution** (`redistributeForBonuses`) — reassigns gems across main gems
-   to maximize resonance bonus activations, constrained by available power.
-4. **Intra-gem reordering** (`reorderForBonuses`) — permutes gems within a single main gem's sockets
-   to maximize that gem's bonus activations without changing which gems are assigned.
+   (including all 1/2-star main gem sockets, which start empty), highest-resonance gem first.
+3. **Socket materialization** (`assignSockets`) — distributes each main gem's already-decided set
+   of copies across its own sockets to maximize activated bonuses, without changing which copies
+   were assigned to that main gem.
 
-`RunPipelineOptions.skipBonusPhases` skips phases 3–4 and does a flat, order-preserving socket fill
-instead — used during the upgrade search's inner loop, where only residual cost (not bonus display
-data) matters and running the full permutation search on every candidate would be wasteful.
+Bonus activation is not a separate optimization phase — it's folded into phases 1–2 as a tie-break:
+when several candidate copies are numerically indistinguishable (same contribution, same active
+stars), the one that activates the target socket's bonus wins, and failing that, one not still
+needed as a bonus gem by another main gem (see `computeBonusGemDemand`/`pickWithBonusTieBreak` in
+`optimizer.ts`). Phase 3 then resolves, for free, which socket within a main gem each already-chosen
+copy lands in. See docs/SPEC.md ("Bonus activation") for the rule this encodes — it never trades gem
+power or resonance for a bonus.
 
 The upgrade search in `runOptimization` treats two-star and five-star upgrade chains differently:
 two-star chains are fully exhausted before touching any five-star chain, because five-star gems have
 a much higher gem-power-per-upgrade-cost ratio. It walks upgrade depth downward from maximum,
-re-running `runPipeline` with `skipBonusPhases: true` at each candidate depth, until it finds a
-depth combination whose net residual (effective residual minus recoverable dormant power) fits
-within the available power pool. The winning depth combination is then re-run once more *without*
-`skipBonusPhases` to get correct bonus/resonance data for display.
+re-running `runPipeline` at each candidate depth, until it finds a depth combination whose net
+residual (effective residual minus recoverable dormant power) fits within the available power pool.
+That winning candidate's result is used directly for display.
 
 Other core modules:
+
 - `models.ts` — domain types (`MainGem`, `InventoryGem`, `SocketAssignment`, `OptimizationResult`)
   and their `make*` constructors.
 - `rules.ts` — game-rule computations (extractable power, slot resonance).

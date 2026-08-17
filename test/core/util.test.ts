@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { cloneGem, cloneGems } from '../../src/core/util/clone';
 import { countOf, gemRankKey, gemTypeKey, increment } from '../../src/core/util/keys';
-import { permutations } from '../../src/core/util/permutations';
 import { compareTuples } from '../../src/core/util/tupleCompare';
 
 describe('compareTuples', () => {
@@ -11,11 +10,11 @@ describe('compareTuples', () => {
     expect(compareTuples([1, 2], [1, 2])).toBe(0);
   });
 
-  it('handles mixed sign and mixed str/int positions (redistribute_for_bonuses key shape)', () => {
-    // key = (bonus_gain, -new_cost, slot_a, copy_id_a, slot_b, copy_id_b)
-    const a = [2, -10, 'head', 3, 'chest', 7];
-    const b = [2, -5, 'head', 3, 'chest', 7];
-    expect(compareTuples(a, b)).toBeLessThan(0); // -10 < -5
+  it('handles mixed-sign positions (closest-fit selection key shape)', () => {
+    // key = (|contribution - residual|, -contribution, copyId)
+    const a = [5, -30, 7];
+    const b = [5, -20, 7];
+    expect(compareTuples(a, b)).toBeLessThan(0); // -30 < -20 -- the larger-contribution gem wins
   });
 
   it('treats -0 as equal to 0', () => {
@@ -41,30 +40,6 @@ describe('compareTuples', () => {
       .sort((x, y) => compareTuples(key(x), key(y)))
       .reverse();
     expect(wrongViaReverse.map((x) => x.gemId)).toEqual([1, 2, 3]); // flips the tie -- demonstrates the pitfall
-  });
-});
-
-describe('permutations', () => {
-  it('generates all permutations in lexicographic order of input position', () => {
-    const result = [...permutations(['a', 'b', 'c'])];
-    expect(result).toEqual([
-      ['a', 'b', 'c'],
-      ['a', 'c', 'b'],
-      ['b', 'a', 'c'],
-      ['b', 'c', 'a'],
-      ['c', 'a', 'b'],
-      ['c', 'b', 'a'],
-    ]);
-  });
-
-  it('yields the identity permutation first (ties favor the pre-existing ordering)', () => {
-    const [first] = permutations([1, 2, 3, 4, 5]);
-    expect(first).toEqual([1, 2, 3, 4, 5]);
-  });
-
-  it('handles n=0 and n=1', () => {
-    expect([...permutations([])]).toEqual([[]]);
-    expect([...permutations(['x'])]).toEqual([['x']]);
   });
 });
 

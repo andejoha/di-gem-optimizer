@@ -1,7 +1,7 @@
 /**
  * Lexicographic comparison of two same-shaped tuples, used for multi-key
- * sort/max/min keys throughout the optimizer (e.g. the move-selection key
- * in `optimizer.ts`'s `redistributeForBonuses`).
+ * sort/max/min keys throughout the optimizer (e.g. the closest-fit and
+ * bonus-tie-break selection keys in `optimizer.ts`).
  *
  * Elements may be numbers or strings; comparison is positional, using
  * `<`/`>` on each pair of elements in turn. `-0` compares equal to `0`.

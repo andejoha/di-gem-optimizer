@@ -1,23 +1,29 @@
 /**
- * Tests redistributeForBonuses and its helpers (totalResidualFor,
- * maxBonusesForOwned) in core/optimizer.ts directly, with no dependency on
- * any worker/UI layer.
+ * Tests solveAssignment, fillEmptySockets, assignSockets, and
+ * computeBonusGemDemand in core/optimizer.ts directly, with no dependency
+ * on any worker/UI layer.
+ *
+ * Bonus activation is a tie-break, never a priority: the optimizer picks a
+ * gem by its normal power-fit/resonance criterion, and only when several
+ * candidates are numerically indistinguishable (identical contribution and
+ * activeStars) does it prefer one that activates a bonus, then one not
+ * still needed as a bonus gem by another main gem. See docs/SPEC.md
+ * ("Bonus activation").
  *
  * Known reference values:
  *   5-star rank "1"  contribution = 32
- *   5-star rank "3"  contribution = 189
- *   5-star rank "5"  contribution = 731
+ *   5-star rank "2"  contribution = 82
  *   5-star rank "6"  requiredPower = 850, numSockets = 4
  *   5-star rank "7"  requiredPower = 1575, numSockets = 5
- *   2-star rank "1"  contribution = 4
- *   2-star rank "7"  requiredPower = 235, numSockets = 3
+ *   2-star rank "7"  contribution = 291, resonance = 14, numSockets = 3
+ *   2-star rank "7.5" contribution = 386, resonance = 14 (rank truncated)
  */
 
 import { describe, expect, it } from 'vitest';
 import { COST_2STAR, COST_5STAR } from '../../src/core/data';
 import type { InventoryGem, MainGem } from '../../src/core/models';
 import { makeInventoryGem } from '../../src/core/models';
-import { type CopyEntry, dormantPowerFor, maxBonusesForOwned, redistributeForBonuses, totalResidualFor } from '../../src/core/optimizer';
+import { assignSockets, type CopyEntry, computeBonusGemDemand, fillEmptySockets, solveAssignment } from '../../src/core/optimizer';
 import { runPipeline } from '../../src/core/pipeline';
 import { computeContribution, numSocketsUnlocked } from '../../src/core/rules';
 
@@ -46,306 +52,187 @@ function main(slot: string, gemId: number, star: number, rank: string, activeSta
   };
 }
 
-function perSlot(entries: Record<string, CopyEntry[]>): Map<string, CopyEntry[]> {
-  return new Map(Object.entries(entries));
-}
-
 function bonusMap(entries: Record<number, number[]>): Map<number, number[]> {
   return new Map(Object.entries(entries).map(([k, v]) => [Number(k), v]));
 }
 
-describe('totalResidualFor', () => {
-  it('5-star main residual is offset by socketed contribution', () => {
-    const mg = main('head', 5001, 5, '6'); // requiredPower=850
-    const gem = inv(5002, 5, '1'); // contribution=32
-    expect(totalResidualFor([mg], perSlot({ head: [[0, gem]] }))).toBe(Math.max(0, 850 - 32));
+function bagGemIds(bags: Map<string, CopyEntry[]>, slot: string): number[] {
+  return (bags.get(slot) ?? []).map(([, gem]) => gem.gemId);
+}
+
+describe('solveAssignment -- bonus tie-break', () => {
+  it('a numeric tie is broken in favor of the gem that activates the socket bonus', () => {
+    const mg = main('head', 5001, 5, '6'); // one 5-star socket (index 3)
+    const bonusTable = bonusMap({ 5001: [0, 0, 0, 9002, 0] });
+    const bonusGem = inv(9002, 5, '1'); // contribution 32
+    const otherGem = inv(9001, 5, '1'); // contribution 32 -- identical signature
+    const demand = computeBonusGemDemand([mg], bonusTable);
+
+    const bags = solveAssignment([mg], [otherGem, bonusGem], bonusTable, demand);
+
+    expect(bagGemIds(bags, 'head')).toEqual([9002]);
   });
 
-  it('2-star main residual is always requiredPower regardless of socketed gems', () => {
-    const mg = main('head', 2001, 2, '7'); // requiredPower=235
-    const gem = inv(2003, 2, '7'); // contribution=291
-    expect(totalResidualFor([mg], perSlot({ head: [[0, gem]] }))).toBe(235);
-  });
-
-  it('5-star main with no gems has residual equal to requiredPower', () => {
+  it('a non-tie is decided by contribution alone -- the bonus is never worth a worse power fit', () => {
     const mg = main('head', 5001, 5, '6');
-    expect(totalResidualFor([mg], perSlot({ head: [] }))).toBe(850);
+    const bonusTable = bonusMap({ 5001: [0, 0, 0, 9002, 0] });
+    const bonusGem = inv(9002, 5, '1'); // contribution 32 -- activates the bonus, but a worse fit
+    const closerGem = inv(9001, 5, '2'); // contribution 82 -- closer to the 850 residual
+    const demand = computeBonusGemDemand([mg], bonusTable);
+
+    const bags = solveAssignment([mg], [bonusGem, closerGem], bonusTable, demand);
+
+    expect(bagGemIds(bags, 'head')).toEqual([9001]);
   });
 
-  it('5-star main residual floors at zero when contribution exceeds requiredPower', () => {
-    const mg = main('head', 5001, 5, '6'); // requiredPower=850
-    const gem = inv(5002, 5, '7'); // contribution=2407 >> 850
-    expect(totalResidualFor([mg], perSlot({ head: [[0, gem]] }))).toBe(0);
-  });
-});
+  it('conserves a bonus gem needed by another main gem when a tied alternative exists', () => {
+    // "head" (processed first: same residual, lower index) has no use for
+    // either candidate; "chest" needs gem A to activate its own bonus. A
+    // and B tie exactly. head must spend B, leaving A free for chest.
+    const head = main('head', 5001, 5, '6');
+    const chest = main('chest', 5002, 5, '6');
+    const bonusTable = bonusMap({
+      5001: [0, 0, 0, 9099, 0], // head's requirement matches neither A nor B
+      5002: [0, 0, 0, 9002, 0], // chest requires A (gemId 9002)
+    });
+    const gemA = inv(9002, 5, '1'); // contribution 32
+    const gemB = inv(9001, 5, '1'); // contribution 32 -- identical signature, needed nowhere
+    const demand = computeBonusGemDemand([head, chest], bonusTable);
 
-describe('dormantPowerFor', () => {
-  it('only copies absent from ownedCopyIds contribute extractable gem power', () => {
-    const owned = inv(5002, 5, '1'); // requiredGemPower=0 -> extractable 0
-    const unownedA = inv(9999, 5, '5'); // requiredGemPower=475
-    const unownedB = inv(9998, 5, '6'); // requiredGemPower=850
-    const allCopies: CopyEntry[] = [
-      [0, owned],
-      [1, unownedA],
-      [2, unownedB],
-    ];
-    expect(dormantPowerFor(allCopies, new Set([0]))).toBe(475 + 850);
+    const bags = solveAssignment([head, chest], [gemA, gemB], bonusTable, demand);
+
+    expect(bagGemIds(bags, 'head')).toEqual([9001]); // B
+    expect(bagGemIds(bags, 'chest')).toEqual([9002]); // A, conserved for chest
+
+    const headSockets = assignSockets(head, bags.get('head') ?? [], bonusTable);
+    const chestSockets = assignSockets(chest, bags.get('chest') ?? [], bonusTable);
+    const totalBonuses = [...headSockets, ...chestSockets].filter((a) => a.bonusActivated).length;
+    expect(totalBonuses).toBe(1); // only chest activates; conservation makes this possible at all
   });
 
-  it('is zero when all copies are owned', () => {
-    const gem = inv(5002, 5, '6');
-    expect(dormantPowerFor([[0, gem]], new Set([0]))).toBe(0);
-  });
-});
-
-describe('maxBonusesForOwned', () => {
-  it('gem with no bonus requirements yields 0 regardless of owned gems', () => {
+  it('produces the same numeric outputs regardless of which of two tied gems is chosen', () => {
     const mg = main('head', 5001, 5, '6');
-    const bonusTable = bonusMap({ 5001: [0, 0, 0, 0, 0] });
-    const gem = inv(5002, 5, '1');
-    expect(maxBonusesForOwned(mg, [[0, gem]], bonusTable)).toBe(0);
-  });
+    const bonusTable = bonusMap({ 5001: [0, 0, 0, 9099, 0] }); // matches neither candidate
+    const gemA = inv(9001, 5, '1');
+    const gemB = inv(9002, 5, '1');
+    const demand = computeBonusGemDemand([mg], bonusTable);
 
-  it('a single exact gemId match activates one bonus', () => {
-    const mg = main('head', 5001, 5, '6'); // 4 sockets; socket 3 is 5-star
-    const bonusTable = bonusMap({ 5001: [0, 0, 0, 5002, 0] });
-    const gem = inv(5002, 5, '1');
-    expect(maxBonusesForOwned(mg, [[0, gem]], bonusTable)).toBe(1);
-  });
+    const sigOf = (bags: Map<string, CopyEntry[]>) =>
+      (bags.get('head') ?? []).map(([, gem]) => [gem.contribution, gem.activeStars, gem.rank]);
 
-  it('requirement present but no owned gem with that gemId -> 0 bonuses', () => {
-    const mg = main('head', 5001, 5, '6');
-    const bonusTable = bonusMap({ 5001: [0, 0, 0, 5002, 0] });
-    const gem = inv(5003, 5, '1'); // gemId=5003, not 5002
-    expect(maxBonusesForOwned(mg, [[0, gem]], bonusTable)).toBe(0);
-  });
+    const forward = solveAssignment([mg], [gemA, gemB], bonusTable, demand);
+    const reversed = solveAssignment([mg], [gemB, gemA], bonusTable, demand);
 
-  it('two sockets require the same gemId; owning one copy -> only 1 bonus', () => {
-    const mg = main('head', 5001, 5, '7'); // 5 sockets
-    const bonusTable = bonusMap({ 5001: [0, 0, 0, 5002, 5002] });
-    const gem = inv(5002, 5, '1');
-    expect(maxBonusesForOwned(mg, [[0, gem]], bonusTable)).toBe(1);
-  });
-
-  it('two sockets require the same gemId; owning two copies -> 2 bonuses', () => {
-    const mg = main('head', 5001, 5, '7');
-    const bonusTable = bonusMap({ 5001: [0, 0, 0, 5002, 5002] });
-    const gemA = inv(5002, 5, '1');
-    const gemB = inv(5002, 5, '3'); // different rank, same gemId
-    expect(
-      maxBonusesForOwned(
-        mg,
-        [
-          [0, gemA],
-          [1, gemB],
-        ],
-        bonusTable,
-      ),
-    ).toBe(2);
+    expect(sigOf(forward)).toEqual(sigOf(reversed));
   });
 });
 
-describe('redistributeForBonuses -- swap activates more bonuses (feasible)', () => {
-  it('cross-main swap of equal-contribution 5-star gems unlocks 2 new bonuses', () => {
-    const mgA = main('head', 5001, 5, '6');
-    const mgB = main('chest', 5002, 5, '6');
-
-    const inv5001Type = inv(5001, 5, '1'); // contribution=32
-    const inv5002Type = inv(5002, 5, '1'); // contribution=32
-
-    const per = perSlot({
-      head: [[0, inv5001Type]], // mg_a holds the 5001-type -> no bonus (needs 5002)
-      chest: [[1, inv5002Type]], // mg_b holds the 5002-type -> no bonus (needs 5001)
-    });
-    const bonusTable = bonusMap({ 5001: [0, 0, 0, 5002, 0], 5002: [0, 0, 0, 5001, 0] });
-    const availablePower = 5000;
+describe('fillEmptySockets -- bonus tie-break', () => {
+  it('a numeric tie on a 2-star main gem (never touched by solveAssignment) is broken by bonus activation', () => {
+    const mg = main('ring', 2001, 2, '5'); // 2 sockets: {0:1-star, 1:2-star} -- exactly one 2-star socket
+    const bonusTable = bonusMap({ 2001: [0, 7002] });
+    const bonusGem = inv(7002, 2, '7'); // contribution 291
+    const otherGem = inv(7001, 2, '7'); // contribution 291 -- identical signature
+    const demand = computeBonusGemDemand([mg], bonusTable);
     const allCopies: CopyEntry[] = [
-      [0, inv5001Type],
-      [1, inv5002Type],
+      [0, otherGem],
+      [1, bonusGem],
     ];
+    const empty = new Map<string, CopyEntry[]>([['ring', []]]);
 
-    const result = redistributeForBonuses([mgA, mgB], per, bonusTable, availablePower, allCopies);
+    const bags = fillEmptySockets([mg], empty, bonusTable, allCopies, demand);
 
-    const ownedHead = new Set(result.get('head')!.map(([, g]) => g.gemId));
-    const ownedChest = new Set(result.get('chest')!.map(([, g]) => g.gemId));
-    expect(ownedHead.has(5002)).toBe(true);
-    expect(ownedChest.has(5001)).toBe(true);
+    expect(bagGemIds(bags, 'ring')).toEqual([7002]);
+  });
 
-    const bonuses = maxBonusesForOwned(mgA, result.get('head')!, bonusTable) + maxBonusesForOwned(mgB, result.get('chest')!, bonusTable);
-    expect(bonuses).toBe(2);
+  it('a resonance tie is not a numeric tie -- contribution still decides, never the bonus', () => {
+    // Ranks "7" and "7.5" truncate to the same resonance bonus (2 x 7 = 14)
+    // but have different contribution (291 vs 386), so they never enter the
+    // same tie-break pool. The higher-contribution, non-bonus copy (given
+    // the lower copyId, matching today's stable-sort tie-break) must win.
+    // Rank "5" leaves exactly one 2-star socket unlocked, so only one of
+    // the two candidates below can be placed.
+    const mg = main('ring', 2001, 2, '5');
+    const bonusTable = bonusMap({ 2001: [0, 7002] });
+    const higherContribution = inv(7001, 2, '7.5'); // contribution 386, no bonus, copyId 0
+    const bonusMatch = inv(7002, 2, '7'); // contribution 291, activates the bonus, copyId 1
+    const demand = computeBonusGemDemand([mg], bonusTable);
+    const allCopies: CopyEntry[] = [
+      [0, higherContribution],
+      [1, bonusMatch],
+    ];
+    const empty = new Map<string, CopyEntry[]>([['ring', []]]);
+
+    const bags = fillEmptySockets([mg], empty, bonusTable, allCopies, demand);
+
+    expect(bagGemIds(bags, 'ring')).toEqual([7001]);
   });
 });
 
-describe('redistributeForBonuses -- swap blocked by feasibility', () => {
-  it('a swap that activates a bonus is rejected when it makes the plan infeasible', () => {
-    const mgA = main('head', 5001, 5, '6'); // requiredPower=850, 4 sockets
+describe('assignSockets -- socket materialization', () => {
+  it('places the matching gem into the socket it activates, not the lowest free socket', () => {
+    // 2-star main, sockets 1 and 2 share star type 2. Socket 2 requires
+    // gemId 7002; socket 1's requirement (7099) is absent from the bag.
+    const mg = main('ring', 2001, 2, '7');
+    const bonusTable = bonusMap({ 2001: [0, 7099, 7002] });
+    const matching: CopyEntry = [0, inv(7002, 2, '7')];
+    const nonMatching: CopyEntry = [1, inv(7003, 2, '7')]; // identical signature to `matching`
 
-    const invOwned = inv(9999, 5, '5'); // gemId=9999 (non-bonus), contribution=731
-    const invBonus = inv(5002, 5, '1'); // matches socket-3 req, contribution=32
+    const sockets = assignSockets(mg, [nonMatching, matching], bonusTable);
 
-    const per = perSlot({ head: [[0, invOwned]] });
-    const bonusTable = bonusMap({ 5001: [0, 0, 0, 5002, 0] });
-
-    // Starting residual: max(0, 850-731)=119, feasible w/ available=200.
-    // After swap: max(0, 850-32)=818 > 200 -> infeasible; must be blocked.
-    const availablePower = 200;
-    const allCopies: CopyEntry[] = [
-      [0, invOwned],
-      [1, invBonus],
-    ];
-
-    const result = redistributeForBonuses([mgA], per, bonusTable, availablePower, allCopies);
-
-    const ownedIds = new Set(result.get('head')!.map(([, g]) => g.gemId));
-    expect(ownedIds.has(9999)).toBe(true);
-    expect(ownedIds.has(5002)).toBe(false);
+    expect(sockets[2].gem?.gemId).toBe(7002);
+    expect(sockets[2].bonusActivated).toBe(true);
+    expect(sockets[1].gem?.gemId).toBe(7003);
+    expect(sockets[1].bonusActivated).toBe(false);
   });
 
-  it('allows the swap when outgoing dormant gem power covers the net-cost gap', () => {
-    const mgA = main('head', 5001, 5, '7'); // requiredPower=1575, 5 sockets
-
-    const invOwned = inv(9999, 5, '6'); // non-bonus, contribution=1298
-    const invBonus = inv(5002, 5, '1'); // matches socket-3 req, contribution=32
-
-    const per = perSlot({ head: [[0, invOwned]] });
-    const bonusTable = bonusMap({ 5001: [0, 0, 0, 5002, 0] });
-
-    const budget = 700;
-    const allCopies: CopyEntry[] = [
-      [0, invOwned],
-      [1, invBonus],
+  it('activates a bonus in each of two socket-star-type groups independently', () => {
+    const mg = main('head', 5001, 5, '7'); // 5 sockets: {0,1,2: 2-star; 3,4: 5-star}
+    const bonusTable = bonusMap({ 5001: [0, 0, 7002, 0, 9002] });
+    const bag: CopyEntry[] = [
+      [0, inv(7002, 2, '7')],
+      [1, inv(9002, 5, '1')],
     ];
 
-    const result = redistributeForBonuses([mgA], per, bonusTable, budget, allCopies);
+    const sockets = assignSockets(mg, bag, bonusTable);
 
-    const ownedIds = new Set(result.get('head')!.map(([, g]) => g.gemId));
-    expect(ownedIds.has(5002)).toBe(true);
-    expect(ownedIds.has(9999)).toBe(false);
-  });
-});
-
-describe('redistributeForBonuses -- pull in unassigned gem', () => {
-  it('swapping a socketed non-bonus gem for an unassigned bonus gem gains 1 bonus', () => {
-    const mgA = main('head', 5001, 5, '6');
-
-    const invNonBonus = inv(9998, 5, '1'); // no bonus
-    const invBonus = inv(5002, 5, '1'); // activates bonus
-
-    const per = perSlot({ head: [[0, invNonBonus]] });
-    const bonusTable = bonusMap({ 5001: [0, 0, 0, 5002, 0] });
-    const availablePower = 5000;
-    const allCopies: CopyEntry[] = [
-      [0, invNonBonus],
-      [1, invBonus],
-    ];
-
-    const result = redistributeForBonuses([mgA], per, bonusTable, availablePower, allCopies);
-
-    const ownedIds = new Set(result.get('head')!.map(([, g]) => g.gemId));
-    expect(ownedIds.has(5002)).toBe(true);
-    expect(ownedIds.has(9998)).toBe(false);
-
-    expect(maxBonusesForOwned(mgA, result.get('head')!, bonusTable)).toBe(1);
-  });
-});
-
-describe('redistributeForBonuses -- star-type constraint respected', () => {
-  it('a 2-star gem matching a 5-star socket requirement is never swapped into that group', () => {
-    const mgA = main('head', 5001, 5, '6'); // sockets 0-2: 2-star, socket 3: 5-star
-
-    const invOwned5star = inv(9998, 5, '1');
-    const invWrongStar = inv(5002, 2, '1'); // 2-star gemId=5002; star mismatch for socket 3
-
-    const per = perSlot({ head: [[0, invOwned5star]] });
-    const bonusTable = bonusMap({ 5001: [0, 0, 0, 5002, 0] });
-    const availablePower = 5000;
-    const allCopies: CopyEntry[] = [
-      [0, invOwned5star],
-      [1, invWrongStar],
-    ];
-
-    const result = redistributeForBonuses([mgA], per, bonusTable, availablePower, allCopies);
-
-    const owned = result.get('head')!;
-    const starRatingsOwned = owned.map(([, g]) => g.starRating);
-    expect(starRatingsOwned).not.toContain(2);
-    expect(owned.length).toBe(1);
-    expect(owned[0][1].starRating).toBe(5);
-  });
-});
-
-describe('redistributeForBonuses -- no-op and idempotence', () => {
-  it('equals the input when no swap can increase total bonuses', () => {
-    const mgA = main('head', 5001, 5, '6');
-    const invBonus = inv(5002, 5, '1');
-    const per = perSlot({ head: [[0, invBonus]] });
-    const bonusTable = bonusMap({ 5001: [0, 0, 0, 5002, 0] });
-    const availablePower = 5000;
-    const allCopies: CopyEntry[] = [[0, invBonus]];
-
-    const result = redistributeForBonuses([mgA], per, bonusTable, availablePower, allCopies);
-    expect(result).toEqual(perSlot({ head: [[0, invBonus]] }));
+    expect(sockets.filter((s) => s.bonusActivated)).toHaveLength(2);
   });
 
-  it('running twice gives the same result as running once', () => {
-    const mgA = main('head', 5001, 5, '6');
-    const mgB = main('chest', 5002, 5, '6');
-    const inv5001Type = inv(5001, 5, '1');
-    const inv5002Type = inv(5002, 5, '1');
-    const per = perSlot({
-      head: [[0, inv5001Type]],
-      chest: [[1, inv5002Type]],
-    });
-    const bonusTable = bonusMap({ 5001: [0, 0, 0, 5002, 0], 5002: [0, 0, 0, 5001, 0] });
-    const availablePower = 5000;
-    const allCopies: CopyEntry[] = [
-      [0, inv5001Type],
-      [1, inv5002Type],
-    ];
+  it('leaves unfilled unlocked sockets as empty placeholders', () => {
+    const mg = main('head', 5001, 5, '6'); // 4 sockets, none filled
+    const bonusTable = bonusMap({ 5001: [0, 0, 0, 9002, 0] });
 
-    const once = redistributeForBonuses([mgA, mgB], per, bonusTable, availablePower, allCopies);
-    const twice = redistributeForBonuses([mgA, mgB], once, bonusTable, availablePower, allCopies);
-    expect(once).toEqual(twice);
-  });
-});
+    const sockets = assignSockets(mg, [], bonusTable);
 
-describe('redistributeForBonuses -- 2-star swaps always feasible', () => {
-  it('swapping 2-star gems between two 2-star main gems never changes residual', () => {
-    const mgA = main('a', 2001, 2, '7'); // requiredPower=235; socket 1 needs 2003
-    const mgB = main('b', 2002, 2, '7'); // requiredPower=235; socket 1 needs 2001
-
-    const inv2001 = inv(2001, 2, '1');
-    const inv2003 = inv(2003, 2, '1');
-
-    const per = perSlot({
-      a: [[0, inv2001]],
-      b: [[1, inv2003]],
-    });
-    const bonusTable = bonusMap({ 2001: [1007, 2003, 2004], 2002: [1017, 2001, 2005] });
-
-    const availablePower = 0; // 2-star mains are immune to residual changes
-    const allCopies: CopyEntry[] = [
-      [0, inv2001],
-      [1, inv2003],
-    ];
-
-    const result = redistributeForBonuses([mgA, mgB], per, bonusTable, availablePower, allCopies);
-
-    const ownedA = new Set(result.get('a')!.map(([, g]) => g.gemId));
-    const ownedB = new Set(result.get('b')!.map(([, g]) => g.gemId));
-    expect(ownedA.has(2003)).toBe(true);
-    expect(ownedB.has(2001)).toBe(true);
-
-    const bonusesA = maxBonusesForOwned(mgA, result.get('a')!, bonusTable);
-    const bonusesB = maxBonusesForOwned(mgB, result.get('b')!, bonusTable);
-    expect(bonusesA + bonusesB).toBe(2);
+    expect(sockets).toHaveLength(4);
+    expect(sockets.every((s) => s.gem === null && s.copyId === -1 && !s.bonusActivated)).toBe(true);
   });
 });
 
 describe('end-to-end via runPipeline', () => {
-  it('produces correct bonuses after cross-gem redistribution', () => {
+  it('is deterministic across repeated runs on the same input', () => {
     const mainGems = [main('head', 5001, 5, '6'), main('chest', 5002, 5, '6')];
+    const inventory = [
+      makeInventoryGem({ gemId: 5001, starRating: 5, rank: '1', quantity: 1, activeStars: 2, contribution: 32 }),
+      makeInventoryGem({ gemId: 5002, starRating: 5, rank: '1', quantity: 1, activeStars: 2, contribution: 32 }),
+    ];
 
+    const first = runPipeline(5000, mainGems, [], inventory);
+    const second = runPipeline(5000, mainGems, [], inventory);
+
+    expect(JSON.stringify([...first.gemAssignments])).toEqual(JSON.stringify([...second.gemAssignments]));
+    expect(first.totalResidualCost).toBe(second.totalResidualCost);
+  });
+
+  it('assigns each main gem the copy it needs to activate its own bonus, even when supplied in the wrong order', () => {
+    // gem 5001 ("Phoenix Ashes") and 5002 ("Chip of Stone Flesh") each
+    // require a copy of the other's type at their 5-star socket. The two
+    // available copies are numerically tied (same contribution), so
+    // solveAssignment's tie-break -- prefer a copy that activates the
+    // target main gem's own still-unclaimed requirement -- assigns each
+    // copy to the main gem that needs it.
+    const mainGems = [main('head', 5001, 5, '6'), main('chest', 5002, 5, '6')];
     const inv5001Type = makeInventoryGem({ gemId: 5001, starRating: 5, rank: '1', quantity: 1, activeStars: 2, contribution: 32 });
     const inv5002Type = makeInventoryGem({ gemId: 5002, starRating: 5, rank: '1', quantity: 1, activeStars: 2, contribution: 32 });
     const inventory = [inv5001Type, inv5002Type];
