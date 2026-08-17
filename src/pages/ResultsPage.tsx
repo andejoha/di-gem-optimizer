@@ -14,6 +14,7 @@ import { useGemData } from '../contexts/useGemData';
 import type { CodecState } from '../utils/setupCodec';
 import { encodeSetup } from '../utils/setupCodec';
 import { SLOT_ORDER } from '../utils/gearAssets';
+import { LOGO_URL } from '../utils/publicAssets';
 import SummaryCard from '../components/results/SummaryCard';
 import UpgradesSection from '../components/results/UpgradesSection';
 import GearSlotResult from '../components/results/GearSlotResult';
@@ -125,7 +126,7 @@ export default function ResultsPage() {
       {/* Mobile header */}
       <Box sx={{ display: { xs: 'flex', md: 'none' }, flexDirection: 'column', alignItems: 'center', gap: 1.5, mb: 3 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <Box component="img" src="/logo.png" onClick={() => navigate('/')} sx={{ height: 66, width: 'auto', cursor: 'pointer' }} />
+          <Box component="img" src={LOGO_URL} onClick={() => navigate('/')} sx={{ height: 66, width: 'auto', cursor: 'pointer' }} />
           <Typography variant="h5" sx={{ fontWeight: 'bold', lineHeight: 1 }}>
             Optimization Results
           </Typography>
@@ -150,7 +151,7 @@ export default function ResultsPage() {
           <TextButton size="s" variant="secondary" scale={0.7} onClick={() => setExportOpen(true)}>
             Export
           </TextButton>
-          <Box component="img" src="/logo.png" onClick={() => navigate('/')} sx={{ height: 66, width: 'auto', cursor: 'pointer' }} />
+          <Box component="img" src={LOGO_URL} onClick={() => navigate('/')} sx={{ height: 66, width: 'auto', cursor: 'pointer' }} />
         </Box>
       </Box>
       <Stack spacing={3}>

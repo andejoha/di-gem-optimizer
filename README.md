@@ -13,6 +13,17 @@ npm run build
 
 This produces `dist/` — a set of static files deployable to any static host (Azure Static Web Apps, GitHub Pages, Netlify, S3 + CloudFront, a plain nginx box, etc.). Configure your host's SPA fallback to serve `index.html` for unknown paths (equivalent to `try_files $uri $uri/ /index.html` — see `nginx.conf.template` for the reference configuration this project uses in Docker).
 
+If the app is served from a subpath rather than the domain root (e.g. a GitHub Pages project page),
+build with `VITE_BASE=/<subpath>/ npm run build` so Vite emits asset URLs and the router basename
+correctly.
+
+## GitHub Pages
+
+Live at [andejoha.github.io/di-gem-optimizer](https://andejoha.github.io/di-gem-optimizer/), deployed
+automatically on every push to `main` by `.github/workflows/pages.yml`, which builds with
+`VITE_BASE=/di-gem-optimizer/` and publishes `dist/` via the GitHub Pages Actions integration
+(repo Settings → Pages → Source: GitHub Actions).
+
 ## Docker
 
 A thin `nginx:alpine` image serving the built static files, for environments that expect a container (e.g. Azure App Service Web App for Containers). Requires [Docker](https://docs.docker.com/get-docker/).

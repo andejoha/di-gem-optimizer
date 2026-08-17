@@ -6,6 +6,7 @@ import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useTheme } from '@mui/material/styles';
 import TextButton from '../buttons/TextButton';
+import { LOGO_URL } from '../../utils/publicAssets';
 
 interface WelcomeDialogProps {
   open: boolean;
@@ -31,7 +32,7 @@ export default function WelcomeDialog({ open, onOpenTutorial, onClose }: Welcome
           py: 4,
         }}
       >
-        <Box component="img" src="/logo.png" sx={{ height: 200, width: 'auto' }} />
+        <Box component="img" src={LOGO_URL} sx={{ height: 200, width: 'auto' }} />
         <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
           Gem Optimizer
         </Typography>

@@ -18,6 +18,7 @@ import IconButton from '../components/buttons/IconButton';
 import SettingsPopover from '../components/toolbar/SettingsPopover';
 import WelcomeDialog from '../components/tutorial/WelcomeDialog';
 import TutorialDialog from '../components/tutorial/TutorialDialog';
+import { LOGO_URL } from '../utils/publicAssets';
 import ImportExportDialog from '../components/toolbar/ImportExportDialog';
 import type { InventoryGemStack } from '../types/inventory';
 import { allStacksToInventoryItems } from '../types/inventory';
@@ -171,7 +172,7 @@ export default function HomePage() {
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Box component="img" src="/logo.png" sx={{ height: 66, width: 'auto' }} />
+          <Box component="img" src={LOGO_URL} sx={{ height: 66, width: 'auto' }} />
           <Typography variant="h5" sx={{ fontWeight: 'bold', lineHeight: 1 }}>
             Gem Optimizer
           </Typography>

@@ -28,6 +28,9 @@ npm run test:watch      # vitest watch mode
 
 Run a single test file: `npx vitest run test/core/optimizer.test.ts`. CI (`.github/workflows/ci.yml`)
 runs lint, format:check, build, then test, in that order — match that order locally before pushing.
+`ci.yml` is a reusable workflow (`pull_request` + `workflow_call`): PRs run it directly, and
+`.github/workflows/pages.yml` calls it on every push to `main` with `vite_base: /di-gem-optimizer/`
+and `upload_pages_artifact: true` before deploying — see Deployment below.
 
 There are two separate TS project configs: `tsconfig.app.json` (src/, DOM types) and
 `tsconfig.test.json` (test/, node types). `vitest.config.ts` runs tests under plain node with no DOM,
@@ -112,8 +115,19 @@ change itself** — an unreviewed regeneration defeats the purpose of the suite.
 
 ## Deployment
 
-Static site — `npm run build` produces `dist/`, deployable to any static host. `Dockerfile` +
-`nginx.conf.template` package it as `nginx:alpine` for container-based hosts (e.g. Azure App Service
-Web App for Containers); see `README.md` for Docker/multi-arch build details. The SPA fallback
-(`try_files $uri $uri/ /index.html`) means any unknown path returns 200 — health checks must target
-`/healthz`, a real static endpoint, not `/`.
+Static site — `npm run build` produces `dist/`, deployable to any static host. The Vite `base`
+(`vite.config.ts`) defaults to `/` but is overridable via the `VITE_BASE` env var for hosts that
+serve the app from a subpath; when it's non-root, `src/main.tsx` passes it to `BrowserRouter` as
+`basename`, and the few `/logo.png` references use `import.meta.env.BASE_URL` instead of a hardcoded
+absolute path.
+
+`Dockerfile` + `nginx.conf.template` package it as `nginx:alpine` for container-based hosts (e.g.
+Azure App Service Web App for Containers); see `README.md` for Docker/multi-arch build details. The
+SPA fallback (`try_files $uri $uri/ /index.html`) means any unknown path returns 200 — health checks
+must target `/healthz`, a real static endpoint, not `/`.
+
+GitHub Pages (`.github/workflows/pages.yml`) deploys on every push to `main`: it calls the reusable
+`ci.yml` with `vite_base: /di-gem-optimizer/` and `upload_pages_artifact: true`, then
+`actions/deploy-pages@v4` publishes the artifact. `ci.yml` copies `dist/index.html` to `dist/404.html`
+when uploading the Pages artifact — GitHub Pages has no server-side rewrite, so that copy is the SPA
+fallback equivalent to nginx's `try_files`.
