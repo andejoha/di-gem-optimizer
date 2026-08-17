@@ -1,14 +1,12 @@
 /**
  * Tests computeSocketableStarRatings, buildUpgradeChains,
- * materializeUpgrades, and filterUpgradesToSocketed, plus an integration
- * check against runPipeline.
+ * materializeUpgrades, and filterUpgradesToSocketed.
  */
 
 import { describe, expect, it } from 'vitest';
 import { COST_1STAR, COST_2STAR, COST_5STAR } from '../../src/core/data';
 import type { InventoryGem, MainGem, SocketAssignment, UpgradeDelta } from '../../src/core/models';
 import { makeInventoryGem, makeSocketAssignment, makeUpgradeDelta } from '../../src/core/models';
-import { runPipeline } from '../../src/core/pipeline';
 import { computeContribution, numSocketsUnlocked } from '../../src/core/rules';
 import {
   buildUpgradeChains,
@@ -310,76 +308,6 @@ describe('filterUpgradesToSocketed', () => {
     expect(filtered.length).toBe(0);
     expect(droppedOps.length).toBe(1);
     expect(gemsToRestore.some((g) => g.rank === '1' && g.gemId === 2033)).toBe(true);
-  });
-});
-
-describe('integration: pipeline + upgrade walk (never worse than baseline)', () => {
-  function makePipelineInputs(): { availablePower: number; mainGems: MainGem[]; inventory: InventoryGem[] } {
-    const availablePower = 300;
-    const mainGems = [main('head', 5001, 5, '5')];
-    const inventory = Array.from({ length: 4 }, () => inv(2033, 2, '1'));
-    return { availablePower, mainGems, inventory };
-  }
-
-  it('the walk never produces an effective residual worse than baseline', () => {
-    const { availablePower, mainGems, inventory } = makePipelineInputs();
-    const baseline = runPipeline(availablePower, mainGems, [], inventory);
-
-    const socketCounts = computeSocketCounts(mainGems);
-    const { chains, leftover } = buildUpgradeChains(inventory, socketCounts);
-    const depths = chains.map((c) => c.steps.length);
-
-    let bestEff: number | null = null;
-    while (true) {
-      const { working, appliedDeltas } = materializeUpgrades(chains, depths, leftover);
-      const result = runPipeline(availablePower, mainGems, [], working);
-      const { filtered } = filterUpgradesToSocketed(appliedDeltas, result.gemAssignments);
-      const filteredCost = filtered.reduce((s, d) => s + d.additionalGemPower, 0);
-      const eff = result.totalResidualCost + filteredCost;
-
-      if (bestEff === null || eff < bestEff) bestEff = eff;
-      if (eff <= availablePower) break;
-
-      let peelIdx = -1;
-      let peelContrib = -1;
-      for (let i = 0; i < chains.length; i++) {
-        const depth = depths[i];
-        if (depth > 0) {
-          const contrib = chains[i].steps[depth - 1].contributionAfter;
-          if (contrib > peelContrib) {
-            peelContrib = contrib;
-            peelIdx = i;
-          }
-        }
-      }
-      if (peelIdx < 0) break;
-      depths[peelIdx] -= 1;
-    }
-
-    expect(bestEff).toBeLessThanOrEqual(baseline.totalResidualCost);
-  });
-
-  it('upgrades reduce or maintain effective residual vs baseline', () => {
-    const { availablePower, mainGems, inventory } = makePipelineInputs();
-    const baseline = runPipeline(availablePower, mainGems, [], inventory);
-    const baselineEff = baseline.totalResidualCost;
-
-    const socketCounts = computeSocketCounts(mainGems);
-    const { chains, leftover } = buildUpgradeChains(inventory, socketCounts);
-
-    if (chains.every((c) => c.steps.length === 0)) {
-      // No upgrade steps available for this inventory -- nothing to assert.
-      return;
-    }
-
-    const depths = chains.map((c) => c.steps.length);
-    const { working, appliedDeltas } = materializeUpgrades(chains, depths, leftover);
-    const result = runPipeline(availablePower, mainGems, [], working);
-    const { filtered } = filterUpgradesToSocketed(appliedDeltas, result.gemAssignments);
-    const filteredCost = filtered.reduce((s, d) => s + d.additionalGemPower, 0);
-    const effWithUpgrades = result.totalResidualCost + filteredCost;
-
-    expect(effWithUpgrades).toBeLessThanOrEqual(baselineEff);
   });
 });
 

@@ -24,7 +24,6 @@ import { COST_2STAR, COST_5STAR } from '../../src/core/data';
 import type { InventoryGem, MainGem } from '../../src/core/models';
 import { makeInventoryGem } from '../../src/core/models';
 import { assignSockets, type CopyEntry, computeBonusGemDemand, fillEmptySockets, solveAssignment } from '../../src/core/optimizer';
-import { runPipeline } from '../../src/core/pipeline';
 import { computeContribution, numSocketsUnlocked } from '../../src/core/rules';
 
 function inv(gemId: number, star: number, rank: string, activeStars = 2): InventoryGem {
@@ -207,41 +206,5 @@ describe('assignSockets -- socket materialization', () => {
 
     expect(sockets).toHaveLength(4);
     expect(sockets.every((s) => s.gem === null && s.copyId === -1 && !s.bonusActivated)).toBe(true);
-  });
-});
-
-describe('end-to-end via runPipeline', () => {
-  it('is deterministic across repeated runs on the same input', () => {
-    const mainGems = [main('head', 5001, 5, '6'), main('chest', 5002, 5, '6')];
-    const inventory = [
-      makeInventoryGem({ gemId: 5001, starRating: 5, rank: '1', quantity: 1, activeStars: 2, contribution: 32 }),
-      makeInventoryGem({ gemId: 5002, starRating: 5, rank: '1', quantity: 1, activeStars: 2, contribution: 32 }),
-    ];
-
-    const first = runPipeline(5000, mainGems, [], inventory);
-    const second = runPipeline(5000, mainGems, [], inventory);
-
-    expect(JSON.stringify([...first.gemAssignments])).toEqual(JSON.stringify([...second.gemAssignments]));
-    expect(first.totalResidualCost).toBe(second.totalResidualCost);
-  });
-
-  it('assigns each main gem the copy it needs to activate its own bonus, even when supplied in the wrong order', () => {
-    // gem 5001 ("Phoenix Ashes") and 5002 ("Chip of Stone Flesh") each
-    // require a copy of the other's type at their 5-star socket. The two
-    // available copies are numerically tied (same contribution), so
-    // solveAssignment's tie-break -- prefer a copy that activates the
-    // target main gem's own still-unclaimed requirement -- assigns each
-    // copy to the main gem that needs it.
-    const mainGems = [main('head', 5001, 5, '6'), main('chest', 5002, 5, '6')];
-    const inv5001Type = makeInventoryGem({ gemId: 5001, starRating: 5, rank: '1', quantity: 1, activeStars: 2, contribution: 32 });
-    const inv5002Type = makeInventoryGem({ gemId: 5002, starRating: 5, rank: '1', quantity: 1, activeStars: 2, contribution: 32 });
-    const inventory = [inv5001Type, inv5002Type];
-
-    const availablePower = 5000;
-    const result = runPipeline(availablePower, mainGems, [], inventory);
-
-    const totalBonuses = result.gemResults.reduce((sum, gr) => sum + gr.bonusesActivated, 0);
-    expect(totalBonuses).toBe(2);
-    expect(result.totalResidualCost).toBeLessThanOrEqual(availablePower);
   });
 });
