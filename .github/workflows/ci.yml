@@ -1,9 +1,15 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
+  workflow_call:
+    inputs:
+      vite_base:
+        type: string
+        default: '/'
+      upload_pages_artifact:
+        type: boolean
+        default: false
 
 jobs:
   build:
@@ -18,4 +24,12 @@ jobs:
       - run: npm run lint
       - run: npm run format:check
       - run: npm run build
+        env:
+          VITE_BASE: ${{ inputs.vite_base || '/' }}
       - run: npm test
+      - if: ${{ inputs.upload_pages_artifact }}
+        run: cp dist/index.html dist/404.html
+      - if: ${{ inputs.upload_pages_artifact }}
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist
