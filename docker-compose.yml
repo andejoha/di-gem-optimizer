@@ -5,7 +5,7 @@ services:
       platforms:
         - linux/amd64
         - linux/arm64
-    image: di-gem-optimizer:latest
-    container_name: di-gem-optimizer
+    image: macs-gem-optimizer:latest
+    container_name: macs-gem-optimizer
     ports:
       - '0.0.0.0:8080:8080'

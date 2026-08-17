@@ -79,7 +79,7 @@ jobs:
     if: needs.version.outputs.release == 'true'
     uses: ./.github/workflows/ci.yml
     with:
-      vite_base: /di-gem-optimizer/
+      vite_base: /macs-gem-optimizer/
       upload_pages_artifact: true
 
   deploy:
