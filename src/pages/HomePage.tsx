@@ -174,7 +174,7 @@ export default function HomePage() {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Box component="img" src={LOGO_URL} sx={{ height: 66, width: 'auto' }} />
           <Typography variant="h5" sx={{ fontWeight: 'bold', lineHeight: 1 }}>
-            Gem Optimizer
+            Mac's Gem Optimizer
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
