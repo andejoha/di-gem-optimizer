@@ -4,6 +4,12 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      release_type:
+        description: Version part to bump. This is the only way to cut a major release.
+        type: choice
+        options: [major, minor, patch]
+        default: major
 
 permissions:
   contents: read
@@ -15,14 +21,70 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Determines whether this run releases, and which version part it bumps.
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      release: ${{ steps.version.outputs.release }}
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: version
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          DISPATCH_RELEASE_TYPE: ${{ inputs.release_type }}
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          set -euo pipefail
+
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            bump="$DISPATCH_RELEASE_TYPE"
+          else
+            title="$(head -n1 <<<"$COMMIT_MESSAGE" | tr '[:upper:]' '[:lower:]')"
+            case "$title" in
+              feature*) bump=minor ;;
+              hotfix*) bump=patch ;;
+              *)
+                echo "Commit title does not start with 'feature' or 'hotfix' — skipping release."
+                echo "release=false" >>"$GITHUB_OUTPUT"
+                exit 0
+                ;;
+            esac
+          fi
+
+          current="$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' | sort -V | tail -n1)"
+          current="${current:-v0.0.0}"
+          IFS='.' read -r major minor patch <<<"${current#v}"
+
+          case "$bump" in
+            major) major=$((major + 1)); minor=0; patch=0 ;;
+            minor) minor=$((minor + 1)); patch=0 ;;
+            patch) patch=$((patch + 1)) ;;
+          esac
+
+          tag="v${major}.${minor}.${patch}"
+
+          if git rev-parse "$tag" >/dev/null 2>&1; then
+            echo "Tag $tag already exists — refusing to overwrite it." >&2
+            exit 1
+          fi
+
+          echo "release=true" >>"$GITHUB_OUTPUT"
+          echo "tag=$tag" >>"$GITHUB_OUTPUT"
+
   ci:
+    needs: version
+    if: needs.version.outputs.release == 'true'
     uses: ./.github/workflows/ci.yml
     with:
       vite_base: /di-gem-optimizer/
       upload_pages_artifact: true
 
   deploy:
-    needs: ci
+    needs: [version, ci]
+    if: needs.version.outputs.release == 'true'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -30,3 +92,27 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v5
+
+  # Publishes a GitHub Release for the tag, marked latest, with dist.zip attached.
+  release:
+    needs: [version, deploy]
+    if: needs.version.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-dist
+          path: dist
+      - working-directory: dist
+        run: zip -r ../dist.zip .
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.version.outputs.tag }}
+        run: |
+          gh release create "$TAG" dist.zip \
+            --target "$GITHUB_SHA" \
+            --title "$TAG" \
+            --generate-notes \
+            --latest

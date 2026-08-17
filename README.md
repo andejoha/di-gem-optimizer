@@ -20,9 +20,28 @@ correctly.
 ## GitHub Pages
 
 Live at [andejoha.github.io/di-gem-optimizer](https://andejoha.github.io/di-gem-optimizer/), deployed
-automatically on every push to `main` by `.github/workflows/pages.yml`, which builds with
-`VITE_BASE=/di-gem-optimizer/` and publishes `dist/` via the GitHub Pages Actions integration
-(repo Settings → Pages → Source: GitHub Actions).
+by `.github/workflows/pages.yml`, which builds with `VITE_BASE=/di-gem-optimizer/` and publishes
+`dist/` via the GitHub Pages Actions integration (repo Settings → Pages → Source: GitHub Actions).
+
+### Releases
+
+Not every push to `main` deploys. The workflow only ships (and cuts a `vX.Y.Z` release) when the
+commit title starts with:
+
+- `feature` — bumps the **minor** version (new functionality)
+- `hotfix` — bumps the **patch** version (a fix)
+
+Any other commit title is skipped entirely — no build, no deploy. Since merging a PR with squash
+merge uses the PR title as the commit title, that title is what has to start with `feature`/`hotfix`
+to ship.
+
+Bumping the **major** version requires manually running the workflow (Actions → Deploy to GitHub
+Pages → Run workflow) and choosing `major` from the dropdown — the only way to cut one. The dropdown
+also offers `minor`/`patch` for a manual run of those.
+
+Each release is published on the [Releases page](../../releases), marked as the latest release, with
+auto-generated notes and a `dist.zip` asset — a `VITE_BASE=/` build that can be unzipped and served
+from any static host or the domain root.
 
 ## Docker
 

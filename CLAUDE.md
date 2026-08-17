@@ -14,6 +14,11 @@ The game rules the optimizer is meant to encode (gem power, sockets, resonance, 
 upgrades) are specified independently of the implementation in `docs/SPEC.md` — consult it when a
 change is about _what the app should do_, not just how the current code does it.
 
+## Commit titles
+
+Start every commit title with `feature` (new functionality) or `hotfix` (a fix) unless the change
+should not trigger a release — see Deployment below for how these prefixes drive `pages.yml`.
+
 ## Commands
 
 ```bash
@@ -126,8 +131,16 @@ Azure App Service Web App for Containers); see `README.md` for Docker/multi-arch
 SPA fallback (`try_files $uri $uri/ /index.html`) means any unknown path returns 200 — health checks
 must target `/healthz`, a real static endpoint, not `/`.
 
-GitHub Pages (`.github/workflows/pages.yml`) deploys on every push to `main`: it calls the reusable
-`ci.yml` with `vite_base: /di-gem-optimizer/` and `upload_pages_artifact: true`, then
-`actions/deploy-pages@v4` publishes the artifact. `ci.yml` copies `dist/index.html` to `dist/404.html`
+GitHub Pages (`.github/workflows/pages.yml`) deploys on pushes to `main` whose commit title starts
+with `feature` (bumps the minor version) or `hotfix` (bumps the patch version); any other commit
+title skips the workflow. `workflow_dispatch` bumps `major`, `minor`, or `patch` on demand (`major`
+defaulting there) and is the only way to cut a major release. Four jobs run in sequence: `version`
+computes the next `vX.Y.Z` tag from the highest existing tag (`v0.0.0` if none exist) and short-circuits
+the rest of the workflow when the commit title doesn't match; `ci` calls the reusable `ci.yml` with
+`vite_base: /di-gem-optimizer/` and `upload_pages_artifact: true`; `deploy` publishes the artifact via
+`actions/deploy-pages@v5`; `release` publishes a GitHub Release for the computed tag, marked latest,
+with auto-generated notes and a `dist.zip` asset. `ci.yml` copies `dist/index.html` to `dist/404.html`
 when uploading the Pages artifact — GitHub Pages has no server-side rewrite, so that copy is the SPA
-fallback equivalent to nginx's `try_files`.
+fallback equivalent to nginx's `try_files`. The same `upload_pages_artifact` input also triggers a
+second build with `VITE_BASE=/`, uploaded as the `release-dist` artifact, which `release` zips into
+`dist.zip`.
