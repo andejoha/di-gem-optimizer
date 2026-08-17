@@ -34,7 +34,7 @@ export default function WelcomeDialog({ open, onOpenTutorial, onClose }: Welcome
       >
         <Box component="img" src={LOGO_URL} sx={{ height: 200, width: 'auto' }} />
         <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
-          Gem Optimizer
+          Mac's Gem Optimizer
         </Typography>
         <Typography variant="body2" color="text.secondary">
           Optimize your Diablo Immortal legendary gem setup. This tool is designed to maximize the gem power benefit from the awakening
