@@ -1,6 +1,6 @@
 # Mac's Gem Optimizer
 
-Optimizes the assignment of inventory gems into awakening sockets of equipped gems, minimizing the gem power drawn from the player's pool. Uses a greedy closest-fit heuristic — assigning the gem whose provided power best matches each main gem's remaining cost — followed by bonus-targeting socket fills and intra-gem reordering to maximize resonance bonus activations.
+A **Diablo Immortal** legendary gem optimizer. Optimizes the assignment of inventory gems into awakening sockets of equipped gems, minimizing the gem power drawn from the player's pool. Uses a greedy closest-fit heuristic — assigning the gem whose provided power best matches each main gem's remaining cost — followed by bonus-targeting socket fills and intra-gem reordering to maximize resonance bonus activations.
 
 The optimizer runs entirely in your browser (in a Web Worker, so the UI stays responsive during the heaviest upgrade-search runs) — there is no backend server. The app is a static site: build it, host the files anywhere, done.
 
