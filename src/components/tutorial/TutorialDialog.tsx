@@ -70,19 +70,20 @@ const FEATURE_HELP: { title: ReactNode; body: ReactNode }[] = [
   },
 ];
 
-const STEP_DESCRIPTIONS_STATIC: ReactNode[] = [
-  <>Use "Power Extraction" to extract power from gems you want to use. This makes the gems dormant and places them into your inventory.</>,
-  <>Equip the dormant gems again. Make sure there's no gem power left in any of the gems.</>,
-  <>Add the gems you want to use in the gear section with the correct star level and rank.</>,
-  <>
-    Add available gems in the inventory section by clicking an empty slot or the <InlineIcon src={plusIcon} alt="+" /> button. Only add
-    awakened gems. Also add your gem fragment count.
-  </>,
-  <>
-    Access optional settings via the <InlineIcon src={cogIcon} alt="settings" /> button:
+/** Renders `FEATURE_HELP` as accordions, at most one of which is expanded at a time. */
+function FeatureAccordionList() {
+  const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
+
+  return (
     <Box sx={{ mt: 1 }}>
       {FEATURE_HELP.map((feature, index) => (
-        <Accordion key={index} disableGutters sx={{ '&:before': { display: 'none' } }}>
+        <Accordion
+          key={index}
+          disableGutters
+          expanded={expandedIndex === index}
+          onChange={(_, isExpanded) => setExpandedIndex(isExpanded ? index : null)}
+          sx={{ '&:before': { display: 'none' } }}
+        >
           <AccordionSummary expandIcon={<ExpandMoreIcon fontSize="small" />}>
             <Typography variant="body2" sx={{ fontWeight: 600 }}>
               {feature.title}
@@ -96,6 +97,20 @@ const STEP_DESCRIPTIONS_STATIC: ReactNode[] = [
         </Accordion>
       ))}
     </Box>
+  );
+}
+
+const STEP_DESCRIPTIONS_STATIC: ReactNode[] = [
+  <>Use "Power Extraction" to extract power from gems you want to use. This makes the gems dormant and places them into your inventory.</>,
+  <>Equip the dormant gems again. Make sure there's no gem power left in any of the gems.</>,
+  <>Add the gems you want to use in the gear section with the correct star level and rank.</>,
+  <>
+    Add available gems in the inventory section by clicking an empty slot or the <InlineIcon src={plusIcon} alt="+" /> button. Only add
+    awakened gems. Also add your gem fragment count.
+  </>,
+  <>
+    Access optional settings via the <InlineIcon src={cogIcon} alt="settings" /> button:
+    <FeatureAccordionList />
     <Alert severity="warning" sx={{ mt: 1.5 }}>
       <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 0.5 }}>
         CAUTION: Understand the system before acting on suggestions
