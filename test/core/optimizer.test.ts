@@ -3,12 +3,15 @@
  * computeBonusGemDemand in core/optimizer.ts directly, with no dependency
  * on any worker/UI layer.
  *
- * Bonus activation is a tie-break, never a priority: the optimizer picks a
- * gem by its normal power-fit/resonance criterion, and only when several
- * candidates are numerically indistinguishable (identical contribution and
- * activeStars) does it prefer one that activates a bonus, then one not
- * still needed as a bonus gem by another main gem. See docs/SPEC.md
- * ("Bonus activation").
+ * In bonus mode 'off' (the default, and what every test below exercises
+ * unless noted), bonus activation is a tie-break, never a priority: the
+ * optimizer picks a gem by its normal power-fit/resonance criterion, and
+ * only when several candidates are numerically indistinguishable (identical
+ * contribution and activeStars) does it prefer one that activates a bonus,
+ * then one not still needed as a bonus gem by another main gem. See
+ * docs/SPEC.md ("Bonus activation"). Bonus mode 'forced' changes this --
+ * see the "forced bonus mode" describe block below and docs/SPEC.md ("Bonus
+ * activation modes").
  *
  * Known reference values:
  *   5-star rank "1"  contribution = 32
@@ -165,6 +168,48 @@ describe('fillEmptySockets -- bonus tie-break', () => {
     const bags = fillEmptySockets([mg], empty, bonusTable, allCopies, demand);
 
     expect(bagGemIds(bags, 'ring')).toEqual([7001]);
+  });
+});
+
+describe('forced bonus mode', () => {
+  it('solveAssignment always prefers a bonus-activating copy over a strictly better power fit', () => {
+    const mg = main('head', 5001, 5, '6'); // residual 850
+    const bonusTable = bonusMap({ 5001: [0, 0, 0, 9002, 0] });
+    const bonusGem = inv(9002, 5, '1'); // contribution 32 -- activates the bonus, but a much worse fit
+    const closerGem = inv(9001, 5, '2'); // contribution 82 -- closer to the 850 residual
+    const demand = computeBonusGemDemand([mg], bonusTable);
+
+    const bags = solveAssignment([mg], [bonusGem, closerGem], bonusTable, demand, true);
+
+    expect(bagGemIds(bags, 'head')).toEqual([9002]);
+  });
+
+  it('solveAssignment falls back to a non-activating copy once no activating copy remains available', () => {
+    const mg = main('head', 5001, 5, '6');
+    const bonusTable = bonusMap({ 5001: [0, 0, 0, 9099, 0] }); // requirement absent from inventory
+    const onlyGem = inv(9001, 5, '2');
+    const demand = computeBonusGemDemand([mg], bonusTable);
+
+    const bags = solveAssignment([mg], [onlyGem], bonusTable, demand, true);
+
+    expect(bagGemIds(bags, 'head')).toEqual([9001]);
+  });
+
+  it('fillEmptySockets always prefers a bonus-activating copy over higher resonance', () => {
+    const mg = main('ring', 2001, 2, '5'); // one 2-star socket
+    const bonusTable = bonusMap({ 2001: [0, 7002] });
+    const higherResonance = inv(7001, 2, '7.5'); // resonance 14, no bonus
+    const bonusMatch = inv(7002, 2, '3'); // lower resonance, activates the bonus
+    const demand = computeBonusGemDemand([mg], bonusTable);
+    const allCopies: CopyEntry[] = [
+      [0, higherResonance],
+      [1, bonusMatch],
+    ];
+    const empty = new Map<string, CopyEntry[]>([['ring', []]]);
+
+    const bags = fillEmptySockets([mg], empty, bonusTable, allCopies, demand, true);
+
+    expect(bagGemIds(bags, 'ring')).toEqual([7002]);
   });
 });
 

@@ -1,4 +1,4 @@
-import type { OptimizeRequest, OptimizeResponse } from '../types/api';
+import type { BonusMode, OptimizeRequest, OptimizeResponse } from '../types/api';
 import type { ProgressEvent } from '../types/progress';
 import type { WorkerRequest, WorkerResponse } from '../workers/optimizer.worker';
 
@@ -27,6 +27,7 @@ export async function optimizeWithProgress(
   request: OptimizeRequest,
   enableUpgrades: boolean,
   convert1Star: boolean,
+  bonusMode: BonusMode,
   onProgress: (event: ProgressEvent) => void,
 ): Promise<OptimizeResponse> {
   const id = nextRequestId++;
@@ -59,7 +60,7 @@ export async function optimizeWithProgress(
     activeWorker.addEventListener('message', handleMessage);
     activeWorker.addEventListener('error', handleError);
 
-    const payload: WorkerRequest = { id, request, enableUpgrades, convert1Star };
+    const payload: WorkerRequest = { id, request, enableUpgrades, convert1Star, bonusMode };
     activeWorker.postMessage(payload);
   });
 }
@@ -75,7 +76,8 @@ export async function optimize(
   request: OptimizeRequest,
   enableUpgrades: boolean = false,
   convert1Star: boolean = false,
+  bonusMode: BonusMode = 'off',
 ): Promise<OptimizeResponse> {
   const { runOptimization } = await import('../core/api/runOptimization');
-  return runOptimization(request, enableUpgrades, convert1Star);
+  return runOptimization(request, enableUpgrades, convert1Star, bonusMode);
 }

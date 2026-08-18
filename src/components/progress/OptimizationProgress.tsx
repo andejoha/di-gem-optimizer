@@ -10,6 +10,7 @@ const STAGE_LABELS: Record<string, string> = {
   fill_empty: 'Filling empty sockets...',
   upgrades: 'Evaluating upgrades...',
   upgrades_rerun: 'Re-optimizing with upgrades...',
+  bonus_budget: 'Activating gem bonuses...',
 };
 
 interface Props {

@@ -7,65 +7,36 @@
  * on the UI, the worker, or any input/output layer.
  */
 
-import { COST_TABLES, GEM_LIST } from './data';
-import type { InventoryGem, MainGem, OptimizationResult, SocketAssignment } from './models';
+import { GEM_LIST } from './data';
+import type { BonusMode, InventoryGem, MainGem, OptimizationResult, SocketAssignment } from './models';
 import { makeGemResult, makeOptimizationResult } from './models';
 import { assignSockets, type CopyEntry, computeBonusGemDemand, expandInventory, fillEmptySockets, solveAssignment } from './optimizer';
 import { nullReporter, type ProgressReporter } from './progress';
-import { computeExtractablePower, computeSlotResonance } from './rules';
+import { computeSlotResonance, sumDormantPower } from './rules';
 
 export interface RunPipelineOptions {
   progress?: ProgressReporter;
   stagePrefix?: string;
+  /** Bonus activation strategy for phases 1-2. Defaults to 'off' (tie-break only). */
+  bonusMode?: BonusMode;
 }
 
 /**
- * Executes the core optimization pipeline with pre-parsed data. Returns a
- * zero-value result if mainGems is empty.
+ * Materializes a per-slot bag assignment (as produced by `solveAssignment` +
+ * `fillEmptySockets`, or by a post-pipeline pass such as the bonus budget
+ * swap search in `bonusBudget.ts`) into a full, consistent
+ * `OptimizationResult`: per-main-gem socket placement (phase 3), dormant
+ * power over every copy not assigned to any socket, and per-slot/total
+ * residual, resonance, and bonus tallies.
  */
-export function runPipeline(
+export function materializeResult(
   availablePower: number,
   mainGems: readonly MainGem[],
   skippedSlots: readonly string[],
-  inventory: readonly InventoryGem[],
-  options: RunPipelineOptions = {},
+  allCopies: readonly CopyEntry[],
+  perSlotGems: ReadonlyMap<string, readonly CopyEntry[]>,
+  bonusTable: Map<number, number[]>,
 ): OptimizationResult {
-  const { progress = nullReporter, stagePrefix = '' } = options;
-
-  if (mainGems.length === 0) {
-    return makeOptimizationResult({
-      gemResults: [],
-      totalSocketedPower: 0,
-      totalRequiredPower: 0,
-      totalResidualCost: 0,
-      availablePower,
-      skippedSlots: [...skippedSlots],
-      gemAssignments: new Map(),
-      bonusTable: new Map(),
-      mainGems: [],
-      totalResonance: 0,
-    });
-  }
-
-  const bonusTable = new Map<number, number[]>(GEM_LIST.map((gemDef) => [gemDef.id, gemDef.bonusGemIds]));
-  const totalDemand = computeBonusGemDemand(mainGems, bonusTable);
-
-  const fiveStarGems = mainGems.filter((mainGem) => mainGem.starRating === 5);
-  const allCopies = expandInventory(inventory);
-
-  progress.report(`${stagePrefix}assignment`, 'running', { detail: 'Solving gem assignment...' });
-  const rawAssignments = solveAssignment(fiveStarGems, inventory, bonusTable, totalDemand);
-
-  // 5-star slots are populated by the greedy result; 1/2-star slots start
-  // empty and are filled by fillEmptySockets.
-  let perSlotGems = new Map<string, CopyEntry[]>(mainGems.map((mainGem) => [mainGem.slotName, []]));
-  for (const [slot, copies] of rawAssignments) {
-    perSlotGems.get(slot)!.push(...copies);
-  }
-
-  progress.report(`${stagePrefix}fill_empty`, 'running', { detail: 'Filling empty sockets...' });
-  perSlotGems = fillEmptySockets(mainGems, perSlotGems, bonusTable, allCopies, totalDemand);
-
   const gemAssignments = new Map<string, SocketAssignment[]>();
   for (const mainGem of mainGems) {
     gemAssignments.set(mainGem.slotName, assignSockets(mainGem, perSlotGems.get(mainGem.slotName) ?? [], bonusTable));
@@ -73,19 +44,18 @@ export function runPipeline(
 
   // Dormant gem power: the power recoverable by making every unsocketed
   // inventory copy dormant. "Unsocketed" means not assigned to any main
-  // gem socket.
+  // gem socket. `allCopies` is copyId-ordered (see `expandInventory`), so
+  // its gems double as the copyId-indexed array `sumDormantPower` expects.
   const assignedCopyIds = new Set<number>();
   for (const assignments of gemAssignments.values()) {
     for (const a of assignments) {
       if (a.copyId >= 0) assignedCopyIds.add(a.copyId);
     }
   }
-  let totalDormantPower = 0;
-  for (const [copyId, gem] of allCopies) {
-    if (!assignedCopyIds.has(copyId)) {
-      totalDormantPower += computeExtractablePower(gem.rank, COST_TABLES.get(gem.starRating)!);
-    }
-  }
+  const totalDormantPower = sumDormantPower(
+    allCopies.map(([, gem]) => gem),
+    assignedCopyIds,
+  );
 
   const gemResults = [];
   let totalSocketed = 0;
@@ -138,4 +108,55 @@ export function runPipeline(
     totalResonance,
     totalDormantPower,
   });
+}
+
+/**
+ * Executes the core optimization pipeline with pre-parsed data. Returns a
+ * zero-value result if mainGems is empty.
+ */
+export function runPipeline(
+  availablePower: number,
+  mainGems: readonly MainGem[],
+  skippedSlots: readonly string[],
+  inventory: readonly InventoryGem[],
+  options: RunPipelineOptions = {},
+): OptimizationResult {
+  const { progress = nullReporter, stagePrefix = '', bonusMode = 'off' } = options;
+
+  if (mainGems.length === 0) {
+    return makeOptimizationResult({
+      gemResults: [],
+      totalSocketedPower: 0,
+      totalRequiredPower: 0,
+      totalResidualCost: 0,
+      availablePower,
+      skippedSlots: [...skippedSlots],
+      gemAssignments: new Map(),
+      bonusTable: new Map(),
+      mainGems: [],
+      totalResonance: 0,
+    });
+  }
+
+  const bonusTable = new Map<number, number[]>(GEM_LIST.map((gemDef) => [gemDef.id, gemDef.bonusGemIds]));
+  const totalDemand = computeBonusGemDemand(mainGems, bonusTable);
+  const forced = bonusMode === 'forced';
+
+  const fiveStarGems = mainGems.filter((mainGem) => mainGem.starRating === 5);
+  const allCopies = expandInventory(inventory);
+
+  progress.report(`${stagePrefix}assignment`, 'running', { detail: 'Solving gem assignment...' });
+  const rawAssignments = solveAssignment(fiveStarGems, inventory, bonusTable, totalDemand, forced);
+
+  // 5-star slots are populated by the greedy result; 1/2-star slots start
+  // empty and are filled by fillEmptySockets.
+  let perSlotGems = new Map<string, CopyEntry[]>(mainGems.map((mainGem) => [mainGem.slotName, []]));
+  for (const [slot, copies] of rawAssignments) {
+    perSlotGems.get(slot)!.push(...copies);
+  }
+
+  progress.report(`${stagePrefix}fill_empty`, 'running', { detail: 'Filling empty sockets...' });
+  perSlotGems = fillEmptySockets(mainGems, perSlotGems, bonusTable, allCopies, totalDemand, forced);
+
+  return materializeResult(availablePower, mainGems, skippedSlots, allCopies, perSlotGems, bonusTable);
 }

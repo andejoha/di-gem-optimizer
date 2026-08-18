@@ -2,7 +2,7 @@
  * Web Worker that runs the optimizer off the main thread, so the heaviest
  * upgrade-search runs on a large inventory can't freeze the UI.
  *
- *   in:  { id, request, enableUpgrades, convert1Star }
+ *   in:  { id, request, enableUpgrades, convert1Star, bonusMode }
  *   out: { id, type: 'progress', stage, status, iteration, detail }
  *      | { id, type: 'result', data: OptimizeResponse }
  *      | { id, type: 'error', detail: string }
@@ -11,6 +11,7 @@
 import { runOptimization } from '../core/api/runOptimization';
 import type { OptimizeRequest, OptimizeResponse } from '../core/api/types';
 import { ValidationError } from '../core/api/validate';
+import type { BonusMode } from '../core/models';
 import { makeCallbackReporter } from '../core/progress';
 
 export interface WorkerRequest {
@@ -18,6 +19,7 @@ export interface WorkerRequest {
   request: OptimizeRequest;
   enableUpgrades: boolean;
   convert1Star: boolean;
+  bonusMode: BonusMode;
 }
 
 export type WorkerResponse =
@@ -26,14 +28,14 @@ export type WorkerResponse =
   | { id: number; type: 'error'; detail: string };
 
 self.onmessage = (event: MessageEvent<WorkerRequest>) => {
-  const { id, request, enableUpgrades, convert1Star } = event.data;
+  const { id, request, enableUpgrades, convert1Star, bonusMode } = event.data;
   const reporter = makeCallbackReporter((progressEvent) => {
     const message: WorkerResponse = { id, type: 'progress', ...progressEvent };
     self.postMessage(message);
   });
 
   try {
-    const data = runOptimization(request, enableUpgrades, convert1Star, reporter);
+    const data = runOptimization(request, enableUpgrades, convert1Star, bonusMode, reporter);
     const message: WorkerResponse = { id, type: 'result', data };
     self.postMessage(message);
   } catch (err) {

@@ -63,33 +63,51 @@ graph doesn't land in the main bundle chunk).
    of copies across its own sockets to maximize activated bonuses, without changing which copies
    were assigned to that main gem.
 
-Bonus activation is not a separate optimization phase — it's folded into phases 1–2 as a tie-break:
-when several candidate copies are numerically indistinguishable (same contribution, same active
-stars), the one that activates the target socket's bonus wins, and failing that, one not still
-needed as a bonus gem by another main gem (see `computeBonusGemDemand`/`pickWithBonusTieBreak` in
-`optimizer.ts`). Phase 3 then resolves, for free, which socket within a main gem each already-chosen
-copy lands in. See docs/SPEC.md ("Bonus activation") for the rule this encodes — it never trades gem
-power or resonance for a bonus.
+In bonus mode `off` (the default), bonus activation is not a separate optimization phase — it's
+folded into phases 1–2 as a tie-break: when several candidate copies are numerically
+indistinguishable (same contribution, same active stars), the one that activates the target socket's
+bonus wins, and failing that, one not still needed as a bonus gem by another main gem (see
+`computeBonusGemDemand`/`pickWithBonusTieBreak` in `optimizer.ts`). Phase 3 then resolves, for free,
+which socket within a main gem each already-chosen copy lands in. See docs/SPEC.md ("Bonus
+activation") for the rule this encodes — in mode `off` it never trades gem power or resonance for a
+bonus.
+
+`bonusMode` (`'off' | 'budget' | 'forced'`, `src/core/models.ts`) is a third player setting,
+alongside `enableUpgrades`/`convert1Star`, threaded the same way (a positional param, not a wire
+field). `'forced'` restricts phases 1–2's candidate pool to bonus-activating copies whenever one is
+available (`restrictToBonusActivating` in `optimizer.ts`), trading feasibility for bonus coverage.
+`'budget'` runs `src/core/bonusBudget.ts`'s `budgetActivateBonuses` as a post-pipeline pass, after the
+upgrade search and rank-1 conversion have settled: it walks unactivated sockets (5-star first, then
+2-star, then 1-star, round-robin across main gems) trying swaps sourced from dormant inventory or
+another main gem's socket, keeping only swaps that leave surplus `>= 0` and strictly increase
+activated bonuses. `runOptimization`'s `deriveFromBags`/`finalizeResponse` funnel every return path
+(no upgrades, no viable upgrade chains, or the winning upgrade depth) through the same derivation —
+materialize via `materializeResult`, re-run the upgrade bookkeeping, rebuild the display inventory —
+so a budget swap that displaces an upgraded gem is accounted for correctly. See docs/SPEC.md ("Bonus
+activation modes") for the full rule.
 
 The upgrade search in `runOptimization` treats two-star and five-star upgrade chains differently:
 two-star chains are fully exhausted before touching any five-star chain, because five-star gems have
 a much higher gem-power-per-upgrade-cost ratio. It walks upgrade depth downward from maximum,
 re-running `runPipeline` at each candidate depth, until it finds a depth combination whose net
 residual (effective residual minus recoverable dormant power) fits within the available power pool.
-That winning candidate's result is used directly for display.
+That winning candidate's result is used directly for display (after the bonus budget pass, if
+selected).
 
 Other core modules:
 
-- `models.ts` — domain types (`MainGem`, `InventoryGem`, `SocketAssignment`, `OptimizationResult`)
-  and their `make*` constructors.
+- `models.ts` — domain types (`MainGem`, `InventoryGem`, `SocketAssignment`, `OptimizationResult`,
+  `BonusMode`) and their `make*` constructors.
 - `rules.ts` — game-rule computations (extractable power, slot resonance).
 - `data.ts` / `constants.ts` — the static gem catalog and cost tables.
 - `upgrades.ts` — builds upgrade chains from inventory and materializes a chosen depth combination
   into a working inventory.
+- `bonusBudget.ts` — bonus mode `'budget'`'s post-pipeline swap search (see above).
 - `progress.ts` — `ProgressReporter` abstraction; `nullReporter` for tests/sync calls,
   `makeCallbackReporter` for the worker to stream stage events back to the main thread.
 - `api/` — the request/response boundary: `types.ts` (wire types, snake_case), `converters.ts`
-  (domain <-> wire conversion), `validate.ts` (`ValidationError`).
+  (domain <-> wire conversion, including `sumDormantPower`, shared with `bonusBudget.ts`'s surplus
+  calculation), `validate.ts` (`ValidationError`).
 
 ### Worker boundary
 
@@ -109,15 +127,6 @@ state can't poison subsequent runs.
   the component tree.
 - `src/utils/setupCodec.ts` — encodes/decodes a gear+inventory setup for import/export
   (`src/components/toolbar/ImportExportDialog.tsx`).
-
-### Golden regression corpus (`test/golden/`)
-
-`test/core/golden.test.ts` runs every `<case>.request.json` through `runOptimization` across all 4
-`(enableUpgrades, convert1Star)` flag combinations and diffs the result byte-for-byte against
-`<case>.<flags>.expected.json` (or `.error.json` for cases expected to throw `ValidationError`). See
-`test/golden/README.md` for corpus composition. **Any intentional change to optimizer behavior must
-regenerate the affected `.expected.json` files, with the diff reviewed as carefully as the code
-change itself** — an unreviewed regeneration defeats the purpose of the suite.
 
 ## Deployment
 

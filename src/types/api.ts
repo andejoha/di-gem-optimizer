@@ -4,6 +4,7 @@
  */
 
 export type { SlotName } from '../core/constants';
+export type { BonusMode } from '../core/models';
 export type {
   BonusSocket,
   ConvertedGemItem,
