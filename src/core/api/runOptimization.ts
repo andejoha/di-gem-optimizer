@@ -220,7 +220,7 @@ function deriveFromBags(ctx: DerivationContext, perSlotGems: ReadonlyMap<string,
   const result = materializeResult(ctx.availablePower, ctx.mainGems, ctx.skippedSlots, allCopies, perSlotGems, ctx.bonusTable);
 
   const relevant = restrictToFiveStarSlots(result.gemAssignments, ctx.fiveStarSlots);
-  const { filtered, droppedOps, gemsToRestore } = filterUpgradesToSocketed(ctx.appliedDeltas, relevant);
+  const { filtered, droppedOps, gemsToRestore } = filterUpgradesToSocketed(ctx.appliedDeltas, relevant, result.gemAssignments);
   const upgradeCost = filtered.reduce((sum, delta) => sum + delta.additionalGemPower, 0);
   const effectiveResidual = result.totalResidualCost + upgradeCost;
 
@@ -419,7 +419,7 @@ export function runOptimization(
       });
       firstPipelineRun = false;
       const relevant = fiveStarAssignments(result.gemAssignments);
-      const { filtered } = filterUpgradesToSocketed(appliedDeltas, relevant);
+      const { filtered } = filterUpgradesToSocketed(appliedDeltas, relevant, result.gemAssignments);
       const upgradeCost = filtered.reduce((sum, delta) => sum + delta.additionalGemPower, 0);
       const effectiveResidual = result.totalResidualCost + upgradeCost;
       // Net residual credits the gem power recoverable by making

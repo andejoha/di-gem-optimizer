@@ -47,7 +47,11 @@ smaller pool would. This non-monotonicity is deliberate.
 
 ## Unwinding dropped upgrades
 
-Each socketed rank is traced back through its chain: a multi-step upgrade is kept in full if its
-final rank is socketed, or dropped in full (fodder marked for restoration) if not. The gems shown
-to the player revert each dropped upgrade's target rank to its pre-upgrade rank, most recent step
-first, then append the restored fodder — only unassigned copies are touched.
+Each socketed rank is traced back through its chain twice, against two different definitions of
+"socketed": a multi-step upgrade is kept in full (and charged) if its final rank is socketed in a
+five-star main gem, or dropped in full (uncharged) if not. A dropped chain's fodder is only marked
+for restoration if its final rank isn't socketed anywhere at all — a rank that landed in a 1/2-star
+main gem's socket instead is uncharged but still in use, so its fodder isn't fabricated back into the
+display inventory. The gems shown to the player revert each dropped upgrade's target rank to its
+pre-upgrade rank, most recent step first, then
+append the restored fodder — only unassigned copies are touched.

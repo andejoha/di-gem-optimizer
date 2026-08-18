@@ -72,6 +72,10 @@ that would just relocate the same single activation elsewhere is rejected.
 
 Because budget mode runs after the upgrade search has already chosen a depth and result, a swap can
 displace an upgraded gem out of a 5-star main gem's socket. When that happens, the upgrade's cost is
-refunded (it's no longer socketed, so §4's "kept only if socketed" rule drops it) but its fodder is
-not recovered — the upgrade bookkeeping and display inventory are fully re-derived from the
-post-swap assignments, not patched, so this falls out correctly rather than needing special-casing.
+refunded (it's no longer socketed in a five-star main gem, so §4's "kept only if socketed" rule drops
+it). Its fodder is only also recovered if the displaced gem ends up fully dormant -- if the swap
+instead moved it into a different main gem's socket, the gem is still genuinely in use, so its
+fodder isn't fabricated back into the display inventory (see `filterUpgradesToSocketed` in
+`upgrades.ts`). The upgrade bookkeeping and display inventory are fully re-derived from the
+post-swap assignments, not patched, so both cases fall out correctly rather than needing
+special-casing.

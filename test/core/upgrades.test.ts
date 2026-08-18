@@ -258,7 +258,7 @@ describe('materializeUpgrades', () => {
 
 describe('filterUpgradesToSocketed', () => {
   it('returns empty for empty deltas', () => {
-    const { filtered, droppedOps, gemsToRestore } = filterUpgradesToSocketed([], new Map());
+    const { filtered, droppedOps, gemsToRestore } = filterUpgradesToSocketed([], new Map(), new Map());
     expect(filtered).toEqual([]);
     expect(droppedOps).toEqual([]);
     expect(gemsToRestore).toEqual([]);
@@ -281,7 +281,8 @@ describe('filterUpgradesToSocketed', () => {
       sacrificedGems: [inv(2033, 2, '1')],
       preUpgradeGem: inv(2033, 2, '1'),
     });
-    const { filtered, droppedOps } = filterUpgradesToSocketed([delta], new Map([['head', [sa]]]));
+    const assignments = new Map([['head', [sa]]]);
+    const { filtered, droppedOps } = filterUpgradesToSocketed([delta], assignments, assignments);
     expect(filtered.length).toBe(1);
     expect(droppedOps.length).toBe(0);
   });
@@ -304,10 +305,38 @@ describe('filterUpgradesToSocketed', () => {
       sacrificedGems: [fodder],
       preUpgradeGem: inv(2033, 2, '1'),
     });
-    const { filtered, droppedOps, gemsToRestore } = filterUpgradesToSocketed([delta], new Map([['head', [sa]]]));
+    const assignments = new Map([['head', [sa]]]);
+    const { filtered, droppedOps, gemsToRestore } = filterUpgradesToSocketed([delta], assignments, assignments);
     expect(filtered.length).toBe(0);
     expect(droppedOps.length).toBe(1);
     expect(gemsToRestore.some((g) => g.rank === '1' && g.gemId === 2033)).toBe(true);
+  });
+
+  it('drops an upgrade not socketed in a five-star main gem, and withholds its fodder when the result is socketed elsewhere', () => {
+    // The upgraded target (rank 4) is socketed in a 2-star main gem, which
+    // never appears in `fiveStarAssignments`.
+    const target = inv(2033, 2, '4');
+    const twoStarSa: SocketAssignment = makeSocketAssignment({ socketIndex: 1, gem: target, copyId: 0, contribution: target.contribution });
+    const fodder = inv(2033, 2, '1');
+    const delta: UpgradeDelta = makeUpgradeDelta({
+      gemId: 2033,
+      starRating: 2,
+      currentRank: '1',
+      targetRank: '4',
+      additionalGemPower: 45,
+      additionalSocketPower: 49,
+      netGain: 4,
+      inventoryIndex: 0,
+      copiesSacrificed: 1,
+      upgradeType: 'partial',
+      sacrificedGems: [fodder],
+      preUpgradeGem: inv(2033, 2, '1'),
+    });
+    const allAssignments = new Map([['ring', [twoStarSa]]]);
+    const { filtered, droppedOps, gemsToRestore } = filterUpgradesToSocketed([delta], new Map(), allAssignments);
+    expect(filtered.length).toBe(0);
+    expect(droppedOps.length).toBe(1);
+    expect(gemsToRestore).toEqual([]);
   });
 });
 

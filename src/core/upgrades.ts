@@ -326,27 +326,58 @@ export function materializeUpgrades(
   return { working, appliedDeltas, totalCost };
 }
 
-/**
- * Returns filtered upgrades, dropped operations, and gems to restore.
- * Traces upgrade chains backward: if gem X is upgraded 3->4->5 and rank 5
- * is socketed, all steps are kept; upgrades for gems never socketed are
- * dropped.
- */
-export function filterUpgradesToSocketed(
-  appliedUpgrades: readonly UpgradeDelta[],
-  gemAssignments: ReadonlyMap<string, readonly SocketAssignment[]>,
-): { filtered: UpgradeDelta[]; droppedOps: Array<[UpgradeDelta[], UpgradeDelta]>; gemsToRestore: InventoryGem[] } {
-  // Count each (gemId, starRating, rank) that appears in a socket.
-  const needed = new Map<string, number>();
+/** Counts each (gemId, starRating, rank) that appears in a socket. */
+function countSocketedRanks(gemAssignments: ReadonlyMap<string, readonly SocketAssignment[]>): Map<string, number> {
+  const counts = new Map<string, number>();
   for (const assignments of gemAssignments.values()) {
     for (const assignment of assignments) {
       if (assignment.gem !== null) {
         const key = gemRankKey(assignment.gem.gemId, assignment.gem.starRating, assignment.gem.rank);
-        increment(needed, key);
+        increment(counts, key);
       }
     }
   }
+  return counts;
+}
 
+/**
+ * Walks `operations` in reverse against `neededSeed`, tracing each chain
+ * backward: if gem X is upgraded 3->4->5 and rank 5 is in `neededSeed`, all
+ * steps up to and including that one are marked relevant, and the chain's
+ * starting rank is added back to the needed count so an earlier step in the
+ * same chain can also match. Returns one boolean per operation, in order.
+ */
+function computeRelevantOperations(
+  operations: ReadonlyArray<[UpgradeDelta[], UpgradeDelta]>,
+  neededSeed: ReadonlyMap<string, number>,
+): boolean[] {
+  const needed = new Map(neededSeed);
+  const relevant: boolean[] = operations.map(() => false);
+  for (let operationIndex = operations.length - 1; operationIndex >= 0; operationIndex--) {
+    const [, mainDelta] = operations[operationIndex];
+    const key = gemRankKey(mainDelta.gemId, mainDelta.starRating, mainDelta.targetRank);
+    if (countOf(needed, key) > 0) {
+      needed.set(key, countOf(needed, key) - 1);
+      relevant[operationIndex] = true;
+      const preKey = gemRankKey(mainDelta.gemId, mainDelta.starRating, mainDelta.currentRank);
+      increment(needed, preKey);
+    }
+  }
+  return relevant;
+}
+
+/**
+ * Returns filtered upgrades (kept and charged for), dropped operations, and
+ * gems to restore. An upgrade's cost is kept only if its resulting rank is
+ * socketed in `fiveStarAssignments`. A dropped upgrade's fodder is withheld
+ * from `gemsToRestore` when its resulting rank is socketed anywhere in
+ * `allAssignments`.
+ */
+export function filterUpgradesToSocketed(
+  appliedUpgrades: readonly UpgradeDelta[],
+  fiveStarAssignments: ReadonlyMap<string, readonly SocketAssignment[]>,
+  allAssignments: ReadonlyMap<string, readonly SocketAssignment[]>,
+): { filtered: UpgradeDelta[]; droppedOps: Array<[UpgradeDelta[], UpgradeDelta]>; gemsToRestore: InventoryGem[] } {
   // Group upgrades into operations: (preparationSteps, mainDelta).
   const operations: Array<[UpgradeDelta[], UpgradeDelta]> = [];
   let currentPreps: UpgradeDelta[] = [];
@@ -359,44 +390,35 @@ export function filterUpgradesToSocketed(
     }
   }
 
-  // Walk operations in reverse to trace chains.
-  const relevant: boolean[] = operations.map(() => false);
-  for (let operationIndex = operations.length - 1; operationIndex >= 0; operationIndex--) {
-    const [, mainDelta] = operations[operationIndex];
-    const key = gemRankKey(mainDelta.gemId, mainDelta.starRating, mainDelta.targetRank);
-    if (countOf(needed, key) > 0) {
-      needed.set(key, countOf(needed, key) - 1);
-      relevant[operationIndex] = true;
-      const preKey = gemRankKey(mainDelta.gemId, mainDelta.starRating, mainDelta.currentRank);
-      increment(needed, preKey);
-    }
-  }
+  const costRelevant = computeRelevantOperations(operations, countSocketedRanks(fiveStarAssignments));
+  const stillInUse = computeRelevantOperations(operations, countSocketedRanks(allAssignments));
 
   const filtered: UpgradeDelta[] = [];
   const droppedOps: Array<[UpgradeDelta[], UpgradeDelta]> = [];
   const gemsToRestore: InventoryGem[] = [];
 
   operations.forEach(([preps, mainDelta], operationIndex) => {
-    if (relevant[operationIndex]) {
+    if (costRelevant[operationIndex]) {
       filtered.push(...preps, mainDelta);
-    } else {
-      droppedOps.push([preps, mainDelta]);
-      if (preps.length > 0) {
-        // Direct upgrade with prep steps: restore material gems at their
-        // pre-prep ranks via preUpgradeGem, not their post-prep ranks.
-        const preppedKeys = new Set(preps.map((prep) => gemRankKey(prep.gemId, prep.starRating, prep.targetRank)));
-        for (const sacrificedGem of mainDelta.sacrificedGems) {
-          if (!preppedKeys.has(gemRankKey(sacrificedGem.gemId, sacrificedGem.starRating, sacrificedGem.rank))) {
-            gemsToRestore.push(sacrificedGem); // non-prepped material
-          }
+      return;
+    }
+    droppedOps.push([preps, mainDelta]);
+    if (stillInUse[operationIndex]) return; // still socketed elsewhere -- its fodder is not restored
+    if (preps.length > 0) {
+      // Direct upgrade with prep steps: restore material gems at their
+      // pre-prep ranks via preUpgradeGem, not their post-prep ranks.
+      const preppedKeys = new Set(preps.map((prep) => gemRankKey(prep.gemId, prep.starRating, prep.targetRank)));
+      for (const sacrificedGem of mainDelta.sacrificedGems) {
+        if (!preppedKeys.has(gemRankKey(sacrificedGem.gemId, sacrificedGem.starRating, sacrificedGem.rank))) {
+          gemsToRestore.push(sacrificedGem); // non-prepped material
         }
-        for (const prepDelta of preps) {
-          if (prepDelta.preUpgradeGem !== null) gemsToRestore.push(prepDelta.preUpgradeGem);
-          gemsToRestore.push(...prepDelta.sacrificedGems);
-        }
-      } else {
-        gemsToRestore.push(...mainDelta.sacrificedGems);
       }
+      for (const prepDelta of preps) {
+        if (prepDelta.preUpgradeGem !== null) gemsToRestore.push(prepDelta.preUpgradeGem);
+        gemsToRestore.push(...prepDelta.sacrificedGems);
+      }
+    } else {
+      gemsToRestore.push(...mainDelta.sacrificedGems);
     }
   });
 

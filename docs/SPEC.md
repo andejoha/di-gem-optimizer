@@ -179,10 +179,12 @@ Bonus activation is also an optional, player-chosen strategy — a third setting
   kept swap can lower a main gem's total resonance (§3). Because every kept swap leaves surplus
   `>= 0`, `budget` can never turn a feasible plan into a shortfall, and it is a no-op on a plan
   that's already in shortfall (no swap can raise a negative surplus to non-negative from within it).
-  A swap can displace an already-applied upgrade out of its socket, in which case that upgrade's cost
-  is refunded but its fodder is not recovered (§4's "kept only if socketed" rule re-applies after the
-  swap, not before) — so the "Suggested Upgrades" comparison reflects the plan's final state,
-  including any budget swaps, not the upgrade search's result in isolation.
+  A swap can displace an already-applied upgrade out of its five-star socket, in which case that
+  upgrade's cost is refunded (§4's "kept only if socketed in a five-star main gem" rule re-applies
+  after the swap, not before). Whether its fodder is also recovered follows the same §4 rule: only if
+  the displaced gem ends up fully dormant, not if the swap moved it into a different main gem's
+  socket. Either way, the "Suggested Upgrades" comparison reflects the plan's final state, including
+  any budget swaps, not the upgrade search's result in isolation.
 - **`forced`** — instead of a post-pass, this changes _selection_ inside the optimizer itself: at
   every pick the optimizer makes (both the closest-fit and highest-resonance passes), it restricts
   the candidate pool to copies that would activate the socket's requirement, whenever at least one
@@ -215,9 +217,11 @@ Conceptually, an upgrade step can be one of four kinds (see `UpgradeDelta.upgrad
 
 An upgrade should only be kept in the final plan if its resulting rank actually ends up socketed in
 a 5-star main gem (upgrades into 1/2-star main gem sockets are cost-neutral per §2 and should not be
-paid for). If a chain of upgrade steps was applied to reach a rank that ultimately isn't socketed,
-none of that chain's gem-power cost should be charged, and its fodder should be returned to the
-display inventory.
+paid for). If a chain of upgrade steps was applied to reach a rank that ultimately isn't socketed in
+a 5-star main gem, none of that chain's gem-power cost should be charged. Its fodder should be
+returned to the display inventory only if that rank isn't socketed anywhere at all — a rank that
+ended up socketed in a 1/2-star main gem instead is uncharged but still genuinely in use, so its
+fodder must not also be shown as available.
 
 Two-star upgrade material should be preferred over five-star upgrade material when a choice exists,
 since five-star gems return substantially more socketed power per unit of gem power spent — five-star
