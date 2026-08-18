@@ -41,6 +41,15 @@ export function makeInventoryGem(partial: Omit<InventoryGem, 'contribution'> & {
   return { contribution: 0, ...partial };
 }
 
+/**
+ * Bonus activation strategy: 'off' only activates a bonus when doing so is
+ * free (a tie-break); 'budget' and 'forced' are documented in docs/SPEC.md
+ * ("Bonus activation modes").
+ */
+export type BonusMode = 'off' | 'budget' | 'forced';
+
+export const BONUS_MODES: readonly BonusMode[] = ['off', 'budget', 'forced'];
+
 /** An equipped gem (any star rating) with an upgrade target rank. */
 export interface MainGem {
   slotName: string;

@@ -2,19 +2,26 @@ import { useState } from 'react';
 import type { ReactNode } from 'react';
 import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
+import MenuItem from '@mui/material/MenuItem';
 import Popover from '@mui/material/Popover';
+import Select from '@mui/material/Select';
+import type { SelectChangeEvent } from '@mui/material/Select';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import starFilledIcon from '../../assets/images/buttons/star-filled.png';
+import type { BonusMode } from '../../core/models';
 import IconButton from '../buttons/IconButton';
 import TextButton from '../buttons/TextButton';
 import FeatureToggle from './FeatureToggle';
+import SettingRow from './SettingRow';
 
 interface Props {
   enableUpgrades: boolean;
   onEnableUpgradesChange: () => void;
   convert1Star: boolean;
   onConvert1StarChange: () => void;
+  bonusMode: BonusMode;
+  onBonusModeChange: (mode: BonusMode) => void;
   isEmpty: boolean;
   disabled: boolean;
   onResetClick: () => void;
@@ -33,6 +40,8 @@ export default function SettingsPopover({
   onEnableUpgradesChange,
   convert1Star,
   onConvert1StarChange,
+  bonusMode,
+  onBonusModeChange,
   isEmpty,
   disabled,
   onResetClick,
@@ -75,7 +84,7 @@ export default function SettingsPopover({
         transformOrigin={{ vertical: 'top', horizontal: 'left' }}
         slotProps={{ paper: { sx: { mt: 0.5 } } }}
       >
-        <Box sx={{ p: 1.5, minWidth: 220 }}>
+        <Box sx={{ p: 1.5, minWidth: 280 }}>
           <Typography
             variant="body2"
             color="text.secondary"
@@ -84,20 +93,24 @@ export default function SettingsPopover({
             Settings
           </Typography>
           <Divider sx={{ mb: 1.5 }} />
-          <Stack spacing={1} alignItems="flex-start">
-            <FeatureToggle
-              label="Suggest upgrades"
-              tooltipLabel="Suggest upgrades"
-              checked={enableUpgrades}
-              onChange={onEnableUpgradesChange}
-              disabled={disabled}
-            />
-            <FeatureToggle
-              label={convert1StarLabel}
-              tooltipLabel="Convert R1 1-star gems"
-              checked={convert1Star}
-              onChange={onConvert1StarChange}
-              disabled={disabled}
+          <Stack spacing={1} alignItems="stretch">
+            <FeatureToggle label="Suggest upgrades" checked={enableUpgrades} onChange={onEnableUpgradesChange} disabled={disabled} />
+            <FeatureToggle label={convert1StarLabel} checked={convert1Star} onChange={onConvert1StarChange} disabled={disabled} />
+            <SettingRow
+              label="Activate bonuses"
+              control={
+                <Select<BonusMode>
+                  size="small"
+                  value={bonusMode}
+                  disabled={disabled}
+                  onChange={(e: SelectChangeEvent<BonusMode>) => onBonusModeChange(e.target.value as BonusMode)}
+                  sx={{ minWidth: 100 }}
+                >
+                  <MenuItem value="off">Off</MenuItem>
+                  <MenuItem value="budget">Budget</MenuItem>
+                  <MenuItem value="forced">Forced</MenuItem>
+                </Select>
+              }
             />
           </Stack>
           <Divider sx={{ my: 1.5 }} />

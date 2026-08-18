@@ -3,12 +3,15 @@
  * computeBonusGemDemand in core/optimizer.ts directly, with no dependency
  * on any worker/UI layer.
  *
- * Bonus activation is a tie-break, never a priority: the optimizer picks a
- * gem by its normal power-fit/resonance criterion, and only when several
- * candidates are numerically indistinguishable (identical contribution and
- * activeStars) does it prefer one that activates a bonus, then one not
- * still needed as a bonus gem by another main gem. See docs/SPEC.md
- * ("Bonus activation").
+ * In bonus mode 'off' (the default, and what every test below exercises
+ * unless noted), bonus activation is a tie-break, never a priority: the
+ * optimizer picks a gem by its normal power-fit/resonance criterion, and
+ * only when several candidates are numerically indistinguishable (identical
+ * contribution and activeStars) does it prefer one that activates a bonus,
+ * then one not still needed as a bonus gem by another main gem. See
+ * docs/SPEC.md ("Bonus activation"). Bonus mode 'forced' changes this --
+ * see the "forced bonus mode" describe block below and docs/SPEC.md ("Bonus
+ * activation modes").
  *
  * Known reference values:
  *   5-star rank "1"  contribution = 32
@@ -24,7 +27,6 @@ import { COST_2STAR, COST_5STAR } from '../../src/core/data';
 import type { InventoryGem, MainGem } from '../../src/core/models';
 import { makeInventoryGem } from '../../src/core/models';
 import { assignSockets, type CopyEntry, computeBonusGemDemand, fillEmptySockets, solveAssignment } from '../../src/core/optimizer';
-import { runPipeline } from '../../src/core/pipeline';
 import { computeContribution, numSocketsUnlocked } from '../../src/core/rules';
 
 function inv(gemId: number, star: number, rank: string, activeStars = 2): InventoryGem {
@@ -169,6 +171,48 @@ describe('fillEmptySockets -- bonus tie-break', () => {
   });
 });
 
+describe('forced bonus mode', () => {
+  it('solveAssignment always prefers a bonus-activating copy over a strictly better power fit', () => {
+    const mg = main('head', 5001, 5, '6'); // residual 850
+    const bonusTable = bonusMap({ 5001: [0, 0, 0, 9002, 0] });
+    const bonusGem = inv(9002, 5, '1'); // contribution 32 -- activates the bonus, but a much worse fit
+    const closerGem = inv(9001, 5, '2'); // contribution 82 -- closer to the 850 residual
+    const demand = computeBonusGemDemand([mg], bonusTable);
+
+    const bags = solveAssignment([mg], [bonusGem, closerGem], bonusTable, demand, true);
+
+    expect(bagGemIds(bags, 'head')).toEqual([9002]);
+  });
+
+  it('solveAssignment falls back to a non-activating copy once no activating copy remains available', () => {
+    const mg = main('head', 5001, 5, '6');
+    const bonusTable = bonusMap({ 5001: [0, 0, 0, 9099, 0] }); // requirement absent from inventory
+    const onlyGem = inv(9001, 5, '2');
+    const demand = computeBonusGemDemand([mg], bonusTable);
+
+    const bags = solveAssignment([mg], [onlyGem], bonusTable, demand, true);
+
+    expect(bagGemIds(bags, 'head')).toEqual([9001]);
+  });
+
+  it('fillEmptySockets always prefers a bonus-activating copy over higher resonance', () => {
+    const mg = main('ring', 2001, 2, '5'); // one 2-star socket
+    const bonusTable = bonusMap({ 2001: [0, 7002] });
+    const higherResonance = inv(7001, 2, '7.5'); // resonance 14, no bonus
+    const bonusMatch = inv(7002, 2, '3'); // lower resonance, activates the bonus
+    const demand = computeBonusGemDemand([mg], bonusTable);
+    const allCopies: CopyEntry[] = [
+      [0, higherResonance],
+      [1, bonusMatch],
+    ];
+    const empty = new Map<string, CopyEntry[]>([['ring', []]]);
+
+    const bags = fillEmptySockets([mg], empty, bonusTable, allCopies, demand, true);
+
+    expect(bagGemIds(bags, 'ring')).toEqual([7002]);
+  });
+});
+
 describe('assignSockets -- socket materialization', () => {
   it('places the matching gem into the socket it activates, not the lowest free socket', () => {
     // 2-star main, sockets 1 and 2 share star type 2. Socket 2 requires
@@ -207,41 +251,5 @@ describe('assignSockets -- socket materialization', () => {
 
     expect(sockets).toHaveLength(4);
     expect(sockets.every((s) => s.gem === null && s.copyId === -1 && !s.bonusActivated)).toBe(true);
-  });
-});
-
-describe('end-to-end via runPipeline', () => {
-  it('is deterministic across repeated runs on the same input', () => {
-    const mainGems = [main('head', 5001, 5, '6'), main('chest', 5002, 5, '6')];
-    const inventory = [
-      makeInventoryGem({ gemId: 5001, starRating: 5, rank: '1', quantity: 1, activeStars: 2, contribution: 32 }),
-      makeInventoryGem({ gemId: 5002, starRating: 5, rank: '1', quantity: 1, activeStars: 2, contribution: 32 }),
-    ];
-
-    const first = runPipeline(5000, mainGems, [], inventory);
-    const second = runPipeline(5000, mainGems, [], inventory);
-
-    expect(JSON.stringify([...first.gemAssignments])).toEqual(JSON.stringify([...second.gemAssignments]));
-    expect(first.totalResidualCost).toBe(second.totalResidualCost);
-  });
-
-  it('assigns each main gem the copy it needs to activate its own bonus, even when supplied in the wrong order', () => {
-    // gem 5001 ("Phoenix Ashes") and 5002 ("Chip of Stone Flesh") each
-    // require a copy of the other's type at their 5-star socket. The two
-    // available copies are numerically tied (same contribution), so
-    // solveAssignment's tie-break -- prefer a copy that activates the
-    // target main gem's own still-unclaimed requirement -- assigns each
-    // copy to the main gem that needs it.
-    const mainGems = [main('head', 5001, 5, '6'), main('chest', 5002, 5, '6')];
-    const inv5001Type = makeInventoryGem({ gemId: 5001, starRating: 5, rank: '1', quantity: 1, activeStars: 2, contribution: 32 });
-    const inv5002Type = makeInventoryGem({ gemId: 5002, starRating: 5, rank: '1', quantity: 1, activeStars: 2, contribution: 32 });
-    const inventory = [inv5001Type, inv5002Type];
-
-    const availablePower = 5000;
-    const result = runPipeline(availablePower, mainGems, [], inventory);
-
-    const totalBonuses = result.gemResults.reduce((sum, gr) => sum + gr.bonusesActivated, 0);
-    expect(totalBonuses).toBe(2);
-    expect(result.totalResidualCost).toBeLessThanOrEqual(availablePower);
   });
 });

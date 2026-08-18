@@ -4,8 +4,7 @@ This document is the source of truth for the _game rules_ the optimizer is meant
 gem power, sockets, bonuses, and resonance should work in Diablo Immortal. It describes intended
 behavior, independent of whatever `src/core/` currently does. When code and this document disagree,
 that's a bug in one of the two: fix the code to match the rule, or update this document and explain
-why in the same change (and regenerate the affected `test/golden/*.expected.json` files, reviewing
-that diff as carefully as the rule change itself).
+why in the same change.
 
 For how these rules are currently implemented, see the "Core pipeline" section of `CLAUDE.md` and
 the referenced source files. This document does not restate implementation details (data structures,
@@ -92,10 +91,10 @@ display inventory untouched.
 #### Rank-1 1-star conversion (`convert1Star`)
 
 The one conversion currently exposed to the player targets rank-1 1-star gems specifically. On their
-own, these are worthless both as a socketed gem (near-zero contribution) and as upgrade fodder
-unless paired with more copies, and — since rank 1 costs 0 gem power — they would otherwise recover
-nothing as dormant power either. The optimizer instead cashes each one in for a flat 1 unit of gem
-power, as a special case of the general conversion mechanic above.
+own, these are worthless both as a socketed gem (near-zero contribution) and, unless several are
+combined, as spare copies for funding an upgrade — and since rank 1 costs 0 gem power, they would
+otherwise recover nothing as dormant power either. The optimizer instead cashes each one in for a
+flat 1 unit of gem power, as a special case of the general conversion mechanic above.
 
 ## 3. Resonance
 
@@ -142,47 +141,87 @@ for that socket index on that main gem — matching gem tier and rank are _not_ 
 the specific gem the requirement names. An empty socket, or a socket holding a gem other than the
 one required for its position, does not activate a bonus.
 
-Bonus activation is a _tie-break_, never an objective. The optimizer chooses which gem copy to
-socket by the criteria above (gem-power cost) and the resonance rules above alone; it never trades
-gem power or resonance for a bonus. When two or more candidate copies are **numerically
-indistinguishable** for a socket — identical contribution, identical resonance bonus, identical
-recoverable dormant power — the optimizer must prefer, in order: one whose gem id the target main
-gem still requires; then one that no _other_ main gem still requires as a bonus gem, so a scarce
-bonus gem is conserved for the main gem that can activate it. Numeric equality is exact; no
-tolerance applies. Because a socketed gem's contribution and resonance depend only on its tier,
+In bonus mode `off` (see "Bonus activation modes" below — the default, and the only mode the rest of
+this section describes), bonus activation is a _tie-break_, never an objective. The optimizer
+chooses which gem copy to socket by the criteria above (gem-power cost) and the resonance rules
+above alone; it never trades gem power or resonance for a bonus. When two or more candidate copies
+are **numerically indistinguishable** for a socket — identical contribution, identical resonance
+bonus, identical recoverable dormant power — the optimizer must prefer, in order: one whose gem id
+the target main gem still requires; then one that no _other_ main gem still requires as a bonus gem,
+so a scarce bonus gem is conserved for the main gem that can activate it. Numeric equality is exact;
+no tolerance applies. Because a socketed gem's contribution and resonance depend only on its tier,
 rank and active star count and never on its identity, such ties are common, and this rule activates
 most bonuses that are activatable at no cost.
 
 Which socket _within_ a main gem's group of same-tier sockets a copy occupies is free — it affects
 no cost or resonance — so the optimizer must distribute an already-chosen set of copies across
-those sockets to maximize that main gem's activated bonuses. It must **not** change _which_ copies a
-main gem holds, nor move copies between main gems, in pursuit of bonuses.
+those sockets to maximize that main gem's activated bonuses. In bonus mode `off`, it must **not**
+change _which_ copies a main gem holds, nor move copies between main gems, in pursuit of bonuses —
+the two other modes below relax exactly this restriction, deliberately.
+
+### Bonus activation modes (`bonusMode`)
+
+Bonus activation is also an optional, player-chosen strategy — a third setting alongside upgrades
+(§4) and gem conversion (§2) — with three modes:
+
+- **`off`** (default) — the tie-break-only behavior described above; never spends gem power or
+  resonance on a bonus.
+- **`budget`** — a pass that runs strictly after the rest of the optimizer has finished, including
+  the upgrade search (§4) if enabled, dormant-power accounting, and rank-1 conversion (§2). The
+  plan's surplus gem power at that point is the budget: the pass walks every unactivated socket —
+  5-star sockets before 2-star before 1-star, and, when several sockets of the same star level are
+  still open, one pass across every main gem before returning to a second socket of that level on
+  any one of them — and tries swapping in the gem that socket requires, sourced from either a
+  dormant inventory copy or a copy currently socketed in a _different_ main gem (highest rank first,
+  trying every available copy before giving up on that socket). A swap is kept only if, afterward,
+  the plan's surplus is still `>= 0` **and** the total number of activated bonuses strictly
+  increases; otherwise it's reverted and the next socket is tried. There is no resonance guard — a
+  kept swap can lower a main gem's total resonance (§3). Because every kept swap leaves surplus
+  `>= 0`, `budget` can never turn a feasible plan into a shortfall, and it is a no-op on a plan
+  that's already in shortfall (no swap can raise a negative surplus to non-negative from within it).
+  A swap can displace an already-applied upgrade out of its five-star socket, in which case that
+  upgrade's cost is refunded (§4's "kept only if socketed in a five-star main gem" rule re-applies
+  after the swap, not before). Whether its spare copies are also recovered follows the same §4 rule:
+  only if the displaced gem ends up fully dormant, not if the swap moved it into a different main gem's
+  socket. Either way, the "Suggested Upgrades" comparison reflects the plan's final state, including
+  any budget swaps, not the upgrade search's result in isolation.
+- **`forced`** — instead of a post-pass, this changes _selection_ inside the optimizer itself: at
+  every pick the optimizer makes (both the closest-fit and highest-resonance passes), it restricts
+  the candidate pool to copies that would activate the socket's requirement, whenever at least one
+  such copy is currently available — falling back to the full pool only once none remain. Unlike
+  `budget`, this can select a much worse power fit or a much lower-resonance gem purely to chase a
+  bonus, so it does **not** guarantee feasibility: a plan achievable without `forced` can become a
+  shortfall with it enabled.
+
+The three modes are mutually exclusive — `forced` does not additionally run the `budget` pass.
 
 ## 4. Upgrading gems
 
-The player can spend spare copies of a gem as fodder to raise a socketed (or about-to-be-socketed)
-gem's rank, at a gem-power cost defined by that star tier's cost table. This trades some of the
-player's inventory (fodder copies) plus gem power for a higher-contribution gem in one socket.
+The player can spend spare copies of a gem to raise a socketed (or about-to-be-socketed) gem's rank,
+at a gem-power cost defined by that star tier's cost table. This trades some of the player's
+inventory (spare copies) plus gem power for a higher-contribution gem in one socket.
 
 Conceptually, an upgrade step can be one of four kinds (see `UpgradeDelta.upgradeType`):
 
 - **`partial`** — a sub-rank step: the gem advances to the next rank tier that requires strictly
-  more cumulative fodder copies than its current rank, consuming exactly that many additional
+  more cumulative spare copies than its current rank, consuming exactly that many additional
   rank-1 copies of itself.
 - **`direct`** — a whole-rank jump performed in a single step rather than as a sequence of
   sub-rank steps.
 - **`preparation`** — a partial-rank upgrade applied to a _different_ gem solely so that gem can
-  then be sacrificed as fodder for a subsequent direct upgrade (i.e. the prep step's own resulting
-  rank, not its original rank, is what's needed as material).
+  then be sacrificed as a spare copy for a subsequent direct upgrade (i.e. the prep step's own
+  resulting rank, not its original rank, is what's needed as material).
 - **`free`** — an upgrade with zero net gain (gem power cost equals the additional socket power it
   provides) applied to a gem already sitting in a 5-star main gem's socket — worth doing because it
   costs the player nothing net, even though it doesn't improve the residual.
 
 An upgrade should only be kept in the final plan if its resulting rank actually ends up socketed in
 a 5-star main gem (upgrades into 1/2-star main gem sockets are cost-neutral per §2 and should not be
-paid for). If a chain of upgrade steps was applied to reach a rank that ultimately isn't socketed,
-none of that chain's gem-power cost should be charged, and its fodder should be returned to the
-display inventory.
+paid for). If a chain of upgrade steps was applied to reach a rank that ultimately isn't socketed in
+a 5-star main gem, none of that chain's gem-power cost should be charged. Its spare copies should be
+returned to the display inventory only if that rank isn't socketed anywhere at all — a rank that
+ended up socketed in a 1/2-star main gem instead is uncharged but still genuinely in use, so its
+spare copies must not also be shown as available.
 
 Two-star upgrade material should be preferred over five-star upgrade material when a choice exists,
 since five-star gems return substantially more socketed power per unit of gem power spent — five-star
@@ -192,5 +231,8 @@ upgrade potential should be preserved as long as possible before falling back to
 
 A plan is **feasible** when the total residual cost across all main gems (§2) is covered by the sum
 of the player's available power pool and total dormant power (§2), after accounting for any upgrade
-cost incurred (§4) and any gem conversion applied (§2). Otherwise it is a **shortfall**, reported
+cost incurred (§4), any gem conversion applied (§2), and any bonus activation cost incurred (§3).
+Bonus mode `off` and `budget` never spend more than the plan can afford, so a plan feasible without
+bonus activation stays feasible under either; bonus mode `forced` has no such guarantee and can turn
+a feasible plan into a **shortfall**, reported
 as the (negative) difference.

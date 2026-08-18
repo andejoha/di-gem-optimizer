@@ -14,10 +14,16 @@
  *    already-decided set of copies across its own sockets to maximize
  *    activated bonuses, without changing which copies were assigned.
  *
- * Bonus activation is not a separate optimization objective -- it is folded
- * into phases 1-2 as a tie-break (see `pickWithBonusTieBreak`) and resolved
- * for free within a main gem by phase 3. See docs/SPEC.md ("Bonus
- * activation") for the rule this encodes.
+ * In the default bonus mode ('off'), bonus activation is not a separate
+ * optimization objective -- it is folded into phases 1-2 as a tie-break (see
+ * `pickWithBonusTieBreak`) and resolved for free within a main gem by phase
+ * 3. See docs/SPEC.md ("Bonus activation") for the rule this encodes.
+ *
+ * Bonus mode 'forced' changes phases 1-2 to prefer a bonus-activating copy
+ * whenever one is available (see `restrictToBonusActivating`), trading
+ * feasibility for bonus coverage. See docs/SPEC.md ("Bonus activation
+ * modes"). Bonus mode 'budget' does not touch this file at all -- it runs
+ * as a post-pipeline pass in `bonusBudget.ts`.
  */
 
 import { SOCKET_STAR_TYPE } from './constants';
@@ -125,6 +131,18 @@ function unclaimedRequirements(
 }
 
 /**
+ * Restricts `candidates` to copies whose gem id is a still-unsatisfied
+ * requirement per `unclaimed` -- i.e. copies that would activate a bonus if
+ * socketed -- falling back to the full, unrestricted list when no such copy
+ * is currently available. Used by `pickWithBonusTieBreak` for bonus mode
+ * 'forced'.
+ */
+function restrictToBonusActivating(candidates: readonly CopyEntry[], unclaimed: ReadonlyMap<number, number>): readonly CopyEntry[] {
+  const preferred = candidates.filter(([, gem]) => unclaimed.has(gem.gemId));
+  return preferred.length > 0 ? preferred : candidates;
+}
+
+/**
  * Picks the best CopyEntry from `candidates` by `primaryKey` (ascending).
  * When multiple candidates share the winner's exact `(contribution,
  * activeStars)` signature -- a numeric tie, since neither field depends on
@@ -141,26 +159,34 @@ function unclaimedRequirements(
  * ranks 6, 6.1, ... 6.11 all tie on resonance despite having different
  * contribution and extractable power. A resonance tie is not necessarily a
  * signature tie.
+ *
+ * When `forced` is set (bonus mode 'forced'), the argmin runs over
+ * `restrictToBonusActivating(candidates, unclaimed)` instead of the full
+ * pool, so a bonus-activating copy is always preferred over a better power
+ * fit whenever one is available. The signature tie-break is unaffected by
+ * `forced` -- it already prefers a bonus-activating copy via `unclaimed`.
  */
 function pickWithBonusTieBreak(
   candidates: readonly CopyEntry[],
   primaryKey: (entry: CopyEntry) => readonly (number | string)[],
   unclaimed: ReadonlyMap<number, number>,
   outstanding: ReadonlyMap<number, number>,
+  forced: boolean = false,
 ): CopyEntry {
-  let winner = candidates[0];
+  const pool = forced ? restrictToBonusActivating(candidates, unclaimed) : candidates;
+  let winner = pool[0];
   let winnerKey = primaryKey(winner);
-  for (let i = 1; i < candidates.length; i++) {
-    const key = primaryKey(candidates[i]);
+  for (let i = 1; i < pool.length; i++) {
+    const key = primaryKey(pool[i]);
     if (compareTuples(key, winnerKey) < 0) {
-      winner = candidates[i];
+      winner = pool[i];
       winnerKey = key;
     }
   }
 
   const winnerGem = winner[1];
-  const pool = candidates.filter(([, gem]) => gem.contribution === winnerGem.contribution && gem.activeStars === winnerGem.activeStars);
-  if (pool.length <= 1) return winner;
+  const tiedPool = pool.filter(([, gem]) => gem.contribution === winnerGem.contribution && gem.activeStars === winnerGem.activeStars);
+  if (tiedPool.length <= 1) return winner;
 
   const tieBreakKey = ([copyId, gem]: CopyEntry): readonly (number | string)[] => [
     unclaimed.has(gem.gemId) ? 0 : 1,
@@ -168,12 +194,12 @@ function pickWithBonusTieBreak(
     copyId,
   ];
 
-  let best = pool[0];
+  let best = tiedPool[0];
   let bestKey = tieBreakKey(best);
-  for (let i = 1; i < pool.length; i++) {
-    const key = tieBreakKey(pool[i]);
+  for (let i = 1; i < tiedPool.length; i++) {
+    const key = tieBreakKey(tiedPool[i]);
     if (compareTuples(key, bestKey) < 0) {
-      best = pool[i];
+      best = tiedPool[i];
       bestKey = key;
     }
   }
@@ -189,13 +215,15 @@ function pickWithBonusTieBreak(
  * heuristic. Two sequential passes -- 5-star inventory gems first, then
  * 2-star. Only 5-star main gems participate. On a numeric tie, prefers a
  * copy that activates the target main gem's bonus, else one not still
- * needed as a bonus gem elsewhere (see `pickWithBonusTieBreak`).
+ * needed as a bonus gem elsewhere. `forced` selects bonus mode 'forced' (see
+ * `pickWithBonusTieBreak`).
  */
 export function solveAssignment(
   mainGems: readonly MainGem[],
   inventory: readonly InventoryGem[],
   bonusTable: ReadonlyMap<number, readonly number[]>,
   totalDemand: ReadonlyMap<number, number>,
+  forced: boolean = false,
 ): Map<string, CopyEntry[]> {
   const fiveStarGems = mainGems.filter((mainGem) => mainGem.starRating === 5);
   if (fiveStarGems.length === 0 || inventory.length === 0) {
@@ -253,6 +281,7 @@ export function solveAssignment(
         ([copyId, gem]) => [Math.abs(gem.contribution - targetResidual), -gem.contribution, copyId],
         unclaimed,
         outstanding,
+        forced,
       );
       const chosenIndex = availableCopies.findIndex(([copyId]) => copyId === chosen[0]);
 
@@ -276,7 +305,8 @@ export function solveAssignment(
  * Fills sockets left empty by the greedy phase with the highest-resonance
  * compatible gem, per main gem, per accepted star type. On a numeric tie,
  * prefers a copy that activates that main gem's bonus, else one not still
- * needed as a bonus gem elsewhere (see `pickWithBonusTieBreak`).
+ * needed as a bonus gem elsewhere. `forced` selects bonus mode 'forced' (see
+ * `pickWithBonusTieBreak`).
  */
 export function fillEmptySockets(
   mainGems: readonly MainGem[],
@@ -284,6 +314,7 @@ export function fillEmptySockets(
   bonusTable: ReadonlyMap<number, readonly number[]>,
   allCopies: readonly CopyEntry[],
   totalDemand: ReadonlyMap<number, number>,
+  forced: boolean = false,
 ): Map<string, CopyEntry[]> {
   const current = new Map<string, CopyEntry[]>();
   for (const [slot, gems] of perSlotGems) current.set(slot, [...gems]);
@@ -326,6 +357,7 @@ export function fillEmptySockets(
           ([copyId, gem]) => [-computeSocketResonanceBonus(gem.starRating, gem.activeStars, gem.rank), copyId],
           unclaimed,
           outstanding,
+          forced,
         );
 
         current.get(mainGem.slotName)!.push(chosen);

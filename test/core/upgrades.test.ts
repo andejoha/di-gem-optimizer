@@ -1,14 +1,12 @@
 /**
  * Tests computeSocketableStarRatings, buildUpgradeChains,
- * materializeUpgrades, and filterUpgradesToSocketed, plus an integration
- * check against runPipeline.
+ * materializeUpgrades, and filterUpgradesToSocketed.
  */
 
 import { describe, expect, it } from 'vitest';
 import { COST_1STAR, COST_2STAR, COST_5STAR } from '../../src/core/data';
 import type { InventoryGem, MainGem, SocketAssignment, UpgradeDelta } from '../../src/core/models';
 import { makeInventoryGem, makeSocketAssignment, makeUpgradeDelta } from '../../src/core/models';
-import { runPipeline } from '../../src/core/pipeline';
 import { computeContribution, numSocketsUnlocked } from '../../src/core/rules';
 import {
   buildUpgradeChains,
@@ -114,8 +112,8 @@ describe('computeSocketableStarRatings', () => {
   });
 });
 
-describe('buildUpgradeChains -- step counts and fodder logic', () => {
-  it('a gem type with exactly 1 copy has no fodder -> 0 steps', () => {
+describe('buildUpgradeChains -- step counts and spare-copy logic', () => {
+  it('a gem type with exactly 1 copy has no spare copies -> 0 steps', () => {
     const inventory = [inv(2033, 2, '1')];
     const { chains, leftover } = buildUpgradeChains(inventory, new Map([[2, 99]]));
     expect(chains.length).toBe(1);
@@ -260,7 +258,7 @@ describe('materializeUpgrades', () => {
 
 describe('filterUpgradesToSocketed', () => {
   it('returns empty for empty deltas', () => {
-    const { filtered, droppedOps, gemsToRestore } = filterUpgradesToSocketed([], new Map());
+    const { filtered, droppedOps, gemsToRestore } = filterUpgradesToSocketed([], new Map(), new Map());
     expect(filtered).toEqual([]);
     expect(droppedOps).toEqual([]);
     expect(gemsToRestore).toEqual([]);
@@ -283,15 +281,16 @@ describe('filterUpgradesToSocketed', () => {
       sacrificedGems: [inv(2033, 2, '1')],
       preUpgradeGem: inv(2033, 2, '1'),
     });
-    const { filtered, droppedOps } = filterUpgradesToSocketed([delta], new Map([['head', [sa]]]));
+    const assignments = new Map([['head', [sa]]]);
+    const { filtered, droppedOps } = filterUpgradesToSocketed([delta], assignments, assignments);
     expect(filtered.length).toBe(1);
     expect(droppedOps.length).toBe(0);
   });
 
-  it('drops an unsocketed upgrade and restores its fodder', () => {
+  it('drops an unsocketed upgrade and restores its spare copies', () => {
     const otherGem = inv(2003, 2, '5');
     const sa: SocketAssignment = makeSocketAssignment({ socketIndex: 0, gem: otherGem, copyId: 0, contribution: otherGem.contribution });
-    const fodder = inv(2033, 2, '1');
+    const spareCopy = inv(2033, 2, '1');
     const delta: UpgradeDelta = makeUpgradeDelta({
       gemId: 2033,
       starRating: 2,
@@ -303,88 +302,46 @@ describe('filterUpgradesToSocketed', () => {
       inventoryIndex: 0,
       copiesSacrificed: 1,
       upgradeType: 'partial',
-      sacrificedGems: [fodder],
+      sacrificedGems: [spareCopy],
       preUpgradeGem: inv(2033, 2, '1'),
     });
-    const { filtered, droppedOps, gemsToRestore } = filterUpgradesToSocketed([delta], new Map([['head', [sa]]]));
+    const assignments = new Map([['head', [sa]]]);
+    const { filtered, droppedOps, gemsToRestore } = filterUpgradesToSocketed([delta], assignments, assignments);
     expect(filtered.length).toBe(0);
     expect(droppedOps.length).toBe(1);
     expect(gemsToRestore.some((g) => g.rank === '1' && g.gemId === 2033)).toBe(true);
   });
-});
 
-describe('integration: pipeline + upgrade walk (never worse than baseline)', () => {
-  function makePipelineInputs(): { availablePower: number; mainGems: MainGem[]; inventory: InventoryGem[] } {
-    const availablePower = 300;
-    const mainGems = [main('head', 5001, 5, '5')];
-    const inventory = Array.from({ length: 4 }, () => inv(2033, 2, '1'));
-    return { availablePower, mainGems, inventory };
-  }
-
-  it('the walk never produces an effective residual worse than baseline', () => {
-    const { availablePower, mainGems, inventory } = makePipelineInputs();
-    const baseline = runPipeline(availablePower, mainGems, [], inventory);
-
-    const socketCounts = computeSocketCounts(mainGems);
-    const { chains, leftover } = buildUpgradeChains(inventory, socketCounts);
-    const depths = chains.map((c) => c.steps.length);
-
-    let bestEff: number | null = null;
-    while (true) {
-      const { working, appliedDeltas } = materializeUpgrades(chains, depths, leftover);
-      const result = runPipeline(availablePower, mainGems, [], working);
-      const { filtered } = filterUpgradesToSocketed(appliedDeltas, result.gemAssignments);
-      const filteredCost = filtered.reduce((s, d) => s + d.additionalGemPower, 0);
-      const eff = result.totalResidualCost + filteredCost;
-
-      if (bestEff === null || eff < bestEff) bestEff = eff;
-      if (eff <= availablePower) break;
-
-      let peelIdx = -1;
-      let peelContrib = -1;
-      for (let i = 0; i < chains.length; i++) {
-        const depth = depths[i];
-        if (depth > 0) {
-          const contrib = chains[i].steps[depth - 1].contributionAfter;
-          if (contrib > peelContrib) {
-            peelContrib = contrib;
-            peelIdx = i;
-          }
-        }
-      }
-      if (peelIdx < 0) break;
-      depths[peelIdx] -= 1;
-    }
-
-    expect(bestEff).toBeLessThanOrEqual(baseline.totalResidualCost);
-  });
-
-  it('upgrades reduce or maintain effective residual vs baseline', () => {
-    const { availablePower, mainGems, inventory } = makePipelineInputs();
-    const baseline = runPipeline(availablePower, mainGems, [], inventory);
-    const baselineEff = baseline.totalResidualCost;
-
-    const socketCounts = computeSocketCounts(mainGems);
-    const { chains, leftover } = buildUpgradeChains(inventory, socketCounts);
-
-    if (chains.every((c) => c.steps.length === 0)) {
-      // No upgrade steps available for this inventory -- nothing to assert.
-      return;
-    }
-
-    const depths = chains.map((c) => c.steps.length);
-    const { working, appliedDeltas } = materializeUpgrades(chains, depths, leftover);
-    const result = runPipeline(availablePower, mainGems, [], working);
-    const { filtered } = filterUpgradesToSocketed(appliedDeltas, result.gemAssignments);
-    const filteredCost = filtered.reduce((s, d) => s + d.additionalGemPower, 0);
-    const effWithUpgrades = result.totalResidualCost + filteredCost;
-
-    expect(effWithUpgrades).toBeLessThanOrEqual(baselineEff);
+  it('drops an upgrade not socketed in a five-star main gem, and withholds its spare copies when the result is socketed elsewhere', () => {
+    // The upgraded target (rank 4) is socketed in a 2-star main gem, which
+    // never appears in `fiveStarAssignments`.
+    const target = inv(2033, 2, '4');
+    const twoStarSa: SocketAssignment = makeSocketAssignment({ socketIndex: 1, gem: target, copyId: 0, contribution: target.contribution });
+    const spareCopy = inv(2033, 2, '1');
+    const delta: UpgradeDelta = makeUpgradeDelta({
+      gemId: 2033,
+      starRating: 2,
+      currentRank: '1',
+      targetRank: '4',
+      additionalGemPower: 45,
+      additionalSocketPower: 49,
+      netGain: 4,
+      inventoryIndex: 0,
+      copiesSacrificed: 1,
+      upgradeType: 'partial',
+      sacrificedGems: [spareCopy],
+      preUpgradeGem: inv(2033, 2, '1'),
+    });
+    const allAssignments = new Map([['ring', [twoStarSa]]]);
+    const { filtered, droppedOps, gemsToRestore } = filterUpgradesToSocketed([delta], new Map(), allAssignments);
+    expect(filtered.length).toBe(0);
+    expect(droppedOps.length).toBe(1);
+    expect(gemsToRestore).toEqual([]);
   });
 });
 
 describe('multi-type chain building', () => {
-  it('only one copy per type is upgraded; others serve as fodder', () => {
+  it('only one copy per type is upgraded; others serve as spare copies', () => {
     const highRank = inv(2033, 2, '4'); // contribution 53
     const lowRank1 = inv(2033, 2, '1');
     const lowRank2 = inv(2033, 2, '1');

@@ -12,7 +12,8 @@ import DialogContentText from '@mui/material/DialogContentText';
 import DialogTitle from '@mui/material/DialogTitle';
 import Snackbar from '@mui/material/Snackbar';
 import Typography from '@mui/material/Typography';
-import type { GemSetup, OptimizeRequest } from '../types/api';
+import type { BonusMode, GemSetup, OptimizeRequest } from '../types/api';
+import { BONUS_MODES } from '../core/models';
 import TextButton from '../components/buttons/TextButton';
 import IconButton from '../components/buttons/IconButton';
 import SettingsPopover from '../components/toolbar/SettingsPopover';
@@ -41,6 +42,12 @@ interface PersistedState {
   stacks: InventoryGemStack[];
   enableUpgrades: boolean;
   convert1Star: boolean;
+  bonusMode?: BonusMode;
+}
+
+/** Guards against a missing (older-version) or corrupted persisted value reaching the optimizer. */
+function sanitizeBonusMode(value: unknown): BonusMode {
+  return BONUS_MODES.includes(value as BonusMode) ? (value as BonusMode) : 'off';
 }
 
 function loadState(): PersistedState | null {
@@ -83,6 +90,7 @@ export default function HomePage() {
   const [progress, setProgress] = useState<ProgressEvent | null>(null);
   const [enableUpgrades, setEnableUpgrades] = useState<boolean>(() => loadState()?.enableUpgrades ?? false);
   const [convert1Star, setConvert1Star] = useState<boolean>(() => loadState()?.convert1Star ?? false);
+  const [bonusMode, setBonusMode] = useState<BonusMode>(() => sanitizeBonusMode(loadState()?.bonusMode));
   const [error, setError] = useState<string | null>(null);
   const [importExportMode, setImportExportMode] = useState<'import' | 'export' | null>(null);
 
@@ -92,8 +100,8 @@ export default function HomePage() {
   }, [importExportMode, gemSetup, gemPower, stacks]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ gemSetup, gemPower, stacks, enableUpgrades, convert1Star }));
-  }, [gemSetup, gemPower, stacks, enableUpgrades, convert1Star]);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ gemSetup, gemPower, stacks, enableUpgrades, convert1Star, bonusMode }));
+  }, [gemSetup, gemPower, stacks, enableUpgrades, convert1Star, bonusMode]);
 
   const isEmpty = Object.values(gemSetup).every((v) => !v) && stacks.length === 0 && gemPower === 0;
 
@@ -140,11 +148,11 @@ export default function HomePage() {
       };
       let optimizeResponse;
       try {
-        optimizeResponse = await optimizeWithProgress(request, enableUpgrades, convert1Star, (evt) => setProgress(evt));
+        optimizeResponse = await optimizeWithProgress(request, enableUpgrades, convert1Star, bonusMode, (evt) => setProgress(evt));
       } catch {
         // Fall back to running the optimizer on the main thread if the worker fails.
         setProgress(null);
-        optimizeResponse = await optimize(request, enableUpgrades, convert1Star);
+        optimizeResponse = await optimize(request, enableUpgrades, convert1Star, bonusMode);
       }
       navigate('/results', { state: { optimizeResponse } });
     } catch (err) {
@@ -184,6 +192,8 @@ export default function HomePage() {
             onEnableUpgradesChange={() => setEnableUpgrades(!enableUpgrades)}
             convert1Star={convert1Star}
             onConvert1StarChange={() => setConvert1Star(!convert1Star)}
+            bonusMode={bonusMode}
+            onBonusModeChange={setBonusMode}
             isEmpty={isEmpty}
             disabled={optimizing}
             onResetClick={() => setConfirmOpen(true)}

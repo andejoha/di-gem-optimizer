@@ -7,7 +7,7 @@ import { MAX_SOCKETS, SLOT_ORDER, SOCKET_STAR_TYPE } from '../constants';
 import { COST_TABLES, GEMS } from '../data';
 import type { InventoryGem, MainGem, OptimizationResult, UpgradeOptimizationResult } from '../models';
 import { makeInventoryGem } from '../models';
-import { computeContribution, computeExtractablePower, computeSocketResonanceBonus, numSocketsUnlocked } from '../rules';
+import { computeContribution, computeExtractablePower, computeSocketResonanceBonus, numSocketsUnlocked, sumDormantPower } from '../rules';
 import { ValidationError } from './validate';
 import type {
   DormantGemItem,
@@ -317,8 +317,7 @@ export function domainToResponse(
     }
   });
 
-  let totalDormantPower = 0;
-  for (const powerList of dormantPowerByGem.values()) for (const power of powerList) totalDormantPower += power;
+  const totalDormantPower = sumDormantPower(inventory, assignedIds);
 
   // Split each key's unassigned copies into "already dormant on input" and
   // "newly" dormant, consuming already-dormant copies highest-power-first.

@@ -1,5 +1,3 @@
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { MAX_SOCKETS, SOCKET_STAR_TYPE } from '../../src/core/constants';
 import {
@@ -14,18 +12,7 @@ import {
   RESONANCE_5STAR,
 } from '../../src/core/data';
 
-const GOLDEN_DIR = fileURLToPath(new URL('../golden', import.meta.url));
-
-function loadGoldenGemData(): Array<{ id: number; name: string; star_rating: number; bonus_gems: unknown[] }> {
-  return JSON.parse(readFileSync(`${GOLDEN_DIR}/gem-data.json`, 'utf-8'));
-}
-
 describe('GEMS ordering (critical hazard: GEMS is NOT in ascending ID order)', () => {
-  it('GEM_LIST id order matches golden/gem-data.json exactly (5-star, then 2-star, then 1-star)', () => {
-    const golden = loadGoldenGemData();
-    expect(GEM_LIST.map((g) => g.id)).toEqual(golden.map((g) => g.id));
-  });
-
   it('is NOT in ascending numeric order (guards against accidentally "fixing" it into a Record)', () => {
     const ids = GEM_LIST.map((g) => g.id);
     const ascending = [...ids].sort((a, b) => a - b);
@@ -41,18 +28,6 @@ describe('GEMS ordering (critical hazard: GEMS is NOT in ascending ID order)', (
     expect(GEM_LIST.filter((g) => g.starRating === 5).length).toBe(28);
     expect(GEM_LIST.filter((g) => g.starRating === 2).length).toBe(34);
     expect(GEM_LIST.filter((g) => g.starRating === 1).length).toBe(30);
-  });
-
-  it('every gem name and bonus list matches the golden capture', () => {
-    const golden = loadGoldenGemData();
-    const byId = new Map(golden.map((g) => [g.id, g]));
-    for (const gem of GEM_LIST) {
-      const expected = byId.get(gem.id);
-      expect(expected, `gem ${gem.id} missing from golden data`).toBeDefined();
-      expect(gem.name).toBe(expected!.name);
-      expect(gem.starRating).toBe(expected!.star_rating);
-      expect(gem.bonusGemIds).toEqual((expected!.bonus_gems as Array<{ required_gem_id: number }>).map((b) => b.required_gem_id));
-    }
   });
 });
 

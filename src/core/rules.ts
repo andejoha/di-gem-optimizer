@@ -5,8 +5,8 @@
  */
 
 import { BASE_POWER, SOCKET_UNLOCK_RANK } from './constants';
-import { RESONANCE_1STAR, RESONANCE_2STAR, RESONANCE_5STAR } from './data';
-import type { MainGem, SocketAssignment, UpgradeCostEntry } from './models';
+import { COST_TABLES, RESONANCE_1STAR, RESONANCE_2STAR, RESONANCE_5STAR } from './data';
+import type { InventoryGem, MainGem, SocketAssignment, UpgradeCostEntry } from './models';
 
 /**
  * Returns how many awakening sockets are unlocked at the given target rank.
@@ -34,10 +34,23 @@ export function isSocketUnlocked(socketIdx: number, rankStr: string, starRating:
 /**
  * Returns the gem power recovered when a gem at `rank` is made dormant:
  * the cumulative gem power spent upgrading it (`requiredGemPower`), not
- * the gem copies consumed as fodder. Rank-1 gems have `requiredGemPower === 0`.
+ * the spare copies consumed to fund it. Rank-1 gems have `requiredGemPower === 0`.
  */
 export function computeExtractablePower(rank: string, costTable: ReadonlyMap<string, UpgradeCostEntry>): number {
   return costTable.get(rank)?.requiredGemPower ?? 0;
+}
+
+/**
+ * Sums the gem power recoverable by making every inventory copy not in
+ * `assignedCopyIds` dormant. Inventory index equals copy id.
+ */
+export function sumDormantPower(inventory: readonly InventoryGem[], assignedCopyIds: ReadonlySet<number>): number {
+  let total = 0;
+  inventory.forEach((gem, index) => {
+    if (assignedCopyIds.has(index)) return;
+    total += computeExtractablePower(gem.rank, COST_TABLES.get(gem.starRating)!);
+  });
+  return total;
 }
 
 /**

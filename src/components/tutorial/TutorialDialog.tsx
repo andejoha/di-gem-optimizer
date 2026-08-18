@@ -1,5 +1,8 @@
 import { useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+import Accordion from '@mui/material/Accordion';
+import AccordionDetails from '@mui/material/AccordionDetails';
+import AccordionSummary from '@mui/material/AccordionSummary';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Dialog from '@mui/material/Dialog';
@@ -9,6 +12,7 @@ import MobileStepper from '@mui/material/MobileStepper';
 import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useTheme } from '@mui/material/styles';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import IconButton from '../buttons/IconButton';
 import TextButton from '../buttons/TextButton';
 import { getButtonIconUrl } from '../../utils/buttonAssets';
@@ -32,6 +36,70 @@ function InlineIcon({ src, alt }: { src: string; alt: string }) {
 
 const STEP_TITLES: (string | null)[] = [null, null, null, null, null, null, 'Work in Progress'];
 
+/** One optional-setting entry, rendered as an accordion in tutorial step 5. */
+const FEATURE_HELP: { title: ReactNode; body: ReactNode }[] = [
+  {
+    title: 'Suggest upgrades',
+    body: 'Recommends upgrading gems for better results, spending spare copies of a gem to raise a socketed gem’s rank.',
+  },
+  {
+    title: (
+      <>
+        Convert R1 <InlineIcon src={starFilledIcon} alt="1-star" /> gems
+      </>
+    ),
+    body: 'Converts spare rank-1 1-star gems to gem power directly if needed — they’re otherwise worthless both as a socketed gem and for funding upgrades.',
+  },
+  {
+    title: 'Activate bonuses',
+    body: (
+      <Box component="ul" sx={{ m: 0, pl: 2.5 }}>
+        <Box component="li" sx={{ mb: 0.5 }}>
+          <strong>Off</strong> — bonuses are only activated when they cost nothing (a tie between equally good gems).
+        </Box>
+        <Box component="li" sx={{ mb: 0.5 }}>
+          <strong>Budget</strong> — after the best setup is found, leftover gem power is spent activating bonuses. Always stays within your
+          gem power: if a setup was achievable without this option, it still is.
+        </Box>
+        <Box component="li">
+          <strong>Forced</strong> — always prefers a bonus-activating gem while building the setup. Activates the most bonuses, but can make
+          a setup unachievable even when one was achievable without it.
+        </Box>
+      </Box>
+    ),
+  },
+];
+
+/** Renders `FEATURE_HELP` as accordions, at most one of which is expanded at a time. */
+function FeatureAccordionList() {
+  const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
+
+  return (
+    <Box sx={{ mt: 1 }}>
+      {FEATURE_HELP.map((feature, index) => (
+        <Accordion
+          key={index}
+          disableGutters
+          expanded={expandedIndex === index}
+          onChange={(_, isExpanded) => setExpandedIndex(isExpanded ? index : null)}
+          sx={{ '&:before': { display: 'none' } }}
+        >
+          <AccordionSummary expandIcon={<ExpandMoreIcon fontSize="small" />}>
+            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+              {feature.title}
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <Typography variant="body2" component="div">
+              {feature.body}
+            </Typography>
+          </AccordionDetails>
+        </Accordion>
+      ))}
+    </Box>
+  );
+}
+
 const STEP_DESCRIPTIONS_STATIC: ReactNode[] = [
   <>Use "Power Extraction" to extract power from gems you want to use. This makes the gems dormant and places them into your inventory.</>,
   <>Equip the dormant gems again. Make sure there's no gem power left in any of the gems.</>,
@@ -42,14 +110,7 @@ const STEP_DESCRIPTIONS_STATIC: ReactNode[] = [
   </>,
   <>
     Access optional settings via the <InlineIcon src={cogIcon} alt="settings" /> button:
-    <Box component="ul" sx={{ mt: 1, pl: 2.5 }}>
-      <Box component="li" sx={{ mb: 0.5 }}>
-        "Suggest upgrades" — recommends upgrading gems for better results.
-      </Box>
-      <Box component="li">
-        "Convert R1 <InlineIcon src={starFilledIcon} alt="1-star" /> gems" — converts them to gem fragments if needed.
-      </Box>
-    </Box>
+    <FeatureAccordionList />
     <Alert severity="warning" sx={{ mt: 1.5 }}>
       <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 0.5 }}>
         CAUTION: Understand the system before acting on suggestions
