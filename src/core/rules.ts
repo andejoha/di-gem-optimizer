@@ -34,7 +34,7 @@ export function isSocketUnlocked(socketIdx: number, rankStr: string, starRating:
 /**
  * Returns the gem power recovered when a gem at `rank` is made dormant:
  * the cumulative gem power spent upgrading it (`requiredGemPower`), not
- * the gem copies consumed as fodder. Rank-1 gems have `requiredGemPower === 0`.
+ * the spare copies consumed to fund it. Rank-1 gems have `requiredGemPower === 0`.
  */
 export function computeExtractablePower(rank: string, costTable: ReadonlyMap<string, UpgradeCostEntry>): number {
   return costTable.get(rank)?.requiredGemPower ?? 0;

@@ -40,7 +40,7 @@ const STEP_TITLES: (string | null)[] = [null, null, null, null, null, null, 'Wor
 const FEATURE_HELP: { title: ReactNode; body: ReactNode }[] = [
   {
     title: 'Suggest upgrades',
-    body: 'Recommends upgrading gems for better results, spending spare copies of a gem as fodder to raise a socketed gem’s rank.',
+    body: 'Recommends upgrading gems for better results, spending spare copies of a gem to raise a socketed gem’s rank.',
   },
   {
     title: (
@@ -48,7 +48,7 @@ const FEATURE_HELP: { title: ReactNode; body: ReactNode }[] = [
         Convert R1 <InlineIcon src={starFilledIcon} alt="1-star" /> gems
       </>
     ),
-    body: 'Converts spare rank-1 1-star gems to gem power directly if needed — they’re otherwise worthless both as a socketed gem and as upgrade fodder.',
+    body: 'Converts spare rank-1 1-star gems to gem power directly if needed — they’re otherwise worthless both as a socketed gem and for funding upgrades.',
   },
   {
     title: 'Activate bonuses',

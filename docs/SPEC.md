@@ -91,10 +91,10 @@ display inventory untouched.
 #### Rank-1 1-star conversion (`convert1Star`)
 
 The one conversion currently exposed to the player targets rank-1 1-star gems specifically. On their
-own, these are worthless both as a socketed gem (near-zero contribution) and as upgrade fodder
-unless paired with more copies, and — since rank 1 costs 0 gem power — they would otherwise recover
-nothing as dormant power either. The optimizer instead cashes each one in for a flat 1 unit of gem
-power, as a special case of the general conversion mechanic above.
+own, these are worthless both as a socketed gem (near-zero contribution) and, unless several are
+combined, as spare copies for funding an upgrade — and since rank 1 costs 0 gem power, they would
+otherwise recover nothing as dormant power either. The optimizer instead cashes each one in for a
+flat 1 unit of gem power, as a special case of the general conversion mechanic above.
 
 ## 3. Resonance
 
@@ -181,8 +181,8 @@ Bonus activation is also an optional, player-chosen strategy — a third setting
   that's already in shortfall (no swap can raise a negative surplus to non-negative from within it).
   A swap can displace an already-applied upgrade out of its five-star socket, in which case that
   upgrade's cost is refunded (§4's "kept only if socketed in a five-star main gem" rule re-applies
-  after the swap, not before). Whether its fodder is also recovered follows the same §4 rule: only if
-  the displaced gem ends up fully dormant, not if the swap moved it into a different main gem's
+  after the swap, not before). Whether its spare copies are also recovered follows the same §4 rule:
+  only if the displaced gem ends up fully dormant, not if the swap moved it into a different main gem's
   socket. Either way, the "Suggested Upgrades" comparison reflects the plan's final state, including
   any budget swaps, not the upgrade search's result in isolation.
 - **`forced`** — instead of a post-pass, this changes _selection_ inside the optimizer itself: at
@@ -197,20 +197,20 @@ The three modes are mutually exclusive — `forced` does not additionally run th
 
 ## 4. Upgrading gems
 
-The player can spend spare copies of a gem as fodder to raise a socketed (or about-to-be-socketed)
-gem's rank, at a gem-power cost defined by that star tier's cost table. This trades some of the
-player's inventory (fodder copies) plus gem power for a higher-contribution gem in one socket.
+The player can spend spare copies of a gem to raise a socketed (or about-to-be-socketed) gem's rank,
+at a gem-power cost defined by that star tier's cost table. This trades some of the player's
+inventory (spare copies) plus gem power for a higher-contribution gem in one socket.
 
 Conceptually, an upgrade step can be one of four kinds (see `UpgradeDelta.upgradeType`):
 
 - **`partial`** — a sub-rank step: the gem advances to the next rank tier that requires strictly
-  more cumulative fodder copies than its current rank, consuming exactly that many additional
+  more cumulative spare copies than its current rank, consuming exactly that many additional
   rank-1 copies of itself.
 - **`direct`** — a whole-rank jump performed in a single step rather than as a sequence of
   sub-rank steps.
 - **`preparation`** — a partial-rank upgrade applied to a _different_ gem solely so that gem can
-  then be sacrificed as fodder for a subsequent direct upgrade (i.e. the prep step's own resulting
-  rank, not its original rank, is what's needed as material).
+  then be sacrificed as a spare copy for a subsequent direct upgrade (i.e. the prep step's own
+  resulting rank, not its original rank, is what's needed as material).
 - **`free`** — an upgrade with zero net gain (gem power cost equals the additional socket power it
   provides) applied to a gem already sitting in a 5-star main gem's socket — worth doing because it
   costs the player nothing net, even though it doesn't improve the residual.
@@ -218,10 +218,10 @@ Conceptually, an upgrade step can be one of four kinds (see `UpgradeDelta.upgrad
 An upgrade should only be kept in the final plan if its resulting rank actually ends up socketed in
 a 5-star main gem (upgrades into 1/2-star main gem sockets are cost-neutral per §2 and should not be
 paid for). If a chain of upgrade steps was applied to reach a rank that ultimately isn't socketed in
-a 5-star main gem, none of that chain's gem-power cost should be charged. Its fodder should be
+a 5-star main gem, none of that chain's gem-power cost should be charged. Its spare copies should be
 returned to the display inventory only if that rank isn't socketed anywhere at all — a rank that
 ended up socketed in a 1/2-star main gem instead is uncharged but still genuinely in use, so its
-fodder must not also be shown as available.
+spare copies must not also be shown as available.
 
 Two-star upgrade material should be preferred over five-star upgrade material when a choice exists,
 since five-star gems return substantially more socketed power per unit of gem power spent — five-star

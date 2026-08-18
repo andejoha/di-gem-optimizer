@@ -112,8 +112,8 @@ describe('computeSocketableStarRatings', () => {
   });
 });
 
-describe('buildUpgradeChains -- step counts and fodder logic', () => {
-  it('a gem type with exactly 1 copy has no fodder -> 0 steps', () => {
+describe('buildUpgradeChains -- step counts and spare-copy logic', () => {
+  it('a gem type with exactly 1 copy has no spare copies -> 0 steps', () => {
     const inventory = [inv(2033, 2, '1')];
     const { chains, leftover } = buildUpgradeChains(inventory, new Map([[2, 99]]));
     expect(chains.length).toBe(1);
@@ -287,10 +287,10 @@ describe('filterUpgradesToSocketed', () => {
     expect(droppedOps.length).toBe(0);
   });
 
-  it('drops an unsocketed upgrade and restores its fodder', () => {
+  it('drops an unsocketed upgrade and restores its spare copies', () => {
     const otherGem = inv(2003, 2, '5');
     const sa: SocketAssignment = makeSocketAssignment({ socketIndex: 0, gem: otherGem, copyId: 0, contribution: otherGem.contribution });
-    const fodder = inv(2033, 2, '1');
+    const spareCopy = inv(2033, 2, '1');
     const delta: UpgradeDelta = makeUpgradeDelta({
       gemId: 2033,
       starRating: 2,
@@ -302,7 +302,7 @@ describe('filterUpgradesToSocketed', () => {
       inventoryIndex: 0,
       copiesSacrificed: 1,
       upgradeType: 'partial',
-      sacrificedGems: [fodder],
+      sacrificedGems: [spareCopy],
       preUpgradeGem: inv(2033, 2, '1'),
     });
     const assignments = new Map([['head', [sa]]]);
@@ -312,12 +312,12 @@ describe('filterUpgradesToSocketed', () => {
     expect(gemsToRestore.some((g) => g.rank === '1' && g.gemId === 2033)).toBe(true);
   });
 
-  it('drops an upgrade not socketed in a five-star main gem, and withholds its fodder when the result is socketed elsewhere', () => {
+  it('drops an upgrade not socketed in a five-star main gem, and withholds its spare copies when the result is socketed elsewhere', () => {
     // The upgraded target (rank 4) is socketed in a 2-star main gem, which
     // never appears in `fiveStarAssignments`.
     const target = inv(2033, 2, '4');
     const twoStarSa: SocketAssignment = makeSocketAssignment({ socketIndex: 1, gem: target, copyId: 0, contribution: target.contribution });
-    const fodder = inv(2033, 2, '1');
+    const spareCopy = inv(2033, 2, '1');
     const delta: UpgradeDelta = makeUpgradeDelta({
       gemId: 2033,
       starRating: 2,
@@ -329,7 +329,7 @@ describe('filterUpgradesToSocketed', () => {
       inventoryIndex: 0,
       copiesSacrificed: 1,
       upgradeType: 'partial',
-      sacrificedGems: [fodder],
+      sacrificedGems: [spareCopy],
       preUpgradeGem: inv(2033, 2, '1'),
     });
     const allAssignments = new Map([['ring', [twoStarSa]]]);
@@ -341,7 +341,7 @@ describe('filterUpgradesToSocketed', () => {
 });
 
 describe('multi-type chain building', () => {
-  it('only one copy per type is upgraded; others serve as fodder', () => {
+  it('only one copy per type is upgraded; others serve as spare copies', () => {
     const highRank = inv(2033, 2, '4'); // contribution 53
     const lowRank1 = inv(2033, 2, '1');
     const lowRank2 = inv(2033, 2, '1');

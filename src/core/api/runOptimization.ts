@@ -152,7 +152,7 @@ function restrictToFiveStarSlots(
  * Reverts each dropped upgrade operation's target rank back to its
  * pre-upgrade rank (most recent step first, so multi-step chains unwind
  * correctly), skipping any index already claimed by a socket assignment,
- * then appends the restored fodder for display.
+ * then appends the restored spare copies for display.
  */
 function buildDisplayInventory(
   working: readonly InventoryGem[],
@@ -429,8 +429,8 @@ export function runOptimization(
 
       // Collapse all non-socketed two-star chains to depth 0 immediately:
       // a non-socketed chain at depth > 0 has its cost refunded but its
-      // consumed rank-1 fodder is gone, inflating residual. Restoring it
-      // always improves the effective residual.
+      // consumed rank-1 spare copies are gone, inflating residual. Restoring
+      // it always improves the effective residual.
       socketedIdentitySet = socketedIdentities(relevant);
       const nonSocketedIndices: number[] = [];
       for (let index = 0; index < twoStarChains.length; index++) {
@@ -442,7 +442,7 @@ export function runOptimization(
       }
       if (nonSocketedIndices.length > 0) {
         for (const index of nonSocketedIndices) twoStarDepths[index] = 0;
-        continue; // re-evaluate with fodder restored
+        continue; // re-evaluate with spare copies restored
       }
 
       // All non-socketed chains are at depth 0 -- this is a clean state.

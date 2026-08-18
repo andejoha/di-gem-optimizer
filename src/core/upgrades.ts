@@ -210,7 +210,7 @@ export function buildUpgradeChains(
       continue;
     }
 
-    // Highest-contribution copy is the target; rest are fodder.
+    // Highest-contribution copy is the target; rest are spare copies.
     const copiesSorted = copies.slice().sort((a, b) => -compareTuples([a.contribution, a.gemId], [b.contribution, b.gemId]));
     const baseSubInventory = cloneGems(copiesSorted);
 
@@ -241,8 +241,8 @@ export function buildUpgradeChains(
       }
       if (nextRank === null) break;
 
-      const fodderNeeded = table.get(nextRank)!.requiredGems - table.get(target.rank)!.requiredGems;
-      const sacrificeIndices = findSpareIndices(workingSub, 0, fodderNeeded, new Set(), '1');
+      const sparesNeeded = table.get(nextRank)!.requiredGems - table.get(target.rank)!.requiredGems;
+      const sacrificeIndices = findSpareIndices(workingSub, 0, sparesNeeded, new Set(), '1');
       if (sacrificeIndices === null) break;
 
       const delta = computeUpgradeDelta(starRating, target.rank, nextRank, 0, gemId);
@@ -369,9 +369,9 @@ function computeRelevantOperations(
 /**
  * Returns filtered upgrades (kept and charged for), dropped operations, and
  * gems to restore. An upgrade's cost is kept only if its resulting rank is
- * socketed in `fiveStarAssignments`. A dropped upgrade's fodder is withheld
- * from `gemsToRestore` when its resulting rank is socketed anywhere in
- * `allAssignments`.
+ * socketed in `fiveStarAssignments`. A dropped upgrade's spare copies are
+ * withheld from `gemsToRestore` when its resulting rank is socketed
+ * anywhere in `allAssignments`.
  */
 export function filterUpgradesToSocketed(
   appliedUpgrades: readonly UpgradeDelta[],
@@ -403,7 +403,7 @@ export function filterUpgradesToSocketed(
       return;
     }
     droppedOps.push([preps, mainDelta]);
-    if (stillInUse[operationIndex]) return; // still socketed elsewhere -- its fodder is not restored
+    if (stillInUse[operationIndex]) return; // still socketed elsewhere -- its spare copies are not restored
     if (preps.length > 0) {
       // Direct upgrade with prep steps: restore material gems at their
       // pre-prep ranks via preUpgradeGem, not their post-prep ranks.
