@@ -22,9 +22,7 @@ interface Props {
   onConvert1StarChange: () => void;
   bonusMode: BonusMode;
   onBonusModeChange: (mode: BonusMode) => void;
-  isEmpty: boolean;
   disabled: boolean;
-  onResetClick: () => void;
   onImportClick: () => void;
   onExportClick: () => void;
 }
@@ -42,9 +40,7 @@ export default function SettingsPopover({
   onConvert1StarChange,
   bonusMode,
   onBonusModeChange,
-  isEmpty,
   disabled,
-  onResetClick,
   onImportClick,
   onExportClick,
 }: Props) {
@@ -56,11 +52,6 @@ export default function SettingsPopover({
 
   function handleClose() {
     setAnchorEl(null);
-  }
-
-  function handleResetClick() {
-    handleClose();
-    onResetClick();
   }
 
   function handleImportClick() {
@@ -114,7 +105,7 @@ export default function SettingsPopover({
             />
           </Stack>
           <Divider sx={{ my: 1.5 }} />
-          <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
+          <Stack direction="row" spacing={1}>
             <TextButton size="s" variant="secondary" scale={0.6} onClick={handleImportClick}>
               Import
             </TextButton>
@@ -122,7 +113,6 @@ export default function SettingsPopover({
               Export
             </TextButton>
           </Stack>
-          <IconButton size="xxs" variant="secondary" icon="delete" scale={0.6} disabled={isEmpty} onClick={handleResetClick} />
         </Box>
       </Popover>
     </>

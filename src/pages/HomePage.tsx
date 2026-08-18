@@ -12,7 +12,7 @@ import DialogContentText from '@mui/material/DialogContentText';
 import DialogTitle from '@mui/material/DialogTitle';
 import Snackbar from '@mui/material/Snackbar';
 import Typography from '@mui/material/Typography';
-import type { BonusMode, GemSetup, OptimizeRequest } from '../types/api';
+import type { BonusMode, OptimizeRequest } from '../types/api';
 import { BONUS_MODES } from '../core/models';
 import TextButton from '../components/buttons/TextButton';
 import IconButton from '../components/buttons/IconButton';
@@ -21,7 +21,6 @@ import WelcomeDialog from '../components/tutorial/WelcomeDialog';
 import TutorialDialog from '../components/tutorial/TutorialDialog';
 import { LOGO_URL } from '../utils/publicAssets';
 import ImportExportDialog from '../components/toolbar/ImportExportDialog';
-import type { InventoryGemStack } from '../types/inventory';
 import { allStacksToInventoryItems } from '../types/inventory';
 import { dormantContribution } from '../utils/gemPowerCost';
 import GearGrid from '../components/gear/GearGrid';
@@ -32,14 +31,15 @@ import type { ProgressEvent } from '../types/progress';
 import { useGemData } from '../contexts/useGemData';
 import { encodeSetup } from '../utils/setupCodec';
 import type { CodecState } from '../utils/setupCodec';
+import SetupTabs from '../components/tabs/SetupTabs';
+import RenameTabDialog from '../components/tabs/RenameTabDialog';
+import ImportTargetDialog from '../components/tabs/ImportTargetDialog';
+import { useSetupTabs } from '../hooks/useSetupTabs';
 
 const STORAGE_KEY = 'gem-optimizer:state';
 const TUTORIAL_SEEN_KEY = 'gem-optimizer:tutorial-seen';
 
 interface PersistedState {
-  gemSetup: GemSetup;
-  gemPower: number;
-  stacks: InventoryGemStack[];
   enableUpgrades: boolean;
   convert1Star: boolean;
   bonusMode?: BonusMode;
@@ -54,22 +54,7 @@ function loadState(): PersistedState | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as Record<string, unknown>;
-    // Discard old format that stored gem names instead of gem IDs
-    const stacks = parsed.stacks as Array<Record<string, unknown>> | undefined;
-    if (stacks && stacks.length > 0 && 'gem_name' in stacks[0]) {
-      localStorage.removeItem(STORAGE_KEY);
-      return null;
-    }
-    const gemSetup = parsed.gemSetup as Record<string, unknown> | undefined;
-    if (gemSetup) {
-      const firstSlot = Object.values(gemSetup).find(Boolean) as Record<string, unknown> | undefined;
-      if (firstSlot && 'gem_name' in firstSlot) {
-        localStorage.removeItem(STORAGE_KEY);
-        return null;
-      }
-    }
-    return parsed as unknown as PersistedState;
+    return JSON.parse(raw) as PersistedState;
   } catch {
     return null;
   }
@@ -80,12 +65,25 @@ export default function HomePage() {
   const theme = useTheme();
   const isSmallScreen = useMediaQuery(theme.breakpoints.down('sm'));
   const { gemById } = useGemData();
-  const [gemSetup, setGemSetup] = useState<GemSetup>(() => loadState()?.gemSetup ?? {});
-  const [gemPower, setGemPower] = useState<number>(() => loadState()?.gemPower ?? 0);
-  const [stacks, setStacks] = useState<InventoryGemStack[]>(() => loadState()?.stacks ?? []);
+  const {
+    tabs,
+    activeTab,
+    activeTabId,
+    canAddTab,
+    selectTab,
+    addTab,
+    renameTab,
+    deleteTab,
+    setGemSetup,
+    setGemPower,
+    setStacks,
+    replaceActiveSetup,
+  } = useSetupTabs();
+  const { gemSetup, gemPower, stacks } = activeTab;
   const [welcomeOpen, setWelcomeOpen] = useState<boolean>(() => localStorage.getItem(TUTORIAL_SEEN_KEY) !== 'true');
   const [tutorialOpen, setTutorialOpen] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [optimizing, setOptimizing] = useState(false);
   const [progress, setProgress] = useState<ProgressEvent | null>(null);
   const [enableUpgrades, setEnableUpgrades] = useState<boolean>(() => loadState()?.enableUpgrades ?? false);
@@ -93,6 +91,7 @@ export default function HomePage() {
   const [bonusMode, setBonusMode] = useState<BonusMode>(() => sanitizeBonusMode(loadState()?.bonusMode));
   const [error, setError] = useState<string | null>(null);
   const [importExportMode, setImportExportMode] = useState<'import' | 'export' | null>(null);
+  const [pendingImport, setPendingImport] = useState<CodecState | null>(null);
 
   const exportCode = useMemo(() => {
     if (importExportMode !== 'export') return '';
@@ -100,8 +99,8 @@ export default function HomePage() {
   }, [importExportMode, gemSetup, gemPower, stacks]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ gemSetup, gemPower, stacks, enableUpgrades, convert1Star, bonusMode }));
-  }, [gemSetup, gemPower, stacks, enableUpgrades, convert1Star, bonusMode]);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ enableUpgrades, convert1Star, bonusMode }));
+  }, [enableUpgrades, convert1Star, bonusMode]);
 
   const isEmpty = Object.values(gemSetup).every((v) => !v) && stacks.length === 0 && gemPower === 0;
 
@@ -116,18 +115,24 @@ export default function HomePage() {
     setTutorialOpen(true);
   }
 
-  function handleConfirmReset() {
-    setGemSetup({});
-    setGemPower(0);
-    setStacks([]);
-    setConfirmOpen(false);
+  function handleConfirmDelete() {
+    deleteTab(activeTabId);
+    setDeleteOpen(false);
   }
 
   function handleImport(state: CodecState) {
-    setGemSetup(state.gemSetup);
-    setGemPower(state.gemPower);
-    setStacks(state.stacks);
+    setPendingImport(state);
     setImportExportMode(null);
+  }
+
+  function handleOverwriteImport() {
+    if (pendingImport) replaceActiveSetup(pendingImport);
+    setPendingImport(null);
+  }
+
+  function handleCreateTabFromImport() {
+    if (pendingImport) addTab(pendingImport);
+    setPendingImport(null);
   }
 
   async function handleOptimize() {
@@ -194,9 +199,7 @@ export default function HomePage() {
             onConvert1StarChange={() => setConvert1Star(!convert1Star)}
             bonusMode={bonusMode}
             onBonusModeChange={setBonusMode}
-            isEmpty={isEmpty}
             disabled={optimizing}
-            onResetClick={() => setConfirmOpen(true)}
             onImportClick={() => setImportExportMode('import')}
             onExportClick={() => setImportExportMode('export')}
           />
@@ -205,6 +208,17 @@ export default function HomePage() {
           </TextButton>
         </Box>
       </Box>
+
+      <SetupTabs
+        tabs={tabs}
+        activeTabId={activeTabId}
+        canAddTab={canAddTab}
+        onSelect={selectTab}
+        onAdd={() => addTab()}
+        onRenameClick={() => setRenameOpen(true)}
+        onDeleteClick={() => setDeleteOpen(true)}
+      />
+
       <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 3 }}>
         <GearGrid gemSetup={gemSetup} onGemSetupChange={setGemSetup} />
         <InventorySection gemPower={gemPower} onGemPowerChange={setGemPower} stacks={stacks} onStacksChange={setStacks} />
@@ -213,22 +227,46 @@ export default function HomePage() {
       <WelcomeDialog open={welcomeOpen} onOpenTutorial={handleWelcomeOpenTutorial} onClose={handleWelcomeClose} />
       <TutorialDialog open={tutorialOpen} onClose={() => setTutorialOpen(false)} />
 
-      <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Reset All</DialogTitle>
+      <RenameTabDialog
+        key={renameOpen ? activeTab.id : 'closed'}
+        open={renameOpen}
+        currentName={activeTab.name}
+        onSave={(name) => {
+          renameTab(activeTabId, name);
+          setRenameOpen(false);
+        }}
+        onClose={() => setRenameOpen(false)}
+      />
+
+      <Dialog open={deleteOpen} onClose={() => setDeleteOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>{tabs.length === 1 ? 'Clear Tab' : 'Delete Tab'}</DialogTitle>
         <DialogContent>
-          <DialogContentText>This will clear all gear slots and inventory. Are you sure?</DialogContentText>
+          <DialogContentText>
+            {tabs.length === 1
+              ? 'This is your only tab, so it will be cleared: all gear slots and inventory will be reset.'
+              : `Delete "${activeTab.name}"? Its gear and inventory will be permanently removed.`}
+          </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <TextButton size="xs" variant="secondary" onClick={() => setConfirmOpen(false)}>
+          <TextButton size="xs" variant="secondary" onClick={() => setDeleteOpen(false)}>
             Cancel
           </TextButton>
-          <TextButton size="xs" onClick={handleConfirmReset}>
-            Reset
+          <TextButton size="xs" onClick={handleConfirmDelete}>
+            {tabs.length === 1 ? 'Clear' : 'Delete'}
           </TextButton>
         </DialogActions>
       </Dialog>
 
       {optimizing && <OptimizationProgress progress={progress} />}
+
+      <ImportTargetDialog
+        open={pendingImport !== null}
+        currentTabName={activeTab.name}
+        canCreateTab={canAddTab}
+        onOverwrite={handleOverwriteImport}
+        onCreateNew={handleCreateTabFromImport}
+        onClose={() => setPendingImport(null)}
+      />
 
       <ImportExportDialog
         open={importExportMode !== null}
