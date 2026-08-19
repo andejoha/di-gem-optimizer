@@ -41,12 +41,11 @@ export default function SetupTabs({ tabs, activeTabId, canAddTab, onSelect, onAd
   }
 
   return (
-    <Box sx={{ display: 'flex', alignItems: 'stretch', gap: 0.5, mb: 1.5 }}>
+    <Box sx={{ display: 'flex', alignItems: 'stretch', gap: 1, mb: 1.5 }}>
       <Tabs
         value={activeTabId}
         onChange={(_, id: string) => onSelect(id)}
         sx={{
-          width: 'calc(100% - 44px)',
           minHeight: 36,
           '& .MuiTabs-flexContainer': { alignItems: 'stretch' },
           '& .MuiTabs-indicator': { height: 2, backgroundColor: 'rgb(250, 159, 131)' },
@@ -61,13 +60,12 @@ export default function SetupTabs({ tabs, activeTabId, canAddTab, onSelect, onAd
               key={tab.id}
               value={tab.id}
               sx={{
-                flex: '0 0 20%',
+                width: { xs: 61, sm: 135 },
                 maxWidth: 'none',
-                minWidth: 0,
                 minHeight: 36,
                 textTransform: 'none',
                 px: 0.5,
-                fontSize: { xs: '0.7rem', sm: '0.8rem' },
+                fontSize: '1rem',
               }}
               label={
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25, maxWidth: '100%', minWidth: 0 }}>
