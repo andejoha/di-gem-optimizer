@@ -140,3 +140,7 @@ npm test
 ```
 
 The optimizer core (`src/core/`) has no dependency on React, the DOM, or a worker — it can be imported and called directly from a script or test, same as any other TypeScript module.
+
+## License
+
+This project is licensed under the terms of the MIT license. See [LICENSE](LICENSE) for details.
